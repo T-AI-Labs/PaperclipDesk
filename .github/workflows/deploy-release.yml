@@ -1,0 +1,152 @@
+name: 'Deploy Release'
+
+on:
+  workflow_dispatch: # manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      CONFIG_PATH: 'crates/paperclipdesk/tauri.conf.json'
+      FORCE_COLOR: 'true'
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ui/package-lock.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: npm ci
+
+      # tauri.conf.json points the host at ui/dist, so the UI is built before cargo runs.
+      - name: Typecheck and lint the UI
+        run: |
+          npm --prefix ui run build
+          npm --prefix ui run lint
+
+      - name: Run tests
+        run: cargo test -p paperclipdesk
+
+      - name: Extract versions
+        shell: pwsh
+        run: |
+          $version = (Get-Content "${{ env.CONFIG_PATH }}" -Raw | ConvertFrom-Json).version
+          $server = (Get-Content package.json -Raw | ConvertFrom-Json).paperclip.server
+          if (-not $version -or -not $server) {
+            Write-Error "No app version in ${{ env.CONFIG_PATH }} or no paperclip.server in package.json"
+            exit 1
+          }
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "SERVER_VERSION=$server" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # The server package is published once per server version, in a release of its own that is
+      # never "latest": the updater's endpoint follows the latest release and must find the app there.
+      - name: Publish the server package if this version has none yet
+        shell: pwsh
+        run: |
+          $tag = "server-v${{ env.SERVER_VERSION }}"
+          $archive = "paperclip-server-${{ env.SERVER_VERSION }}-win-x64.zip"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release download $tag --pattern "$archive.sha256" --dir build
+          } else {
+            npm run prepare-server
+            npm run prepare-server-ui
+            npm run pack-server
+            gh release create $tag "build/$archive" "build/$archive.sha256" --latest=false --title "Paperclip server ${{ env.SERVER_VERSION }}" --notes "The Paperclip server package PaperclipDesk downloads on its first local start."
+          }
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $sha256 = (Get-Content "build/$archive.sha256" -Raw).Trim()
+          echo "PAPERCLIP_SERVER_SHA256=$sha256" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # Signs the NSIS installer. With a pubkey configured but no private key, tauri build
+      # produces the installer and *then* exits with an error, so a release missing this
+      # secret fails the job rather than shipping an installer nobody can update from.
+      - name: Build installer and updater artifacts
+        working-directory: crates/paperclipdesk
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx --prefix ../../ui tauri build
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          $bundle = "target/release/bundle/nsis"
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Copy-Item "$bundle/*-setup.exe" artifacts/
+          Copy-Item "$bundle/*-setup.exe.sig" artifacts/
+          Get-ChildItem artifacts | Format-Table Name, Length
+
+      # `tauri build` does not emit latest.json itself; the endpoint in tauri.conf.json
+      # expects this exact shape, and the signature is the one produced next to the installer.
+      - name: Generate latest.json
+        shell: pwsh
+        run: |
+          $version = "${{ env.VERSION }}"
+          $setup = Get-ChildItem artifacts/*-setup.exe | Select-Object -First 1
+          $signature = Get-Content "$($setup.FullName).sig" -Raw
+          $name = [uri]::EscapeDataString($setup.Name)
+          $url = "https://github.com/${{ github.repository }}/releases/download/v$version/$name"
+
+          $notes = "See release-notes/v$version.md"
+          $notesPath = "release-notes/v$version.md"
+          if (Test-Path $notesPath) { $notes = Get-Content $notesPath -Raw }
+
+          @{
+            version = "v$version"
+            notes = $notes
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature.Trim()
+                url = $url
+              }
+            }
+          } | ConvertTo-Json -Depth 5 | Set-Content artifacts/latest.json -Encoding UTF8
+
+          Get-Content artifacts/latest.json
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ env.VERSION }}" -m "Release v${{ env.VERSION }}"
+          git push origin "v${{ env.VERSION }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: 'v${{ env.VERSION }}'
+          name: 'PaperclipDesk ${{ env.VERSION }}'
+          body_path: ./release-notes/v${{ env.VERSION }}.md
+          files: |
+            artifacts/*-setup.exe
+            artifacts/*-setup.exe.sig
+            artifacts/latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

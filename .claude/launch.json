@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ui-vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "ui",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "1421",
+        "--strictPort"
+      ],
+      "port": 1421
+    },
+    {
+      "name": "ui-vite-tauri",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "ui",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "1440",
+        "--strictPort"
+      ],
+      "port": 1440
+    }
+  ]
+}

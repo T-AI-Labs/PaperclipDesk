@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only by default: both jobs check out, build and test. Nothing here writes to the
+# repository, and an unset block grants whatever the repository default happens to be.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    # Windows, because that is the only platform this app targets; a Linux
+    # runner would pass on code that cannot build for release.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ui/package-lock.json
+
+      # The root postinstall installs the UI's packages as well.
+      - run: npm ci
+
+      - name: Lint
+        run: npm --prefix ui run lint
+
+      - name: Type check and build
+        run: npm --prefix ui run build
+
+  rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ui/package-lock.json
+
+      # rust-toolchain.toml picks the version and adds clippy.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+
+      # tauri.conf.json points the host at ui/dist, so the UI is built before cargo runs.
+      - name: Build frontend
+        run: |
+          npm ci
+          npm --prefix ui run build
+
+      - name: Clippy
+        run: cargo clippy -p paperclipdesk --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test -p paperclipdesk
