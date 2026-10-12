@@ -8,7 +8,7 @@
   <a href="https://docs.paperclip.ing/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FT-AI-Labs%2FPaperclipDesk%2Fmain%2Fpackage.json&query=%24.paperclip.server&style=flat-square&label=paperclip%20server" alt="Paperclip server version"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?style=flat-square" alt="Platform: Windows 10 and 11">
   <img src="https://img.shields.io/badge/languages-11-4c9a2a?style=flat-square" alt="11 languages">
-  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-8a2be2?style=flat-square" alt="License: PolyForm Noncommercial 1.0.0"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-8a2be2?style=flat-square" alt="License: MIT"></a>
 </p>
 
 <p align="center">
@@ -113,8 +113,8 @@ The two `prepare` steps stage the Paperclip server once. The architecture, the r
 
 ## License
 
-PaperclipDesk is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): you may use, change and share it for any noncommercial purpose. Commercial use needs a separate license; contact the author through [github.com/thorstenalpers](https://github.com/thorstenalpers).
+PaperclipDesk is licensed under the [MIT License](LICENSE.md): you may use, change and share it for any purpose, commercial use included, as long as the copyright notice and the license text stay with every copy.
 
-Paperclip is a separate project under the MIT License. PaperclipDesk downloads and runs its server unchanged. The open-source libraries inside PaperclipDesk are listed in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) and under **Help → Third-party licenses**.
+Paperclip is a separate project, also under the MIT License. PaperclipDesk downloads and runs its server unchanged. The open-source libraries inside PaperclipDesk are listed in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) and under **Help → Third-party licenses**.
 
 <p align="center"><sub>PaperclipDesk is an independent project and not affiliated with the Paperclip project.</sub></p>

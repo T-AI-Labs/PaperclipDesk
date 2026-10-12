@@ -1,7 +1,7 @@
 {
   "name": "paperclipdesk",
   "private": true,
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MIT",
   "scripts": {
     "start": "npm run dev",
     "npm:install": "npm ci",
