@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+THIRD_PARTY_LICENSES.txt text eol=crlf linguist-generated
+
+*.png binary
+*.ico binary
