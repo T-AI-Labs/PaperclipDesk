@@ -14,7 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10"
 sys-locale = "0.3"
-tauri = { version = "=2.11.6", features = ["webview-data-url", "devtools", "unstable"] }
+tauri = { version = "=2.12.2", features = ["webview-data-url", "devtools", "unstable"] }
 tauri-plugin-dialog = { workspace = true }
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = { workspace = true }
