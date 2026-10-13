@@ -171,7 +171,7 @@ export default function App() {
               </Button>
             )}
             <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
-              {busy ? t('Verbindet …') : snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : t('Nicht verbunden')}
+              {snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : busy ? t('Verbindet …') : t('Nicht verbunden')}
             </Badge>
           </header>
 
