@@ -15,8 +15,8 @@ import { useApplyColorScheme } from '@/lib/theme'
 import { type Message, setLanguage, t } from '@/i18n'
 import { useUpdater } from '@/lib/updater'
 import LoadingPanel from '@/LoadingPanel'
+import ConnectionRail from '@/shell/ConnectionRail'
 import Sidebar, { type NavPage } from '@/shell/Sidebar'
-import TabStrip from '@/shell/TabStrip'
 
 import Appearance from './pages/Appearance'
 import Connect from './pages/Connect'
@@ -129,13 +129,13 @@ export default function App() {
   )
 
   return (
-    <div className="relative isolate flex h-screen flex-col overflow-hidden bg-background text-foreground">
+    <div className="relative isolate flex h-screen overflow-hidden bg-background text-foreground">
       <Toaster theme={settings.color_scheme} position="bottom-right" offset={{ bottom: 20, right: 20 }} visibleToasts={3} duration={5000} />
       <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />
 
-      {snapshot.page === 'paperclip' && snapshot.openConnections.length > 1 && <TabStrip connections={snapshot.openConnections} />}
+      {snapshot.page === 'paperclip' && (snapshot.openConnections.length > 1 || snapshot.profiles.length > 1) && <ConnectionRail snapshot={snapshot} />}
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-w-0 flex-1">
         {inSettings && (
           <Sidebar
             pages={settingsPages}

@@ -31,8 +31,8 @@ pub const STATE_EVENT: &str = "launcher:state";
 const PAGE_LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const SERVER_OUTPUT_LINES: usize = 200;
-/// The height of the shell while it shows the tabs of the open connections above Paperclip; `TabStrip.tsx` fills it.
-const TAB_STRIP_HEIGHT: f64 = 40.0;
+/// The width of the shell while it shows the connections next to Paperclip; `ConnectionRail.tsx` fills it.
+const CONNECTION_RAIL_WIDTH: f64 = 48.0;
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -466,22 +466,22 @@ impl Client {
         }
         let paperclip = self.paperclip_webview();
         let on_paperclip = paperclip.is_some() && self.launcher.lock().unwrap().page == LauncherPage::Paperclip;
-        // With several connections open, the top of the shell stays visible above Paperclip: the strip of their tabs.
-        let several = on_paperclip && !self.parked.lock().unwrap().is_empty();
-        let strip = if several { ((TAB_STRIP_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height / 2) } else { 0 };
+        // With more than one connection to switch between, the left edge of the shell stays visible next to Paperclip: the rail of the connections.
+        let several = on_paperclip && (!self.parked.lock().unwrap().is_empty() || self.store.lock().unwrap().list_profiles().len() > 1);
+        let rail = if several { ((CONNECTION_RAIL_WIDTH * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.width / 2) } else { 0 };
         let shown = paperclip.as_ref().filter(|_| on_paperclip).map_or_else(|| LAUNCHER_LABEL.to_owned(), |webview| webview.label().to_owned());
         // Showing and resizing a webview that already sits right makes it flicker.
-        let layout = (shown, size.width, size.height, strip);
+        let layout = (shown, size.width, size.height, rail);
         let mut applied = self.layout.lock().unwrap();
         if applied.as_ref() == Some(&layout) {
             return;
         }
-        let shell_height = if on_paperclip { strip } else { size.height };
-        for (webview, top, height) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_height), (paperclip, strip, if on_paperclip { size.height - strip } else { 0 })] {
+        let shell_width = if on_paperclip { rail } else { size.width };
+        for (webview, left, width) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_width), (paperclip, rail, if on_paperclip { size.width - rail } else { 0 })] {
             let Some(webview) = webview else { continue };
-            if height > 0 {
-                let _ = webview.set_position(tauri::PhysicalPosition::new(0, top));
-                let _ = webview.set_size(tauri::PhysicalSize::new(size.width, height));
+            if width > 0 {
+                let _ = webview.set_position(tauri::PhysicalPosition::new(left, 0));
+                let _ = webview.set_size(tauri::PhysicalSize::new(width, size.height));
                 let _ = webview.show();
             } else {
                 let _ = webview.hide();

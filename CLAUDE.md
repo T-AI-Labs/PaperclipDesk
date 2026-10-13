@@ -15,7 +15,8 @@ or connects to a remote one, and shows Paperclip's own web UI in a native window
 
 Several remotes can be open at once, next to the one local server. One connection is in front; the others stay open
 with their webviews hidden. While Paperclip is the main view, the connection in front fills the window and the shell
-is hidden, unless several connections are open: then the top of the shell stays visible as the strip of their tabs.
+is hidden, unless there is more than one connection to switch between: then the left edge of the shell stays visible
+as a rail with one entry per connection.
 For the app's own pages the shell fills the window. The host owns all state. It sends the shell a snapshot whenever
 something changes, and the shell renders what the snapshot says.
 
