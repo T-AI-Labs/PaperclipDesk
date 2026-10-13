@@ -142,9 +142,10 @@ The `CI` workflow runs on every push to `main` and on every pull request, on Win
 clippy and the Rust tests. Dependabot alerts report vulnerable dependencies in the repository's Security tab; it opens
 no pull requests, so updates are made by hand.
 
-The `Deploy Release` workflow runs on manual dispatch. It tests the app, publishes the server package for the pinned
-version once as a release of its own (`server-v<version>`), builds and signs the NSIS installer, writes `latest.json`
-for the updater, tags `v<version>` and creates the GitHub release.
+The `Deploy Release` workflow runs on manual dispatch and on every push to `main` that changes the app version in
+`tauri.conf.json` or a file under `release-notes`. A version that has its tag already is skipped. It tests the app,
+publishes the server package for the pinned version once as a release of its own (`server-v<version>`), builds and signs
+the NSIS installer, writes `latest.json` for the updater, tags `v<version>` and creates the GitHub release.
 
 It needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the matching
 public key is in `crates/paperclipdesk/tauri.conf.json`. The app version comes from the same file, and
