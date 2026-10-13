@@ -45,7 +45,7 @@ export const zh: Catalogue = [
   '启动服务器',
   '加载界面',
   '更新',
-  '已安装版本 {version}。应用每次启动时都会查找更新的版本。',
+  '已安装版本 {version}。',
   '检查更新',
   'PaperclipDesk 已是最新版本。',
   '检查失败：{error}',
@@ -205,4 +205,5 @@ export const zh: Catalogue = [
   '日志已清空',
   '退出时清除日志',
   '应用退出时清空应用和服务器的日志。',
+  '启动时检查更新',
 ]

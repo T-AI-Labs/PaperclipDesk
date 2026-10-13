@@ -14,13 +14,14 @@ pub struct Settings {
     pub show_logs: bool,
     /// Empties the app's and the server's logs when the app exits.
     pub clear_logs_on_exit: bool,
+    pub check_updates_on_start: bool,
     /// A language code, or "System" for the language Windows runs in.
     pub language: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, language: "System".into() }
+        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, language: "System".into() }
     }
 }
 

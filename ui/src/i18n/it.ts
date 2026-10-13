@@ -45,7 +45,7 @@ export const it: Catalogue = [
   'Avvio del server',
   "Caricamento dell'interfaccia",
   'Aggiornamenti',
-  "Versione installata {version}. L'app ne cerca una più recente a ogni avvio.",
+  'Versione installata {version}.',
   'Cerca aggiornamenti',
   'PaperclipDesk è aggiornato.',
   'La ricerca non è riuscita: {error}',
@@ -205,4 +205,5 @@ export const it: Catalogue = [
   'Registro svuotato',
   "Cancella i registri all'uscita",
   "Svuota i registri dell'app e del server alla chiusura dell'app.",
+  "Cerca aggiornamenti all'avvio",
 ]

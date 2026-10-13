@@ -51,7 +51,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const updater = useUpdater()
+  const updater = useUpdater(settings?.check_updates_on_start)
 
   useApplyColorScheme(settings?.color_scheme ?? 'system', settings?.theme ?? 'klar', settings?.accent ?? 'default')
 

@@ -45,7 +45,7 @@ export const en: Catalogue = [
   'Starting the server',
   'Loading the interface',
   'Updates',
-  'Installed version {version}. The app looks for a newer one on every launch.',
+  'Installed version {version}.',
   'Check for updates',
   'PaperclipDesk is up to date.',
   'The check failed: {error}',
@@ -205,4 +205,5 @@ export const en: Catalogue = [
   'Log cleared',
   'Clear logs on exit',
   'Empties the logs of the app and the server when the app exits.',
+  'Check for updates at launch',
 ]

@@ -45,7 +45,7 @@ export const es: Catalogue = [
   'Iniciando el servidor',
   'Cargando la interfaz',
   'Actualizaciones',
-  'Versión instalada {version}. La aplicación busca una más reciente en cada inicio.',
+  'Versión instalada {version}.',
   'Buscar actualizaciones',
   'PaperclipDesk está al día.',
   'La búsqueda falló: {error}',
@@ -205,4 +205,5 @@ export const es: Catalogue = [
   'Registro vaciado',
   'Borrar los registros al salir',
   'Vacía los registros de la app y del servidor al cerrar la app.',
+  'Buscar actualizaciones al iniciar',
 ]

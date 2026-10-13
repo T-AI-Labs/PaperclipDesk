@@ -45,7 +45,7 @@ export const fr: Catalogue = [
   'Démarrage du serveur',
   "Chargement de l'interface",
   'Mises à jour',
-  "Version installée {version}. L'application en cherche une plus récente à chaque lancement.",
+  'Version installée {version}.',
   'Rechercher des mises à jour',
   'PaperclipDesk est à jour.',
   'La recherche a échoué : {error}',
@@ -205,4 +205,5 @@ export const fr: Catalogue = [
   'Journal vidé',
   'Effacer les journaux à la fermeture',
   "Vide les journaux de l'application et du serveur à la fermeture de l'application.",
+  'Rechercher des mises à jour au lancement',
 ]

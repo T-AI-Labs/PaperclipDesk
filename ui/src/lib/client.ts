@@ -108,6 +108,7 @@ export interface Settings {
   show_logs: boolean
   /// Empties the app's and the server's logs when the app exits.
   clear_logs_on_exit: boolean
+  check_updates_on_start: boolean
   /// A language code, or 'System' for the language Windows runs in.
   language: string
 }

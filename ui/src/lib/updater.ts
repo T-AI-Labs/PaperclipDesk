@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
@@ -8,7 +8,7 @@ interface UpdateOffer {
   notes: string | null
 }
 
-/// What the app knows about a newer version: found at start-up, shown in the header, installed from the System page.
+/// What the app knows about a newer version: found at start-up unless the user turned that off, shown in the header, installed from the System page.
 export interface Updater {
   available: boolean
   version: string
@@ -24,7 +24,8 @@ export interface Updater {
   install: () => Promise<void>
 }
 
-export function useUpdater(): Updater {
+/// `checkOnStart` is undefined until the settings have loaded.
+export function useUpdater(checkOnStart: boolean | undefined): Updater {
   const [offer, setOffer] = useState<UpdateOffer>({ updateAvailable: false, version: null, notes: null })
   const [checking, setChecking] = useState(false)
   const [installing, setInstalling] = useState(false)
@@ -54,14 +55,20 @@ export function useUpdater(): Updater {
     }
   }, [])
 
+  const started = useRef(false)
   useEffect(() => {
+    if (checkOnStart === undefined || started.current) return
+    started.current = true
     // Being offline at start-up is an ordinary state and not worth a message.
-    check().catch(() => undefined)
+    if (checkOnStart) check().catch(() => undefined)
+  }, [check, checkOnStart])
+
+  useEffect(() => {
     const unlisten = listen<{ downloaded: number; contentLength: number | null }>('updater:progress', ({ payload }) =>
       setPercent(payload.contentLength ? Math.min(100, Math.round((payload.downloaded / payload.contentLength) * 100)) : undefined),
     )
     return () => void unlisten.then((stop) => stop())
-  }, [check])
+  }, [])
 
   return { available: offer.updateAvailable, version: offer.version ?? '', notes: offer.notes ?? '', checking, installing, percent, check, install }
 }

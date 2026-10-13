@@ -44,7 +44,7 @@ export const de = [
   'Server starten',
   'Oberfläche laden',
   'Updates',
-  'Installierte Version {version}. Beim Start sucht die App selbst nach einer neueren.',
+  'Installierte Version {version}.',
   'Nach Updates suchen',
   'PaperclipDesk ist aktuell.',
   'Die Suche ist fehlgeschlagen: {error}',
@@ -204,6 +204,7 @@ export const de = [
   'Protokoll geleert',
   'Protokolle beim Beenden löschen',
   'Leert die Protokolle der App und des Servers, wenn die App beendet wird.',
+  'Beim Start nach Updates suchen',
 ] as const
 
 export type Message = (typeof de)[number]

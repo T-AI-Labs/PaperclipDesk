@@ -14,7 +14,7 @@ const CHOOSER = 'chooser'
 
 const needsInsecureConfirmation = (profile: ConnectionProfile) => profile.remoteUrl?.startsWith('http://') === true && profile.allowInsecureHttp !== true
 
-function Updates({ updater, version }: { updater: Updater; version: string | undefined }) {
+function Updates({ updater, version, settings, saving, save }: PageProps & { updater: Updater; version: string | undefined }) {
   // Only a check the user asked for reports its outcome; the one at start-up stays quiet.
   const [checked, setChecked] = useState<'current' | string | null>(null)
 
@@ -31,13 +31,22 @@ function Updates({ updater, version }: { updater: Updater; version: string | und
         <CardTitle className="flex items-center gap-2">
           <Download className="size-4 text-primary" /> {t('Updates')}
         </CardTitle>
-        <CardDescription>{t('Installierte Version {version}. Beim Start sucht die App selbst nach einer neueren.', { version: version ?? '–' })}</CardDescription>
+        <CardDescription>{t('Installierte Version {version}.', { version: version ?? '–' })}</CardDescription>
         <CardAction>
           <Button variant="outline" size="sm" disabled={updater.checking || updater.installing} onClick={check}>
             {updater.checking ? <LoaderCircle className="animate-spin" /> : <RefreshCw />} {t('Nach Updates suchen')}
           </Button>
         </CardAction>
       </CardHeader>
+      <CardContent>
+        <SwitchRow
+          id="check-updates-on-start"
+          label={t('Beim Start nach Updates suchen')}
+          checked={settings.check_updates_on_start}
+          disabled={saving}
+          onChange={(checked) => void save({ ...settings, check_updates_on_start: checked }, '')}
+        />
+      </CardContent>
       {(updater.available || checked) && (
         <CardContent className="flex flex-col gap-3 text-sm">
           {!updater.available && checked === 'current' && <p className="text-muted-foreground">{t('PaperclipDesk ist aktuell.')}</p>}
@@ -145,7 +154,7 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
         </CardContent>
       </Card>
 
-      <Updates updater={updater} version={about?.version} />
+      <Updates updater={updater} version={about?.version} settings={settings} saving={saving} save={save} />
 
       <Card>
         <CardHeader>
