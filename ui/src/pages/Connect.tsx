@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { ArrowLeft, Check, CircleAlert, LoaderCircle, Monitor, Play, RotateCcw, X } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -44,57 +44,65 @@ function start(action: Action) {
   started.catch((e: unknown) => toast.error(errorMessage(e)))
 }
 
+/// One centred column for everything between choosing a connection and having it: progress, waiting, failure.
+function Status({ mark, title, children }: { mark: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-lg flex-col items-center justify-center gap-6 pb-16 text-center">
+      {mark}
+      <h2 className="font-heading text-2xl font-semibold tracking-tight">{title}</h2>
+      {children}
+    </div>
+  )
+}
+
+function Cancel() {
+  return (
+    <Button variant="outline" onClick={() => cancelConnect().catch((e: unknown) => toast.error(errorMessage(e)))}>
+      <X /> {t('Abbrechen')}
+    </Button>
+  )
+}
+
 function BootProgress({ snapshot }: { snapshot: Snapshot }) {
   const status = snapshot.bootStatus
-  const reached = BOOT_STEPS.findIndex((s) => s.step === status?.step)
+  const progress = status?.progress ?? 0
+  const reached = progress === 100 ? BOOT_STEPS.length : BOOT_STEPS.findIndex((s) => s.step === status?.step)
   return (
-    <Card className="mx-auto w-full max-w-xl">
-      <CardContent className="flex flex-col gap-5">
-        <div className="flex items-center gap-3">
-          <AppMark className="size-10" />
-          <div className="flex flex-col leading-tight">
-            <p className="font-heading text-lg font-semibold tracking-tight">{t('Lokales Paperclip startet')}</p>
-            <p className="text-sm text-muted-foreground">{t('Der erste Start richtet die Datenbank ein und dauert etwas länger.')}</p>
-          </div>
+    <Status mark={<AppMark className="size-14" />} title={t('Lokales Paperclip startet')}>
+      <p className="-mt-4 min-h-5 text-sm text-muted-foreground" aria-live="polite">
+        {status?.detail}
+      </p>
+      <div className="flex w-full flex-col gap-3">
+        <div className="h-1 overflow-hidden rounded-full bg-primary/15" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+          <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.max(progress, 2)}%` }} />
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-primary/15" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={status?.progress ?? 0}>
-          <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.max(status?.progress ?? 0, 2)}%` }} />
-        </div>
-        <ol className="flex flex-col gap-2.5">
-          {BOOT_STEPS.map(({ step, label }, index) => {
-            const done = index < reached || status?.progress === 100
-            const active = index === reached && !done
-            return (
-              <li key={step} className={cn('flex items-center gap-3 text-sm', !done && !active && 'text-muted-foreground')}>
-                <span className={cn('grid size-5 shrink-0 place-items-center rounded-full border', done && 'border-primary bg-primary text-primary-foreground', active && 'border-primary text-primary')}>
-                  {done ? <Check className="size-3" /> : active ? <LoaderCircle className="size-3 animate-spin" /> : null}
-                </span>
-                <span className={cn(active && 'font-medium')}>{t(label)}</span>
-                {active && status && <span className="truncate text-xs text-muted-foreground">{status.detail}</span>}
-              </li>
-            )
-          })}
+        <ol className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs">
+          {BOOT_STEPS.map(({ step, label }, index) => (
+            <li
+              key={step}
+              aria-current={index === reached ? 'step' : undefined}
+              className={cn('flex items-center gap-1 whitespace-nowrap', index > reached && 'text-muted-foreground', index === reached && 'font-medium')}
+            >
+              {index < reached && <Check className="size-3 shrink-0 text-primary" />}
+              {index === reached && <LoaderCircle className="size-3 shrink-0 animate-spin" />}
+              {t(label)}
+            </li>
+          ))}
         </ol>
-        <Button variant="outline" className="self-center" onClick={() => cancelConnect().catch((e: unknown) => toast.error(errorMessage(e)))}>
-          <X /> {t('Abbrechen')}
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('Der erste Start richtet die Datenbank ein und dauert etwas länger.')}</p>
+      <Cancel />
+    </Status>
   )
 }
 
 function Connecting({ snapshot }: { snapshot: Snapshot }) {
   return (
-    <Card className="mx-auto w-full max-w-xl">
-      <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-        <LoaderCircle className="size-8 animate-spin text-primary" />
-        <p className="font-heading text-lg font-semibold tracking-tight">{snapshot.label ?? t('Geprüfter Remote wird geöffnet …')}</p>
-        {snapshot.url && <p className="font-mono text-xs break-all text-muted-foreground">{snapshot.url}</p>}
-        <Button variant="outline" className="self-center" onClick={() => cancelConnect().catch((e: unknown) => toast.error(errorMessage(e)))}>
-          <X /> {t('Abbrechen')}
-        </Button>
-      </CardContent>
-    </Card>
+    <Status mark={<AppMark className="size-14" />} title={snapshot.label ?? t('Geprüfter Remote wird geöffnet …')}>
+      {snapshot.url && <p className="-mt-4 font-mono text-xs break-all text-muted-foreground">{snapshot.url}</p>}
+      <LoaderCircle className="size-6 animate-spin text-primary" />
+      <Cancel />
+    </Status>
   )
 }
 
@@ -135,15 +143,22 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
 
   if (view === 'error') {
     return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-        <Alert variant="destructive">
-          <CircleAlert />
-          <AlertTitle>{snapshot.connectionError?.title ?? t('Verbindung fehlgeschlagen')}</AlertTitle>
-          <AlertDescription className="max-h-72 overflow-y-auto break-words whitespace-pre-wrap">{snapshot.connectionError?.detail}</AlertDescription>
-        </Alert>
-        <div className="flex flex-wrap gap-2">
+      <Status
+        mark={
+          <span className="grid size-14 place-items-center rounded-full bg-destructive/10 text-destructive">
+            <CircleAlert className="size-7" />
+          </span>
+        }
+        title={snapshot.connectionError?.title ?? t('Verbindung fehlgeschlagen')}
+      >
+        {snapshot.connectionError?.detail && (
+          <p className="-mt-2 max-h-60 w-full overflow-y-auto rounded-lg border bg-muted/40 px-4 py-3 text-left text-sm break-words whitespace-pre-wrap text-muted-foreground select-text">
+            {snapshot.connectionError.detail}
+          </p>
+        )}
+        <div className="flex flex-wrap justify-center gap-2">
           {retry && (
-            <Button variant="outline" onClick={() => run(retry)}>
+            <Button variant={retry.kind === 'local' ? 'default' : 'outline'} onClick={() => run(retry)}>
               <RotateCcw /> {t('Erneut versuchen')}
             </Button>
           )}
@@ -156,7 +171,7 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
             </Button>
           )}
         </div>
-      </div>
+      </Status>
     )
   }
 
@@ -182,15 +197,17 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
         </TabsList>
 
         <TabsContent value="local_embedded">
-          <Card className="relative overflow-hidden py-0">
-            <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/12 via-transparent to-transparent" />
-            <CardContent className="relative flex flex-col gap-5 p-6">
+          <Card>
+            <CardContent className="flex flex-col gap-4">
               <div className="flex items-center gap-4">
-                <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                  <Monitor className="size-7" />
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-muted">
+                  <Monitor className="size-5" />
                 </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="font-heading text-2xl font-semibold tracking-tight">{localRunning ? t('Lokaler Server läuft') : t('Lokalen Server starten')}</p>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
+                    {localRunning ? t('Lokaler Server läuft') : t('Lokalen Server starten')}
+                    {localRunning && <span aria-hidden className="size-2 rounded-full bg-emerald-500" />}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {localRunning
                       ? t('Paperclip ist mit dem Server auf diesem Rechner verbunden. Er läuft, bis das letzte Fenster geschlossen wird.')

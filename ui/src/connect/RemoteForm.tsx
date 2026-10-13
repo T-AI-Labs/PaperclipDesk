@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { type RemoteConnect, type RemotePreflightResult, errorMessage, verifyRemote } from '@/lib/client'
 import { cn } from '@/lib/utils'
 
-import { TONE_STYLE, describeVerification, isInsecureHttpUrl, verificationMeta } from './format'
+import { TONE_DOT, describeVerification, isInsecureHttpUrl, verificationMeta } from './format'
 import { t } from '@/i18n'
 
 /// A new remote: check the URL first, then connect once or connect and keep it.
@@ -74,7 +74,7 @@ export default function RemoteForm({ rememberChoice, onConnect }: { rememberChoi
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {insecure && (
-          <div className="flex flex-col gap-1 rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3">
+          <div className="flex flex-col gap-1 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3">
             <p className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
               <ShieldAlert className="size-4" /> {t('Unsicheres HTTP')}
             </p>
@@ -89,9 +89,12 @@ export default function RemoteForm({ rememberChoice, onConnect }: { rememberChoi
         )}
 
         {result && verdict && (
-          <div className="flex flex-col gap-1.5 rounded-xl border bg-card/60 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', TONE_STYLE[verdict.tone])}>{verdict.badge}</span>
+          <div className="flex flex-col gap-1.5 rounded-lg border bg-muted/40 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <span aria-hidden className={cn('size-2 rounded-full', TONE_DOT[verdict.tone])} />
+                {verdict.badge}
+              </span>
               <span className="text-xs text-muted-foreground">{verificationMeta(result)}</span>
             </div>
             <p className="text-sm text-muted-foreground">{verdict.detail}</p>

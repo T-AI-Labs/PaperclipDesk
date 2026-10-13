@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { type ConnectionProfile, type Snapshot, deleteProfile, duplicateProfile, errorMessage, saveRemoteProfile } from '@/lib/client'
 import { cn } from '@/lib/utils'
 
-import { TONE_STYLE, isInsecureHttpUrl, profileHealth, relativeTime } from './format'
+import { TONE_DOT, isInsecureHttpUrl, profileHealth, relativeTime } from './format'
 import { t } from '@/i18n'
 
 function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; onClose: () => void; onSaved: (snapshot: Snapshot) => void }) {
@@ -55,7 +55,7 @@ function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; 
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
           {insecure && (
-            <div className="flex flex-col gap-1 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 py-3">
+            <div className="flex flex-col gap-1 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-3">
               <p className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
                 <ShieldAlert className="size-4" /> {t('Unsicheres HTTP')}
               </p>
@@ -118,32 +118,51 @@ export default function RemoteConnections({
         <CardDescription>{t('Jede Verbindung hat ihr eigenes Browserprofil, Anmeldungen bleiben also getrennt.')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {profiles.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">{t('Noch keine Remote-Verbindung gespeichert.')}</p>}
-        <ul className="flex flex-col gap-2">
+        {profiles.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Globe className="size-6 opacity-50" />
+            {t('Noch keine Remote-Verbindung gespeichert.')}
+          </div>
+        )}
+        <ul className="divide-y">
           {profiles.map((profile) => {
             const health = profileHealth(profile)
             const last = relativeTime(profile.lastConnectedAt)
             return (
-              <li key={profile.id} className={cn('flex items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5', profile.id === currentProfileId && 'border-primary/50')}>
+              <li key={profile.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', profile.id === currentProfileId ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                  <Globe className="size-4" />
+                </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{profile.name}</span>
-                    <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', TONE_STYLE[health.tone])}>{health.label}</span>
-                    {profile.allowInsecureHttp && <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', TONE_STYLE.pending)}>HTTP</span>}
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <span className="truncate font-medium">{profile.name}</span>
+                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT[health.tone])} />
+                      {health.label}
+                    </span>
+                    {profile.allowInsecureHttp && (
+                      <span className="flex shrink-0 items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+                        <ShieldAlert className="size-3" /> HTTP
+                      </span>
+                    )}
                   </div>
-                  <span className="truncate font-mono text-xs text-muted-foreground">{profile.remoteUrl}</span>
-                  {last && <span className="text-[11px] text-muted-foreground">{t('Zuletzt verbunden {when}', { when: last })}</span>}
+                  <span className="truncate text-xs text-muted-foreground">
+                    <span className="font-mono">{profile.remoteUrl}</span>
+                    {last && ` · ${t('Zuletzt verbunden {when}', { when: last })}`}
+                  </span>
                 </div>
-                <Button variant="ghost" size="icon-sm" title={t('Bearbeiten')} aria-label={t('Bearbeiten')} onClick={() => setEditing(profile)}>
-                  <Pencil />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title={t('Duplizieren')} aria-label={t('Duplizieren')} onClick={() => run(duplicateProfile(profile.id), t('Verbindung dupliziert'))}>
-                  <Copy />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title={t('Löschen')} aria-label={t('Löschen')} onClick={() => setDeleting(profile)}>
-                  <Trash2 />
-                </Button>
-                <Button size="sm" onClick={() => onConnect(profile)}>
+                <div className="flex shrink-0 items-center text-muted-foreground">
+                  <Button variant="ghost" size="icon-sm" title={t('Bearbeiten')} aria-label={t('Bearbeiten')} onClick={() => setEditing(profile)}>
+                    <Pencil />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" title={t('Duplizieren')} aria-label={t('Duplizieren')} onClick={() => run(duplicateProfile(profile.id), t('Verbindung dupliziert'))}>
+                    <Copy />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" title={t('Löschen')} aria-label={t('Löschen')} onClick={() => setDeleting(profile)}>
+                    <Trash2 />
+                  </Button>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => onConnect(profile)}>
                   {t('Verbinden')}
                 </Button>
               </li>
