@@ -60,7 +60,7 @@ The connection page shows every connection as a card: the local server and each 
 
 **PaperclipDesk → Settings** opens them in the same window. A back button returns you to Paperclip.
 
-<p align="center"><img src="assets/settings.png" alt="The Appearance page of the settings, with the design, the colour scheme and the accent colour" width="100%"></p>
+<p align="center"><img src="assets/settings.png" alt="The Server page of the settings, with the server version, the configuration editor and the reset" width="100%"></p>
 
 | Category | What you find there |
 | --- | --- |
