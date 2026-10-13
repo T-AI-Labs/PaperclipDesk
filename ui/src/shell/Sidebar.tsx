@@ -3,7 +3,6 @@ import { ArrowLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { AppMark } from '@/components/app-mark'
-import { IconTile } from '@/components/icon-tile'
 import { toneStyle, type Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { t } from '@/i18n'
@@ -15,6 +14,10 @@ export interface NavPage {
   tone: Tone
 }
 
+// As in a WinUI NavigationView. Hover changes the fill only: anything that moves or appears makes the row wobble.
+const ITEM = 'relative flex h-9 shrink-0 items-center gap-4 rounded-md px-4 text-[13px]'
+const ITEM_IDLE = 'text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground active:bg-sidebar-accent/50'
+
 function NavItem({ page, active, shortcut, onOpen }: { page: NavPage; active: boolean; shortcut: string; onOpen: () => void }) {
   return (
     <button
@@ -24,21 +27,11 @@ function NavItem({ page, active, shortcut, onOpen }: { page: NavPage; active: bo
       aria-label={page.label}
       title={`Strg+${shortcut}`}
       style={toneStyle(page.tone)}
-      className={cn(
-        'group relative flex items-center gap-3 rounded-xl p-1.5 pr-2.5 text-sm transition-all duration-200',
-        active
-          ? 'tone-soft font-medium text-sidebar-accent-foreground'
-          : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground',
-      )}
+      className={cn(ITEM, active ? 'tone-soft text-sidebar-accent-foreground' : ITEM_IDLE)}
     >
-      {active && <span aria-hidden className="tone-bar absolute top-1/2 -left-3 h-5 w-1 -translate-y-1/2 rounded-r-full" />}
-      <IconTile
-        icon={page.icon}
-        tone={page.tone}
-        className={cn('transition-transform duration-200 group-hover:scale-105 group-active:scale-95', !active && 'saturate-[.85] group-hover:saturate-100')}
-      />
+      {active && <span aria-hidden className="tone-bar absolute top-1/2 left-0 h-4 w-[3px] -translate-y-1/2 rounded-full" />}
+      <page.icon aria-hidden className="tone-glyph size-4 shrink-0" />
       <span className="flex-1 truncate text-left">{page.label}</span>
-      <kbd className="hidden rounded border border-sidebar-border bg-sidebar/60 px-1 font-sans text-[10px] text-sidebar-foreground/60 group-hover:inline">Strg {shortcut}</kbd>
     </button>
   )
 }
@@ -78,24 +71,18 @@ export default function Sidebar({
       <div className="flex items-center gap-3 pt-5 pb-2 pl-3.5">
         <AppMark className="size-9 shrink-0" />
         <div className="flex min-w-0 flex-1 flex-col pr-3 leading-tight">
-          <span className="font-heading font-semibold tracking-tight">{t('Einstellungen')}</span>
+          <span className="font-heading text-sm font-semibold tracking-tight">{t('Einstellungen')}</span>
           <span className="truncate text-xs text-sidebar-foreground/60">{subtitle}</span>
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pt-1 pb-3" aria-label={t('Einstellungen')}>
+      <nav className="flex flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto px-2 pt-1 pb-2" aria-label={t('Einstellungen')}>
         {pages.map((p, index) => (
           <NavItem key={p.id} page={p} active={p.id === page} shortcut={String(index + 1)} onOpen={() => onOpen(p.id)} />
         ))}
 
-        <button
-          type="button"
-          onClick={onBack}
-          className="group mt-auto flex items-center gap-3 rounded-xl p-1.5 pr-2.5 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
-        >
-          <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-sidebar-border bg-sidebar/60 transition-colors group-hover:bg-sidebar">
-            <ArrowLeft className="size-4" />
-          </span>
+        <button type="button" onClick={onBack} className={cn(ITEM, ITEM_IDLE, 'mt-auto')}>
+          <ArrowLeft aria-hidden className="size-4 shrink-0" />
           <span className="flex-1 truncate text-left">{backLabel}</span>
         </button>
       </nav>

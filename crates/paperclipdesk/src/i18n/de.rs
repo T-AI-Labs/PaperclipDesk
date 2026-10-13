@@ -1,5 +1,5 @@
 /// The texts as they stand in the code. Every other language lists its translations in this order.
-pub const MESSAGES: [&str; 99] = [
+pub const MESSAGES: [&str; 109] = [
     "Paperclip-Server wird heruntergeladen … {} von {} MB",
     "Paperclip-Server wird heruntergeladen … {} MB",
     "Paperclip-Server wird entpackt …",
@@ -99,4 +99,14 @@ pub const MESSAGES: [&str; 99] = [
     "Datenordner öffnen",
     "Datei",
     "Lizenzen Dritter",
+    "Verbinden",
+    "Lokal",
+    "{} (Remote: {})",
+    "Alle Verbindungen …",
+    "Remotes bearbeiten …",
+    "Einstellungen …",
+    "Projekt auf GitHub",
+    "Problem melden …",
+    "Paperclip-Dokumentation",
+    "PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.",
 ];

@@ -5,16 +5,20 @@ or connects to a remote one, and shows Paperclip's own web UI in a native window
 
 ## The core approach
 
-**One window, two webviews, one shown at a time.** The Rust host lays them out by hand:
+**One window, a shell webview and one webview per open connection.** The Rust host lays them out by hand:
 
 - **shell webview** (`shell`) — the app's own pages, served by Tauri from the local bundle: connection, settings, log.
   It is the only webview with access to the app's commands.
-- **Paperclip webview** (`paperclip-N`) — Paperclip's web UI, loaded from the server's origin. It is locked to that
-  origin, opens every other link in the system browser, keeps its session in a browser profile of its own per
-  connection, and has no capability at all.
+- **Paperclip webviews** (`paperclip-N`) — Paperclip's web UI, one webview per open connection, loaded from the
+  server's origin. Each is locked to that origin, opens every other link in the system browser, keeps its session in
+  a browser profile of its own per connection, and has no capability at all.
 
-While Paperclip is the main view the shell is hidden; for the app's own pages it is the other way round. The host owns
-all state. It sends the shell a snapshot whenever something changes, and the shell renders what the snapshot says.
+Several remotes can be open at once, next to the one local server. One connection is in front; the others stay open
+with their webviews hidden; the Connect menu switches between them. The shell draws the menu bar. While Paperclip is
+the main view, the shell is only that bar and the connection in front fills the window below it; while a menu is open,
+the shell lies over Paperclip, see-through wherever it draws nothing. For the app's own pages the shell fills the
+window. The host owns all state, the entries of the menu bar included. It sends the shell a snapshot whenever something
+changes, and the shell renders what the snapshot says.
 
 **The local server is a child process.** The host starts the bundled Node.js with the Paperclip server and its embedded
 PostgreSQL, watches its health, and ends it with the app. Nothing of Paperclip is reimplemented here.
@@ -59,7 +63,7 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | --- | --- |
 | `crates/paperclipdesk/src/client.rs` | The state of the window, the layout of the webviews, starting and stopping connections |
 | `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
-| `crates/paperclipdesk/src/menu.rs` | The menu bar |
+| `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
 | `crates/paperclipdesk/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |

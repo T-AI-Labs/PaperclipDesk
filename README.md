@@ -23,12 +23,12 @@
 
 <p align="center"><img src="assets/paperclipdesk.png" alt="The Paperclip dashboard inside the PaperclipDesk window" width="100%"></p>
 
-<p align="center"><sub>The Paperclip dashboard in PaperclipDesk, with sample data.</sub></p>
+<p align="center"><sub>The Paperclip dashboard in PaperclipDesk. The menu bar on top belongs to the app, everything below is Paperclip itself.</sub></p>
 
 ## TL;DR
 
 - **No terminal, no browser tab.** PaperclipDesk downloads the [Paperclip](https://docs.paperclip.ing/) server, starts it with its database and ends it when you close the window.
-- **Local or remote.** Run Paperclip on this PC, or connect to one that already runs on another machine. Each connection keeps its own login.
+- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them in the **Connect** menu. Each connection keeps its own login.
 - **Everything in one window.** Paperclip is the main view; settings, the connection page and the log open in the same window.
 - **You stay in control of the server.** See its version, edit its configuration, reinstall it, or reset it with a backup of the old data.
 - **Your data stays on your PC.** No account, no telemetry.
@@ -52,17 +52,22 @@ PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads t
 
 Before it connects, PaperclipDesk checks a remote: that it answers, that it really is a Paperclip, and that its sign-in is ready. A remote over plain `http://` is only opened after you confirmed that you accept an unencrypted connection.
 
-Saved remotes appear in the **Connection** menu, with a tick at the one in use. Under **Settings → System** you choose what opens when the app starts: the connection chooser, the local server, or one of your remotes.
+<p align="center"><img src="assets/connection-page.png" alt="The connection page with a card for the local server, one for a saved remote and one to add a remote" width="100%"></p>
+
+The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Opening another connection keeps the ones you have open. The **Connect** menu lists **Local** and your remotes with a tick at the open ones: an entry opens its connection or brings it to the front. The cross on a card closes a connection. Under **Settings → Connections** you choose which connections open when the app starts; with none chosen it shows the connection page.
 
 ## Settings
 
-**File → Settings** opens them in the same window. A back button returns you to Paperclip.
+**PaperclipDesk → Settings** opens them in the same window. A back button returns you to Paperclip.
+
+<p align="center"><img src="assets/settings.png" alt="The Server page of the settings, with the server version, the configuration editor and the reset" width="100%"></p>
 
 | Category | What you find there |
 | --- | --- |
-| **System** | The connection opened at start, the language, updates, export and import of your settings, and whether logs are cleared when the app exits |
-| **Server** | The version of the local Paperclip server, restart and reinstall, an editor for its `config.json` and `.env`, and the reset |
+| **System** | The language, updates, export and import of your settings, and whether logs are cleared when the app exits |
 | **Appearance** | 31 designs, light and dark mode, and an accent color |
+| **Connections** | The connections opened at start, your saved remotes to edit, duplicate or delete, and the check of a new remote |
+| **Server** | The version of the local Paperclip server, restart and reinstall, an editor for its `config.json` and `.env`, and the reset |
 
 ### Resetting the local server
 
@@ -81,10 +86,10 @@ Connections to remotes are not affected.
 
 | Menu | Entries |
 | --- | --- |
-| **File** | Settings, Quit |
-| **Connection** | Local server, your recent remotes, Switch connection, Manage remote connections |
-| **View** | Paperclip, Reload, Zoom from 50 % to 200 %, Full screen |
-| **Help** | Documentation, Third-party licenses, Log, Open data folder, Developer tools, Check for updates, and the Paperclip version |
+| **PaperclipDesk** | Settings, Check for updates, Quit |
+| **Connect** | Local, your recent and your open remotes, All connections, Edit remotes |
+| **View** | Reload, Zoom from 50 % to 200 %, Full screen |
+| **Help** | Paperclip documentation, Project on GitHub, Report a problem, Third-party licenses, Log, Open data folder, Developer tools, the Paperclip version, and About PaperclipDesk |
 
 ## Troubleshooting
 

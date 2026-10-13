@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react'
-import { AppWindow, Download, FileDown, FileUp, FolderOpen, Info, Languages, LoaderCircle, RefreshCw, Save } from 'lucide-react'
+import { AppWindow, Bug, Download, ExternalLink, FileDown, FileUp, FolderOpen, Info, Languages, LoaderCircle, RefreshCw, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { SettingRow, SwitchRow } from '@/components/setting-row'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { type About, type ConnectionProfile, type PageProps, type Snapshot, errorMessage, exportSettings, getAbout, importSettings, openDataFolder, setStartupProfile } from '@/lib/client'
+import { type About, type PageProps, errorMessage, exportSettings, getAbout, importSettings, openDataFolder, openProjectLink } from '@/lib/client'
 import type { Updater } from '@/lib/updater'
 import { LANGUAGES, t } from '@/i18n'
 
-const CHOOSER = 'chooser'
-
-const needsInsecureConfirmation = (profile: ConnectionProfile) => profile.remoteUrl?.startsWith('http://') === true && profile.allowInsecureHttp !== true
-
-function Updates({ updater, version }: { updater: Updater; version: string | undefined }) {
+function Updates({ updater, version, settings, saving, save }: PageProps & { updater: Updater; version: string | undefined }) {
   // Only a check the user asked for reports its outcome; the one at start-up stays quiet.
   const [checked, setChecked] = useState<'current' | string | null>(null)
 
@@ -31,13 +27,22 @@ function Updates({ updater, version }: { updater: Updater; version: string | und
         <CardTitle className="flex items-center gap-2">
           <Download className="size-4 text-primary" /> {t('Updates')}
         </CardTitle>
-        <CardDescription>{t('Installierte Version {version}. Beim Start sucht die App selbst nach einer neueren.', { version: version ?? '–' })}</CardDescription>
+        <CardDescription>{t('Installierte Version {version}.', { version: version ?? '–' })}</CardDescription>
         <CardAction>
           <Button variant="outline" size="sm" disabled={updater.checking || updater.installing} onClick={check}>
             {updater.checking ? <LoaderCircle className="animate-spin" /> : <RefreshCw />} {t('Nach Updates suchen')}
           </Button>
         </CardAction>
       </CardHeader>
+      <CardContent>
+        <SwitchRow
+          id="check-updates-on-start"
+          label={t('Beim Start nach Updates suchen')}
+          checked={settings.check_updates_on_start}
+          disabled={saving}
+          onChange={(checked) => void save({ ...settings, check_updates_on_start: checked }, '')}
+        />
+      </CardContent>
       {(updater.available || checked) && (
         <CardContent className="flex flex-col gap-3 text-sm">
           {!updater.available && checked === 'current' && <p className="text-muted-foreground">{t('PaperclipDesk ist aktuell.')}</p>}
@@ -65,17 +70,13 @@ function Updates({ updater, version }: { updater: Updater; version: string | und
   )
 }
 
-export default function System({ settings, saving, save, snapshot, onChanged, updater }: PageProps & { snapshot: Snapshot; onChanged: (snapshot: Snapshot) => void; updater: Updater }) {
+export default function System({ settings, saving, save, updater }: PageProps & { updater: Updater }) {
   const [about, setAbout] = useState<About | null>(null)
   useEffect(() => {
     getAbout()
       .then(setAbout)
       .catch(() => undefined)
   }, [])
-
-  const { state, profiles } = snapshot
-  const remembered = state.autoConnectLastProfile && !state.alwaysShowChooser ? profiles.find((profile) => profile.id === state.activeProfileId) : undefined
-  const startup = remembered?.id ?? CHOOSER
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,29 +87,7 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
           </CardTitle>
           <CardDescription>{t('Paperclip läuft, solange ein Fenster offen ist; mit dem letzten Fenster endet auch der lokale Server.')}</CardDescription>
         </CardHeader>
-        <CardContent className="divide-y">
-          <SettingRow label={t('Beim Start öffnen')} description={t('Die Verbindung, die beim Start ohne Nachfrage geöffnet wird.')}>
-            <Select
-              value={startup}
-              onValueChange={(value) =>
-                setStartupProfile(value === CHOOSER ? null : value)
-                  .then(onChanged)
-                  .catch((e: unknown) => toast.error(errorMessage(e)))
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={CHOOSER}>{t('Verbindungsauswahl anzeigen')}</SelectItem>
-                {profiles.map((profile) => (
-                  <SelectItem key={profile.id} value={profile.id} disabled={needsInsecureConfirmation(profile)}>
-                    {profile.mode === 'local_embedded' ? t('Lokal') : profile.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingRow>
+        <CardContent>
           <SwitchRow
             id="clear-logs-on-exit"
             label={t('Protokolle beim Beenden löschen')}
@@ -145,7 +124,7 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
         </CardContent>
       </Card>
 
-      <Updates updater={updater} version={about?.version} />
+      <Updates updater={updater} version={about?.version} settings={settings} saving={saving} save={save} />
 
       <Card>
         <CardHeader>
@@ -186,18 +165,29 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
           <CardTitle className="flex items-center gap-2">
             <Info className="size-4 text-primary" /> {t('Über')}
           </CardTitle>
+          <CardDescription>
+            {t('PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.')}
+          </CardDescription>
           <CardAction>
             <Button variant="outline" size="sm" onClick={() => openDataFolder().catch((e: unknown) => toast.error(errorMessage(e)))}>
               <FolderOpen /> {t('Datenordner')}
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="flex flex-col gap-1 text-sm text-muted-foreground">
+        <CardContent className="flex flex-col gap-1 text-xs text-muted-foreground">
           <p>
             PaperclipDesk {about?.version ?? '–'} · Paperclip-Server {about?.server_version ?? '–'}
           </p>
           <p className="break-all">{t('App-Daten: {path}', { path: about?.user_data ?? '–' })}</p>
           <p className="break-all">{t('Server-Daten (PAPERCLIP_HOME): {path}', { path: about?.paperclip_home ?? '–' })}</p>
+          <div className="flex flex-wrap gap-2 pt-3">
+            <Button variant="outline" size="sm" onClick={() => openProjectLink('repository').catch((e: unknown) => toast.error(errorMessage(e)))}>
+              <ExternalLink /> {t('Projekt auf GitHub')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => openProjectLink('report_issue').catch((e: unknown) => toast.error(errorMessage(e)))}>
+              <Bug /> {t('Problem melden')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Copy, Globe, Pencil, ShieldAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { SwitchRow } from '@/components/setting-row'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { type ConnectionProfile, type Snapshot, deleteProfile, duplicateProfile, errorMessage, saveRemoteProfile } from '@/lib/client'
 import { cn } from '@/lib/utils'
 
-import { TONE_STYLE, isInsecureHttpUrl, profileHealth, relativeTime } from './format'
+import { TONE_DOT, isInsecureHttpUrl, profileHealth, relativeTime } from './format'
 import { t } from '@/i18n'
 
 function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; onClose: () => void; onSaved: (snapshot: Snapshot) => void }) {
@@ -55,7 +54,7 @@ function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; 
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
           {insecure && (
-            <div className="flex flex-col gap-1 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 py-3">
+            <div className="flex flex-col gap-1 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-3">
               <p className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
                 <ShieldAlert className="size-4" /> {t('Unsicheres HTTP')}
               </p>
@@ -84,16 +83,12 @@ function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; 
 /// The saved remotes: connect, edit, duplicate, delete.
 export default function RemoteConnections({
   profiles,
-  currentProfileId,
-  rememberChoice,
-  onRememberChoice,
+  openProfileIds,
   onConnect,
   onChanged,
 }: {
   profiles: ConnectionProfile[]
-  currentProfileId: string | null
-  rememberChoice: boolean
-  onRememberChoice: (value: boolean) => void
+  openProfileIds: (string | null)[]
   onConnect: (profile: ConnectionProfile) => void
   onChanged: (snapshot: Snapshot) => void
 }) {
@@ -118,49 +113,57 @@ export default function RemoteConnections({
         <CardDescription>{t('Jede Verbindung hat ihr eigenes Browserprofil, Anmeldungen bleiben also getrennt.')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {profiles.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">{t('Noch keine Remote-Verbindung gespeichert.')}</p>}
-        <ul className="flex flex-col gap-2">
+        {profiles.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Globe className="size-6 opacity-50" />
+            {t('Noch keine Remote-Verbindung gespeichert.')}
+          </div>
+        )}
+        <ul className="divide-y">
           {profiles.map((profile) => {
             const health = profileHealth(profile)
             const last = relativeTime(profile.lastConnectedAt)
             return (
-              <li key={profile.id} className={cn('flex items-center gap-3 rounded-xl border bg-card/60 px-3 py-2.5', profile.id === currentProfileId && 'border-primary/50')}>
+              <li key={profile.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', openProfileIds.includes(profile.id) ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                  <Globe className="size-4" />
+                </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{profile.name}</span>
-                    <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', TONE_STYLE[health.tone])}>{health.label}</span>
-                    {profile.allowInsecureHttp && <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', TONE_STYLE.pending)}>HTTP</span>}
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <span className="truncate font-medium">{profile.name}</span>
+                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT[health.tone])} />
+                      {health.label}
+                    </span>
+                    {profile.allowInsecureHttp && (
+                      <span className="flex shrink-0 items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+                        <ShieldAlert className="size-3" /> HTTP
+                      </span>
+                    )}
                   </div>
-                  <span className="truncate font-mono text-xs text-muted-foreground">{profile.remoteUrl}</span>
-                  {last && <span className="text-[11px] text-muted-foreground">{t('Zuletzt verbunden {when}', { when: last })}</span>}
+                  <span className="truncate text-xs text-muted-foreground">
+                    <span className="font-mono">{profile.remoteUrl}</span>
+                    {last && ` · ${t('Zuletzt verbunden {when}', { when: last })}`}
+                  </span>
                 </div>
-                <Button variant="ghost" size="icon-sm" title={t('Bearbeiten')} aria-label={t('Bearbeiten')} onClick={() => setEditing(profile)}>
-                  <Pencil />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title={t('Duplizieren')} aria-label={t('Duplizieren')} onClick={() => run(duplicateProfile(profile.id), t('Verbindung dupliziert'))}>
-                  <Copy />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title={t('Löschen')} aria-label={t('Löschen')} onClick={() => setDeleting(profile)}>
-                  <Trash2 />
-                </Button>
-                <Button size="sm" onClick={() => onConnect(profile)}>
+                <div className="flex shrink-0 items-center text-muted-foreground">
+                  <Button variant="ghost" size="icon-sm" title={t('Bearbeiten')} aria-label={t('Bearbeiten')} onClick={() => setEditing(profile)}>
+                    <Pencil />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" title={t('Duplizieren')} aria-label={t('Duplizieren')} onClick={() => run(duplicateProfile(profile.id), t('Verbindung dupliziert'))}>
+                    <Copy />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" title={t('Löschen')} aria-label={t('Löschen')} onClick={() => setDeleting(profile)}>
+                    <Trash2 />
+                  </Button>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => onConnect(profile)}>
                   {t('Verbinden')}
                 </Button>
               </li>
             )
           })}
         </ul>
-        {profiles.length > 0 && (
-          <div className="border-t pt-3.5">
-            <SwitchRow
-              id="remember-remote"
-              label={t('Beim Start wieder mit dem gewählten Remote verbinden')}
-              description={t('Gilt für die Verbindung, die du als Nächstes öffnest.')}
-              checked={rememberChoice}
-              onChange={onRememberChoice}
-            />
-          </div>
-        )}
       </CardContent>
 
       {editing && <EditSheet key={editing.id} profile={editing} onClose={() => setEditing(null)} onSaved={onChanged} />}

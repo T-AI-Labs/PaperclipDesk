@@ -27,7 +27,7 @@ use crate::client::{Client, RemoteConnect, Snapshot};
 use crate::connection::http::UreqFetch;
 use crate::connection::preflight::preflight_remote_connection;
 use crate::connection::profiles::{RemoteProfileInput, now_iso};
-use crate::connection::types::{ConnectionMode, RemotePreflightResult};
+use crate::connection::types::RemotePreflightResult;
 use crate::instance::ConfigFile;
 use crate::logs::LogTail;
 use crate::paths::{DataEnv, DataPaths};
@@ -73,39 +73,37 @@ async fn launcher_state(client: Shared<'_>) -> Result<Snapshot, String> {
     Ok(client.snapshot())
 }
 
+/// Whether the connection is opened on every launch without asking.
 #[tauri::command]
-async fn set_chooser_mode(client: Shared<'_>, mode: ConnectionMode) -> Result<Snapshot, String> {
-    client.store.lock().unwrap().set_chooser_mode(mode);
-    Ok(client.snapshot())
-}
-
-#[tauri::command]
-async fn set_always_show_chooser(client: Shared<'_>, value: bool) -> Result<Snapshot, String> {
-    client.store.lock().unwrap().set_always_show_chooser(value);
+async fn set_open_at_start(client: Shared<'_>, profile_id: String, open: bool) -> Result<Snapshot, String> {
+    client.store.lock().unwrap().set_open_at_start(&profile_id, open);
     client.send_state();
     Ok(client.snapshot())
 }
 
-/// The connection opened on every launch without asking; `None` shows the chooser.
 #[tauri::command]
-async fn set_startup_profile(client: Shared<'_>, profile_id: Option<String>) -> Result<Snapshot, String> {
-    {
-        let mut store = client.store.lock().unwrap();
-        match profile_id {
-            Some(id) => store.set_remembered_profile(Some(&id), true),
-            None => store.set_always_show_chooser(true),
-        }
-    }
-    client.send_state();
-    Ok(client.snapshot())
+async fn activate_connection(client: Shared<'_>, key: String) -> Result<(), String> {
+    client.activate_connection(&key);
+    Ok(())
 }
 
-/// Whether the app starts the local server on every launch without asking.
 #[tauri::command]
-async fn remember_local(client: Shared<'_>, remember: bool) -> Result<Snapshot, String> {
-    client.store.lock().unwrap().set_remembered_profile(Some(connection::types::LOCAL_PROFILE_ID), remember);
-    client.send_state();
-    Ok(client.snapshot())
+async fn close_connection(client: Shared<'_>, key: String) -> Result<(), String> {
+    client.close_connection(&key);
+    Ok(())
+}
+
+/// The user picked an entry of the menu bar.
+#[tauri::command]
+async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
+    menu::handle(&client, &id);
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_menu_open(client: Shared<'_>, open: bool) -> Result<(), String> {
+    client.set_menu_open(open);
+    Ok(())
 }
 
 #[tauri::command]
@@ -142,9 +140,9 @@ async fn cancel_connect(client: Shared<'_>) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn connect_local(client: Shared<'_>, remember_choice: bool) -> Result<(), String> {
+async fn connect_local(client: Shared<'_>) -> Result<(), String> {
     let client = Arc::clone(&client);
-    std::thread::spawn(move || client.boot_local(Some(remember_choice), false));
+    std::thread::spawn(move || client.boot_local(false));
     Ok(())
 }
 
@@ -156,9 +154,9 @@ async fn connect_remote(client: Shared<'_>, payload: RemoteConnect) -> Result<()
 }
 
 #[tauri::command]
-async fn connect_saved_profile(client: Shared<'_>, profile_id: String, remember_choice: bool) -> Result<(), String> {
+async fn connect_saved_profile(client: Shared<'_>, profile_id: String) -> Result<(), String> {
     let client = Arc::clone(&client);
-    std::thread::spawn(move || client.boot_saved_profile(&profile_id, Some(remember_choice)));
+    std::thread::spawn(move || client.boot_saved_profile(&profile_id));
     Ok(())
 }
 
@@ -197,6 +195,11 @@ async fn clear_log(client: Shared<'_>, file: String) -> Result<(), String> {
 #[tauri::command]
 async fn open_data_folder(client: Shared<'_>) -> Result<(), String> {
     tauri_plugin_opener::open_path(&client.paths.user_data, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn open_project_link(client: Shared<'_>, link: menu::ProjectLink) -> Result<(), String> {
+    menu::open_project_link(&client, link)
 }
 
 #[tauri::command]
@@ -246,7 +249,7 @@ async fn server_info(client: Shared<'_>) -> Result<ServerInfo, String> {
 #[tauri::command]
 async fn restart_local_server(client: Shared<'_>) -> Result<(), String> {
     let client = Arc::clone(&client);
-    std::thread::spawn(move || client.boot_local(None, true));
+    std::thread::spawn(move || client.boot_local(true));
     Ok(())
 }
 
@@ -406,7 +409,6 @@ fn main() -> anyhow::Result<()> {
             client.start();
             Ok(())
         })
-        .on_menu_event(|app, event| menu::handle(&app.state::<Arc<Client>>(), event.id().as_ref()))
         .on_window_event(|window, event| {
             if matches!(event, WindowEvent::Resized(_)) {
                 window.state::<Arc<Client>>().relayout();
@@ -414,10 +416,11 @@ fn main() -> anyhow::Result<()> {
         })
         .invoke_handler(tauri::generate_handler![
             launcher_state,
-            set_chooser_mode,
-            set_always_show_chooser,
-            remember_local,
-            set_startup_profile,
+            set_open_at_start,
+            activate_connection,
+            close_connection,
+            menu_action,
+            set_menu_open,
             save_remote_profile,
             duplicate_profile,
             delete_profile,
@@ -432,6 +435,7 @@ fn main() -> anyhow::Result<()> {
             get_log,
             clear_log,
             open_data_folder,
+            open_project_link,
             get_about,
             show_page,
             server_info,

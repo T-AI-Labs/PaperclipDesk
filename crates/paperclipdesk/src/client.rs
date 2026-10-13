@@ -1,7 +1,7 @@
 use crate::i18n;
 use std::collections::VecDeque;
 use std::io::Write;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
@@ -31,6 +31,8 @@ pub const STATE_EVENT: &str = "launcher:state";
 const PAGE_LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const SERVER_OUTPUT_LINES: usize = 200;
+/// The height of the menu bar, which the shell keeps visible above Paperclip; `MenuBar.tsx` fills it.
+const MENU_BAR_HEIGHT: f64 = 32.0;
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -42,7 +44,6 @@ const LOADING_PAGE: &str = "data:text/html;charset=utf-8,<!doctype html><html la
 #[serde(rename_all = "kebab-case")]
 pub enum LauncherView {
     Chooser,
-    Saved,
     LocalBoot,
     Connecting,
     Error,
@@ -54,6 +55,7 @@ pub enum LauncherView {
 pub enum LauncherPage {
     Paperclip,
     Connect,
+    Connections,
     Logs,
     Appearance,
     System,
@@ -103,6 +105,25 @@ pub struct CurrentConnection {
     pub partition: String,
 }
 
+/// A connection that stays open behind the one in front, its view hidden.
+struct Parked {
+    connection: CurrentConnection,
+    label: String,
+    zoom: f64,
+}
+
+/// An open connection as the window lists it, in the order they were opened.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenConnection {
+    /// Names the connection while it is open.
+    key: String,
+    profile_id: Option<String>,
+    name: String,
+    local: bool,
+    front: bool,
+}
+
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
@@ -116,6 +137,8 @@ pub struct Snapshot {
     has_current_connection: bool,
     current_connection_name: Option<String>,
     current_profile_id: Option<String>,
+    open_connections: Vec<OpenConnection>,
+    menu: Vec<crate::menu::Menu>,
     state: ConnectionState,
     profiles: Vec<ConnectionProfile>,
     local_server_version: Option<String>,
@@ -132,8 +155,6 @@ pub struct RemoteConnect {
     pub display_name: Option<String>,
     #[serde(default)]
     pub save_profile: bool,
-    /// `Some` when the user chose in the window whether to reconnect on launch; `None` leaves the preference alone.
-    pub remember_choice: Option<bool>,
     #[serde(default)]
     pub allow_insecure_http: bool,
 }
@@ -162,7 +183,9 @@ pub struct Client {
     pub settings: Mutex<Settings>,
     launcher: Mutex<Launcher>,
     launcher_opening: Mutex<()>,
+    /// The connection in front and, in `main_label`, its view.
     current: Mutex<Option<CurrentConnection>>,
+    parked: Mutex<Vec<Parked>>,
     server_pid: Mutex<Option<u32>>,
     main_label: Mutex<Option<String>>,
     window_counter: AtomicU32,
@@ -171,8 +194,10 @@ pub struct Client {
     failure_dialog_open: AtomicBool,
     quitting: AtomicBool,
     zoom: Mutex<f64>,
-    menu_signature: Mutex<String>,
-    layout: Mutex<Option<(String, u32, u32)>>,
+    /// Whether a menu of the shell's menu bar is open and needs room below the bar.
+    menu_open: AtomicBool,
+    shell_hwnd: AtomicIsize,
+    layout: Mutex<Option<(String, u32, u32, bool)>>,
 }
 
 impl Client {
@@ -187,6 +212,7 @@ impl Client {
             launcher: Mutex::new(Launcher { page: LauncherPage::Connect, view: LauncherView::Chooser, view_seq: 0, label: None, url: None, boot_status: None, connection_error: None }),
             launcher_opening: Mutex::default(),
             current: Mutex::default(),
+            parked: Mutex::default(),
             server_pid: Mutex::default(),
             main_label: Mutex::default(),
             window_counter: AtomicU32::new(0),
@@ -195,7 +221,8 @@ impl Client {
             failure_dialog_open: AtomicBool::new(false),
             quitting: AtomicBool::new(false),
             zoom: Mutex::new(1.0),
-            menu_signature: Mutex::default(),
+            menu_open: AtomicBool::new(false),
+            shell_hwnd: AtomicIsize::new(0),
             layout: Mutex::default(),
         })
     }
@@ -237,9 +264,15 @@ impl Client {
     }
 
     pub fn snapshot(&self) -> Snapshot {
+        let menu = crate::menu::build(self);
         let launcher = self.launcher.lock().unwrap();
         let store = self.store.lock().unwrap();
         let current = self.current.lock().unwrap();
+        let front = self.main_label.lock().unwrap().clone();
+        let mut open: Vec<(String, &CurrentConnection, bool)> = current.as_ref().zip(front).map(|(connection, label)| (label, connection, true)).into_iter().collect();
+        let parked = self.parked.lock().unwrap();
+        open.extend(parked.iter().map(|parked| (parked.label.clone(), &parked.connection, false)));
+        open.sort_by_key(|(label, ..)| label.rsplit('-').next().and_then(|count| count.parse::<u32>().ok()));
         Snapshot {
             view: launcher.view,
             view_seq: launcher.view_seq,
@@ -251,6 +284,17 @@ impl Client {
             has_current_connection: current.is_some(),
             current_connection_name: current.as_ref().map(|connection| connection_name(connection, &store)),
             current_profile_id: current.as_ref().and_then(|connection| connection.profile_id.clone()),
+            open_connections: open
+                .into_iter()
+                .map(|(_, connection, front)| OpenConnection {
+                    key: connection.partition.clone(),
+                    profile_id: connection.profile_id.clone(),
+                    name: connection_name(connection, &store),
+                    local: connection.mode == ConnectionMode::LocalEmbedded,
+                    front,
+                })
+                .collect(),
+            menu,
             state: store.state().clone(),
             profiles: store.list_profiles(),
             local_server_version: self.local_server_version(),
@@ -259,49 +303,135 @@ impl Client {
         }
     }
 
-    /// Tells the app's window what changed and brings the menu's recent connections and checkbox up to date.
+    /// Tells the app's window what changed.
     pub fn send_state(&self) {
         if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, STATE_EVENT, self.snapshot()) {
             tracing::warn!("sending the launcher state: {e}");
         }
         self.relayout();
-        self.refresh_menu();
     }
 
-    pub fn current_profile_id(&self) -> Option<String> {
-        self.current.lock().unwrap().as_ref().and_then(|connection| connection.profile_id.clone())
+    /// The saved connections that are open, the one in front first.
+    pub fn open_profile_ids(&self) -> Vec<String> {
+        let front = self.current.lock().unwrap().as_ref().and_then(|connection| connection.profile_id.clone());
+        let parked: Vec<_> = self.parked.lock().unwrap().iter().filter_map(|parked| parked.connection.profile_id.clone()).collect();
+        front.into_iter().chain(parked).collect()
     }
 
-    /// A click ticks a menu entry by itself; the next refresh puts the ticks back where they belong.
-    pub fn invalidate_menu(&self) {
-        self.menu_signature.lock().unwrap().clear();
+    /// The open connections that have no saved profile, by key and name: a remote that was connected once without saving it.
+    pub fn open_unsaved_connections(&self) -> Vec<(String, String)> {
+        let front = self.current.lock().unwrap().clone();
+        let parked: Vec<_> = self.parked.lock().unwrap().iter().map(|parked| parked.connection.clone()).collect();
+        let store = self.store.lock().unwrap();
+        let mut unsaved: Vec<_> = front.into_iter().chain(parked).filter(|connection| connection.profile_id.is_none()).map(|connection| (connection.partition.clone(), connection_name(&connection, &store))).collect();
+        unsaved.sort();
+        unsaved
     }
 
-    /// Replacing the menu redraws the window, so it only happens when an entry changed.
-    fn refresh_menu(&self) {
-        let signature = {
-            let current = self.current_profile_id();
-            let recent: Vec<_> = self.store.lock().unwrap().recent_remote_profiles(crate::menu::RECENT_CONNECTIONS).into_iter().map(|profile| (profile.id, profile.name, profile.remote_url)).collect();
-            format!("{}|{current:?}|{}|{}|{:?}|{recent:?}", i18n::current(), self.paperclip_webview().is_some(), self.zoom_percent(), self.local_server_version())
+    fn is_open(&self, matches: impl Fn(&CurrentConnection) -> bool) -> bool {
+        let front = self.current.lock().unwrap().as_ref().is_some_and(&matches);
+        front || self.parked.lock().unwrap().iter().any(|parked| matches(&parked.connection))
+    }
+
+    /// Moves the connection in front behind the others and hides its view.
+    fn park_front(&self) {
+        let connection = self.current.lock().unwrap().take();
+        let label = self.main_label.lock().unwrap().take();
+        let zoom = std::mem::replace(&mut *self.zoom.lock().unwrap(), 1.0);
+        if let (Some(connection), Some(label)) = (connection, label)
+            && let Some(webview) = self.handle.get_webview(&label)
+        {
+            let _ = webview.hide();
+            self.parked.lock().unwrap().push(Parked { connection, label, zoom });
+        }
+    }
+
+    fn set_front(&self, next: Parked) {
+        *self.current.lock().unwrap() = Some(next.connection);
+        *self.main_label.lock().unwrap() = Some(next.label);
+        *self.zoom.lock().unwrap() = next.zoom;
+    }
+
+    /// Puts an open connection in front; the one that was there stays open behind it. False when none matches.
+    fn bring_to_front(&self, matches: impl Fn(&CurrentConnection) -> bool) -> bool {
+        if self.current.lock().unwrap().as_ref().is_some_and(&matches) {
+            return true;
+        }
+        let next = {
+            let mut parked = self.parked.lock().unwrap();
+            parked.iter().position(|parked| matches(&parked.connection)).map(|index| parked.remove(index))
         };
-        let Some(window) = self.window() else { return };
-        let mut shown = self.menu_signature.lock().unwrap();
-        if *shown == signature {
-            return;
+        let Some(next) = next else { return false };
+        self.park_front();
+        self.set_front(next);
+        true
+    }
+
+    /// Puts a newly opened connection in front. If it was open already, its old view gives way; the others stay open behind it.
+    fn put_in_front(&self, connection: CurrentConnection, webview: &Webview) {
+        self.close_open(|open| open.partition == connection.partition);
+        self.park_front();
+        self.set_front(Parked { connection, label: webview.label().to_owned(), zoom: 1.0 });
+        self.fit_window_to_paperclip();
+    }
+
+    /// Closes the views of the connections that match and forgets them. If the one in front was among them, the one opened last takes its place.
+    fn close_open(&self, matches: impl Fn(&CurrentConnection) -> bool) {
+        let mut labels: Vec<String> = {
+            let mut parked = self.parked.lock().unwrap();
+            let (closed, kept): (Vec<Parked>, Vec<Parked>) = std::mem::take(&mut *parked).into_iter().partition(|parked| matches(&parked.connection));
+            *parked = kept;
+            closed.into_iter().map(|parked| parked.label).collect()
+        };
+        let front = self.current.lock().unwrap().take_if(|connection| matches(connection)).is_some();
+        if front {
+            labels.extend(self.main_label.lock().unwrap().take());
+            let next = self.parked.lock().unwrap().pop();
+            match next {
+                Some(next) => self.set_front(next),
+                None => *self.zoom.lock().unwrap() = 1.0,
+            }
         }
-        match crate::menu::build(self).and_then(|menu| window.set_menu(menu)) {
-            Ok(_) => *shown = signature,
-            Err(e) => tracing::warn!("rebuilding the menu: {e}"),
+        for label in labels {
+            if let Some(webview) = self.handle.get_webview(&label) {
+                let _ = webview.close();
+            }
         }
     }
 
-    /// The title bar and the menu bar follow the app's colour scheme instead of only Windows' own.
+    /// Shows an open connection, e.g. from its menu entry.
+    pub fn activate_connection(&self, key: &str) {
+        if self.bring_to_front(|connection| connection.partition == key) {
+            self.show_paperclip();
+        }
+    }
+
+    /// Closes one open connection; the local one takes its server with it.
+    pub fn close_connection(&self, key: &str) {
+        let local = self.is_open(|connection| connection.partition == key && connection.mode == ConnectionMode::LocalEmbedded);
+        if local {
+            self.next_boot();
+        }
+        self.close_open(|connection| connection.partition == key);
+        if local {
+            self.kill_server();
+        }
+        let on_paperclip = self.launcher.lock().unwrap().page == LauncherPage::Paperclip;
+        match (self.paperclip_webview().is_some(), on_paperclip) {
+            (true, true) => self.show_paperclip(),
+            (false, true) => self.show_launcher(LauncherView::Chooser, None, None),
+            _ => self.send_state(),
+        }
+    }
+
+    /// The title bar follows the app's colour scheme instead of only Windows' own.
     pub fn apply_color_scheme(&self) {
         let theme = match self.settings.lock().unwrap().color_scheme.as_str() {
             "dark" => Some(tauri::Theme::Dark),
             "light" => Some(tauri::Theme::Light),
             _ => None,
         };
+        let _ = self.handle.run_on_main_thread(move || crate::menu::apply_color_scheme(theme));
         if let Some(window) = self.window()
             && let Err(e) = window.set_theme(theme)
         {
@@ -319,7 +449,8 @@ impl Client {
         on_paperclip.then(|| self.paperclip_webview()).flatten().or_else(|| self.handle.get_webview(LAUNCHER_LABEL))
     }
 
-    /// The webviews are laid out by hand: Paperclip fills the window while it is the main view, the shell for its own pages.
+    /// The webviews are laid out by hand: for its own pages the shell fills the window; while Paperclip is the main view, the shell
+    /// is only the menu bar above it.
     pub fn relayout(&self) {
         let Some(window) = self.window() else { return };
         let Ok(size) = window.inner_size() else { return };
@@ -329,23 +460,53 @@ impl Client {
         let paperclip = self.paperclip_webview();
         let on_paperclip = paperclip.is_some() && self.launcher.lock().unwrap().page == LauncherPage::Paperclip;
         let shown = paperclip.as_ref().filter(|_| on_paperclip).map_or_else(|| LAUNCHER_LABEL.to_owned(), |webview| webview.label().to_owned());
-        // Showing and resizing a webview that already sits right makes it flicker.
-        let layout = (shown, size.width, size.height);
+        // An open menu needs room below the bar: the shell then lies over Paperclip, see-through wherever it draws nothing.
+        let menu_open = on_paperclip && self.menu_open.load(Ordering::SeqCst);
+        let layout = (shown, size.width, size.height, menu_open);
         let mut applied = self.layout.lock().unwrap();
         if applied.as_ref() == Some(&layout) {
             return;
         }
-        for (webview, visible) in [(self.handle.get_webview(LAUNCHER_LABEL), !on_paperclip), (paperclip, on_paperclip)] {
+        // Showing and resizing a webview that already sits right makes it flicker.
+        let only_menu = applied.as_ref().is_some_and(|applied| (&applied.0, applied.1, applied.2) == (&layout.0, layout.1, layout.2));
+        let bar = if on_paperclip { ((MENU_BAR_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height) } else { 0 };
+        let shell_height = if on_paperclip && !menu_open { bar } else { size.height };
+        for (webview, top, height) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_height), (paperclip.filter(|_| !only_menu), bar, if on_paperclip { size.height - bar } else { 0 })] {
             let Some(webview) = webview else { continue };
-            if visible {
-                let _ = webview.set_position(tauri::PhysicalPosition::new(0, 0));
-                let _ = webview.set_size(size);
+            if height > 0 {
+                let _ = webview.set_position(tauri::PhysicalPosition::new(0, top));
+                let _ = webview.set_size(tauri::PhysicalSize::new(size.width, height));
                 let _ = webview.show();
             } else {
                 let _ = webview.hide();
             }
         }
+        if menu_open {
+            self.raise_shell();
+        }
         *applied = Some(layout);
+    }
+
+    /// Puts the shell above the Paperclip webviews: they were created after it and so lie over it, and Tauri has no call for the order of webviews.
+    fn raise_shell(&self) {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowPos};
+        let shell = self.shell_hwnd.load(Ordering::SeqCst);
+        // On the main thread, so it comes after the resize that was queued there.
+        let _ = self.handle.run_on_main_thread(move || unsafe {
+            SetWindowPos(shell as _, HWND_TOP, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+        });
+    }
+
+    /// The shell opened or closed a menu of its menu bar; once it is closed, the keyboard is Paperclip's again.
+    pub fn set_menu_open(&self, open: bool) {
+        self.menu_open.store(open, Ordering::SeqCst);
+        self.relayout();
+        if !open
+            && self.launcher.lock().unwrap().page == LauncherPage::Paperclip
+            && let Some(paperclip) = self.paperclip_webview()
+        {
+            let _ = paperclip.set_focus();
+        }
     }
 
     /// Opens the app's own window on one of its pages.
@@ -391,10 +552,11 @@ impl Client {
             return window.set_focus();
         }
         let config = self.handle.config().app.windows.iter().find(|w| w.label == WINDOW_LABEL).expect("main window in tauri.conf.json");
-        let window = WindowBuilder::from_config(&self.handle, config)?.menu(crate::menu::build(self)?).build()?;
+        let window = WindowBuilder::from_config(&self.handle, config)?.build()?;
         // Its own browser profile under the app's data, so a run with moved data shares nothing with an installed one.
         let profile = self.paths.webview_data.join("launcher");
         add_shell(&window, config.url.clone(), profile)?;
+        self.shell_hwnd.store(webview_hwnd(&window), Ordering::SeqCst);
         self.apply_color_scheme();
         self.relayout();
         Ok(())
@@ -479,26 +641,23 @@ impl Client {
         Ok(webview)
     }
 
-    fn replace_main_window(&self, next: &Webview) {
-        let previous = self.main_label.lock().unwrap().replace(next.label().to_owned());
-        *self.zoom.lock().unwrap() = 1.0;
-        self.fit_window_to_paperclip();
-        if let Some(webview) = previous.and_then(|label| self.handle.get_webview(&label)) {
-            let _ = webview.close();
-        }
-    }
-
-    /// Paperclip needs more room than the connection pages; the window grows once, to what the monitor allows.
+    /// Paperclip needs more room than the connection pages; the window grows once, to what its monitor allows, around the place the user left it at.
     fn fit_window_to_paperclip(&self) {
         let Some(window) = self.window() else { return };
-        let Some(monitor) = self.handle.primary_monitor().ok().flatten() else { return };
+        let Some(monitor) = window.current_monitor().ok().flatten() else { return };
         let available = monitor.size().to_logical::<f64>(monitor.scale_factor());
         let wanted = ((available.width - 80.0).clamp(900.0, 1440.0), (available.height - 120.0).clamp(600.0, 900.0));
         let Ok(current) = window.inner_size().map(|size| size.to_logical::<f64>(window.scale_factor().unwrap_or(1.0))) else { return };
-        if current.width < wanted.0 - 100.0 || current.height < wanted.1 - 100.0 {
-            let _ = window.set_size(LogicalSize::new(wanted.0, wanted.1));
-            let _ = window.center();
+        if current.width >= wanted.0 - 100.0 && current.height >= wanted.1 - 100.0 {
+            return;
         }
+        let (Ok(position), Ok(before)) = (window.outer_position(), window.outer_size()) else { return };
+        let _ = window.set_size(LogicalSize::new(wanted.0, wanted.1));
+        let Ok(after) = window.outer_size() else { return };
+        let area = monitor.work_area();
+        let grown = |position: i32, before: u32, after: u32, start: i32, length: u32| (position - (after as i32 - before as i32) / 2).min(start + length as i32 - after as i32).max(start);
+        let (x, y) = (grown(position.x, before.width, after.width, area.position.x, area.size.width), grown(position.y, before.height, after.height, area.position.y, area.size.height));
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
     }
 
     /// Shows the connection's webview again, e.g. after the user went to the settings.
@@ -512,7 +671,7 @@ impl Client {
         };
         match self.open_main_window(&connection) {
             Ok(webview) => {
-                self.replace_main_window(&webview);
+                self.put_in_front(connection, &webview);
                 self.show_paperclip();
                 true
             }
@@ -582,7 +741,7 @@ impl Client {
         std::thread::spawn(move || {
             let current = |client: &Client| client.monitor_generation.load(Ordering::SeqCst) == generation && !client.quitting.load(Ordering::SeqCst);
             while current(&client) {
-                let watched = client.current.lock().unwrap().as_ref().is_some_and(|c| c.mode == ConnectionMode::LocalEmbedded && c.allowed_origin == allowed_origin);
+                let watched = client.is_open(|c| c.mode == ConnectionMode::LocalEmbedded && c.allowed_origin == allowed_origin);
                 if watched
                     && let Err(detail) = server::probe_local_server_health(&probe_origin, &UreqFetch::default())
                     && current(&client)
@@ -599,8 +758,7 @@ impl Client {
     }
 
     fn prompt_to_recover(self: &Arc<Self>, message: &str, detail: &str) {
-        let local = self.current.lock().unwrap().as_ref().is_some_and(|c| c.mode == ConnectionMode::LocalEmbedded);
-        if self.quitting.load(Ordering::SeqCst) || !local || self.failure_dialog_open.swap(true, Ordering::SeqCst) {
+        if self.quitting.load(Ordering::SeqCst) || !self.local_connected() || self.failure_dialog_open.swap(true, Ordering::SeqCst) {
             return;
         }
         self.stop_monitor();
@@ -621,32 +779,26 @@ impl Client {
         tracing::info!(restart, "recovery dialog answered");
 
         if restart {
-            self.boot_local(None, true);
+            self.boot_local(true);
         } else {
             self.handle.exit(0);
         }
     }
 
-    fn remember_local(&self, remember_choice: Option<bool>) {
-        let mut store = self.store.lock().unwrap();
-        store.record_local_connection(&now_iso());
-        if let Some(remember) = remember_choice {
-            store.set_remembered_profile(Some(LOCAL_PROFILE_ID), remember);
-        }
-    }
-
-    /// Starts the bundled server and opens Paperclip on it. `remember_choice` is `Some` when the user chose whether to do this on every launch.
-    pub fn boot_local(self: &Arc<Self>, remember_choice: Option<bool>, force_restart: bool) {
+    /// Starts the bundled server and opens Paperclip on it; a local connection that is open already only comes to the front.
+    pub fn boot_local(self: &Arc<Self>, force_restart: bool) {
         let boot_id = self.next_boot();
         self.stop_monitor();
+        let is_local = |connection: &CurrentConnection| connection.mode == ConnectionMode::LocalEmbedded;
+        let running_local = self.is_open(is_local);
+        let in_front = !force_restart && self.bring_to_front(is_local);
         let current = self.current.lock().unwrap().clone();
-        let running_local = current.filter(|connection| connection.mode == ConnectionMode::LocalEmbedded);
 
-        if !force_restart
-            && let Some(connection) = &running_local
+        if in_front
+            && let Some(connection) = &current
             && self.paperclip_webview().is_some()
         {
-            self.remember_local(remember_choice);
+            self.store.lock().unwrap().record_local_connection(&now_iso());
             self.send_state();
             self.reopen_current_connection_window();
             self.show_paperclip();
@@ -654,10 +806,10 @@ impl Client {
             return;
         }
 
-        let previous_server = running_local.and_then(|_| *self.server_pid.lock().unwrap());
+        let previous_server = if running_local { *self.server_pid.lock().unwrap() } else { None };
         self.show_launcher(LauncherView::LocalBoot, None, None);
         let mut attempted = None;
-        if let Err(error) = self.start_local(boot_id, previous_server, remember_choice, &mut attempted) {
+        if let Err(error) = self.start_local(boot_id, previous_server, &mut attempted) {
             self.abandon_attempt(attempted, previous_server);
             if !self.superseded(boot_id) {
                 self.fail(i18n::t("Lokales Paperclip konnte nicht gestartet werden"), error);
@@ -672,7 +824,7 @@ impl Client {
         self.send_state();
     }
 
-    fn start_local(self: &Arc<Self>, boot_id: u64, previous_server: Option<u32>, remember_choice: Option<bool>, attempted: &mut Option<u32>) -> Result<(), String> {
+    fn start_local(self: &Arc<Self>, boot_id: u64, previous_server: Option<u32>, attempted: &mut Option<u32>) -> Result<(), String> {
         self.boot_status(BootStep::Init, i18n::t("Umgebung wird vorbereitet …"), 5);
         let layout = match self.layout() {
             Ok(layout) => layout,
@@ -807,8 +959,7 @@ impl Client {
             partition: LOCAL_PARTITION.into(),
         };
         // A window still open on the local profile keeps these files locked, and then they are current anyway.
-        let local_window_open = self.paperclip_webview().is_some() && self.current.lock().unwrap().as_ref().is_some_and(|c| c.mode == ConnectionMode::LocalEmbedded);
-        if !local_window_open {
+        if !self.local_connected() {
             reset_local_ui_cache(&self.paths.webview_data);
         }
         let window = self.open_main_window(&connection)?;
@@ -819,12 +970,11 @@ impl Client {
         }
 
         let allowed_origin = connection.allowed_origin.clone();
-        *self.current.lock().unwrap() = Some(connection);
-        self.replace_main_window(&window);
+        self.put_in_front(connection, &window);
         if let Some(previous) = previous_server.filter(|_| server::should_kill_superseded_server(previous_server, Some(pid))) {
             server::kill_process_tree(previous);
         }
-        self.remember_local(remember_choice);
+        self.store.lock().unwrap().record_local_connection(&now_iso());
         self.boot_status(BootStep::Ready, i18n::t("Bereit!"), 100);
         self.start_monitor(format!("http://127.0.0.1:{port}"), allowed_origin);
         self.show_paperclip();
@@ -839,10 +989,9 @@ impl Client {
         self.boot_status(step, detail, value);
     }
 
-    /// Verifies the remote and opens Paperclip on it.
+    /// Verifies the remote and opens Paperclip on it; the connections that are open stay open behind it.
     pub fn boot_remote(self: &Arc<Self>, options: RemoteConnect) {
         let boot_id = self.next_boot();
-        let previous_mode = self.current.lock().unwrap().as_ref().map(|connection| connection.mode);
 
         let normalized = normalize_remote_url(&options.remote_url).and_then(|normalized| {
             if normalized.insecure_transport && !options.allow_insecure_http { Err(i18n::t(INSECURE_HTTP_NOT_CONFIRMED).into()) } else { Ok(normalized) }
@@ -875,7 +1024,7 @@ impl Client {
             let mut store = self.store.lock().unwrap();
             let saved = match &options.profile_id {
                 Some(profile_id) => store.profile(profile_id).map(|profile| profile.id),
-                None if options.save_profile || options.remember_choice == Some(true) => store
+                None if options.save_profile => store
                     .save_remote_profile(
                         RemoteProfileInput { profile_id: None, name: options.display_name.clone(), remote_url: result.normalized_url.clone(), allow_insecure_http: result.insecure_transport },
                         &now,
@@ -886,9 +1035,6 @@ impl Client {
             };
             if let Some(profile_id) = &saved {
                 let _ = store.record_remote_health(profile_id, &result, &now);
-            }
-            if let Some(remember) = options.remember_choice {
-                store.set_remembered_profile(saved.as_deref(), remember);
             }
             saved
         };
@@ -920,12 +1066,8 @@ impl Client {
             return;
         }
 
-        *self.current.lock().unwrap() = Some(connection);
-        self.replace_main_window(&window);
+        self.put_in_front(connection, &window);
         self.show_paperclip();
-        if previous_mode == Some(ConnectionMode::LocalEmbedded) {
-            self.kill_server();
-        }
         // The check ran without the window's cookies; a session kept from last time only shows with them.
         if result.session_state == SessionState::SignedOut && window_session(&window, &result.origin) == Some(SessionState::SignedIn) {
             result.session_state = SessionState::SignedIn;
@@ -936,9 +1078,13 @@ impl Client {
         self.send_state();
     }
 
-    pub fn boot_saved_profile(self: &Arc<Self>, profile_id: &str, remember_choice: Option<bool>) {
+    /// Opens a saved connection, or shows it if it is open already.
+    pub fn boot_saved_profile(self: &Arc<Self>, profile_id: &str) {
         if profile_id == LOCAL_PROFILE_ID {
-            return self.boot_local(remember_choice, false);
+            return self.boot_local(false);
+        }
+        if self.bring_to_front(|connection| connection.profile_id.as_deref() == Some(profile_id)) {
+            return self.show_paperclip();
         }
         let profile = self.store.lock().unwrap().profile(profile_id);
         let Some((profile, remote_url)) = profile.and_then(|profile| profile.remote_url.clone().map(|url| (profile, url))) else {
@@ -950,7 +1096,6 @@ impl Client {
             remote_url,
             display_name: Some(profile.name),
             save_profile: false,
-            remember_choice,
             allow_insecure_http: profile.allow_insecure_http == Some(true),
         });
     }
@@ -958,22 +1103,22 @@ impl Client {
     /// Removes a saved connection together with the browser profile that held its session.
     pub fn delete_profile(&self, profile_id: &str) {
         let partition = remote_partition(Some(profile_id), "");
-        let in_use = {
-            let mut current = self.current.lock().unwrap();
-            match current.as_mut().filter(|connection| connection.partition == partition) {
-                Some(connection) => {
-                    connection.profile_id = None;
-                    true
+        let front = self.current.lock().unwrap().as_mut().filter(|connection| connection.partition == partition).map(|connection| connection.profile_id = None).is_some();
+        let label = if front { self.main_label.lock().unwrap().clone() } else { None };
+        let parked = self.parked.lock().unwrap().iter_mut().find(|parked| parked.connection.partition == partition).map(|parked| {
+            parked.connection.profile_id = None;
+            parked.label.clone()
+        });
+        // An open connection keeps its browser profile locked; its data goes, the folder stays until the view closes.
+        match label.or(parked) {
+            Some(label) => {
+                if let Some(webview) = self.handle.get_webview(&label) {
+                    let _ = webview.clear_all_browsing_data();
                 }
-                None => false,
             }
-        };
-        if in_use {
-            if let Some(window) = self.paperclip_webview() {
-                let _ = window.clear_all_browsing_data();
+            None => {
+                let _ = std::fs::remove_dir_all(self.paths.webview_data.join(&partition));
             }
-        } else {
-            let _ = std::fs::remove_dir_all(self.paths.webview_data.join(&partition));
         }
         self.store.lock().unwrap().delete_remote_profile(profile_id);
         self.send_state();
@@ -982,46 +1127,46 @@ impl Client {
     /// What the app does first: connect as remembered, or ask.
     pub fn start(self: &Arc<Self>) {
         server::kill_orphaned_server(&self.paths.user_data);
-        let startup = self.store.lock().unwrap().startup_profile_id();
-        match startup {
-            Some(profile_id) => {
-                let remote_url = self.store.lock().unwrap().profile(&profile_id).and_then(|profile| profile.remote_url);
-                match remote_url {
-                    Some(url) => self.show_launcher(LauncherView::Connecting, Some(i18n::t("Geprüfter Remote wird geöffnet …")), Some(&url)),
-                    None => self.show_launcher(LauncherView::LocalBoot, None, None),
-                }
-                let client = Arc::clone(self);
-                std::thread::spawn(move || client.boot_saved_profile(&profile_id, None));
-            }
-            None => {
-                self.store.lock().unwrap().set_chooser_mode(ConnectionMode::LocalEmbedded);
-                self.show_launcher(LauncherView::Chooser, None, None);
-            }
+        let (mut order, last_used) = {
+            let store = self.store.lock().unwrap();
+            (store.startup_profile_ids(), store.state().active_profile_id.clone())
+        };
+        // The one used last ends up in front, so it is opened last.
+        if let Some(front) = order.iter().position(|id| Some(id) == last_used.as_ref()) {
+            let front = order.remove(front);
+            order.push(front);
         }
+        let Some(first) = order.first() else {
+            return self.show_launcher(LauncherView::Chooser, None, None);
+        };
+        let remote_url = self.store.lock().unwrap().profile(first).and_then(|profile| profile.remote_url);
+        match remote_url {
+            Some(url) => self.show_launcher(LauncherView::Connecting, Some(i18n::t("Geprüfter Remote wird geöffnet …")), Some(&url)),
+            None => self.show_launcher(LauncherView::LocalBoot, None, None),
+        }
+        let client = Arc::clone(self);
+        std::thread::spawn(move || {
+            for profile_id in &order {
+                let before = client.boot_sequence.load(Ordering::SeqCst);
+                client.boot_saved_profile(profile_id);
+                // Cancelling one of them gives up the rest as well.
+                if client.boot_sequence.load(Ordering::SeqCst) > before + 1 {
+                    break;
+                }
+            }
+        });
     }
 
-    /// Whether Paperclip currently runs on the server of this machine.
+    /// Whether a connection to the server of this machine is open.
     pub fn local_connected(&self) -> bool {
-        self.current.lock().unwrap().as_ref().is_some_and(|connection| connection.mode == ConnectionMode::LocalEmbedded)
+        self.is_open(|connection| connection.mode == ConnectionMode::LocalEmbedded)
     }
 
     /// Ends the local server and closes its view, so its files can be replaced; a connection to a remote stays.
     pub fn stop_local(&self) {
         self.next_boot();
         self.stop_monitor();
-        let was_local = {
-            let mut current = self.current.lock().unwrap();
-            let local = current.as_ref().is_some_and(|connection| connection.mode == ConnectionMode::LocalEmbedded);
-            if local {
-                current.take();
-            }
-            local
-        };
-        if was_local
-            && let Some(webview) = self.main_label.lock().unwrap().take().and_then(|label| self.handle.get_webview(&label))
-        {
-            let _ = webview.close();
-        }
+        self.close_open(|connection| connection.mode == ConnectionMode::LocalEmbedded);
         self.kill_server();
         self.send_state();
     }
@@ -1040,7 +1185,7 @@ impl Client {
         {
             return self.fail(i18n::t("Lokales Paperclip konnte nicht gestartet werden"), format!("{}: {e}", package.display()));
         }
-        self.boot_local(None, true);
+        self.boot_local(true);
     }
 
     /// The local server must not outlive the app.
@@ -1064,7 +1209,7 @@ impl Client {
         let factor = factor.clamp(0.3, 3.0);
         *self.zoom.lock().unwrap() = factor;
         let _ = webview.set_zoom(factor);
-        self.refresh_menu();
+        self.send_state();
     }
 
     pub fn zoom_percent(&self) -> u32 {
@@ -1100,7 +1245,7 @@ fn open_externally(target: &str, allowed_origin: &str) {
 
 fn connection_name(connection: &CurrentConnection, store: &ConnectionStore) -> String {
     if connection.mode == ConnectionMode::LocalEmbedded {
-        return "Lokal".into();
+        return i18n::t("Lokal").into();
     }
     let profile = connection.profile_id.as_deref().and_then(|id| store.profile(id));
     let host = || tauri::Url::parse(&connection.start_url).ok().and_then(|url| url.host_str().map(str::to_owned));
@@ -1117,15 +1262,21 @@ fn remote_error_title(result: &RemotePreflightResult) -> &'static str {
     }
 }
 
-/// The shell webview. A dev build loads its pages from Vite, which may still be starting (or answer 500 while it bundles);
-/// the webview shows a loading page until Vite answers.
+/// The window of the webview on top, which right after the shell was added is the shell's.
+fn webview_hwnd(window: &Window) -> isize {
+    use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowExW;
+    window.hwnd().map_or(0, |parent| unsafe { FindWindowExW(parent.0 as _, std::ptr::null_mut(), windows_sys::w!("WRY_WEBVIEW"), std::ptr::null()) as isize })
+}
+
+/// The shell webview; see-through, so that only its menu covers Paperclip while one is open. A dev build loads its pages from Vite,
+/// which may still be starting (or answer 500 while it bundles); the webview shows a loading page until Vite answers.
 fn add_shell(window: &Window, url: WebviewUrl, profile: std::path::PathBuf) -> tauri::Result<()> {
     let size = window.inner_size()?.to_logical::<f64>(window.scale_factor()?);
     let (position, size) = (LogicalPosition::new(0.0, 0.0), LogicalSize::new(size.width, size.height));
     #[cfg(dev)]
     if let Some(dev_url) = window.app_handle().config().build.dev_url.clone() {
         let waiting = WebviewUrl::External(tauri::Url::parse(LOADING_PAGE).expect("loading page is a valid data URL"));
-        let webview = window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, waiting).data_directory(profile), position, size)?;
+        let webview = window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, waiting).transparent(true).data_directory(profile), position, size)?;
         std::thread::spawn(move || {
             let deadline = Instant::now() + DEV_SERVER_WAIT;
             while Instant::now() < deadline && ureq::get(dev_url.as_str()).call().is_err() {
@@ -1137,5 +1288,5 @@ fn add_shell(window: &Window, url: WebviewUrl, profile: std::path::PathBuf) -> t
         });
         return Ok(());
     }
-    window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, url).data_directory(profile), position, size).map(|_| ())
+    window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, url).transparent(true).data_directory(profile), position, size).map(|_| ())
 }

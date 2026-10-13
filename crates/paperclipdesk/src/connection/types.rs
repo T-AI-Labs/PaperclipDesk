@@ -86,9 +86,8 @@ pub struct ConnectionProfile {
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionState {
     pub active_profile_id: Option<String>,
-    pub always_show_chooser: bool,
-    pub auto_connect_last_profile: bool,
-    pub chooser_mode: ConnectionMode,
+    /// The connections opened at launch without asking; none shows the connection page.
+    pub startup_profile_ids: Vec<String>,
     pub local_profile_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_last_connected_at: Option<String>,

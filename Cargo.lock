@@ -2612,7 +2612,7 @@ dependencies = [
 
 [[package]]
 name = "paperclipdesk"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2633,6 +2633,7 @@ dependencies = [
  "ureq",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

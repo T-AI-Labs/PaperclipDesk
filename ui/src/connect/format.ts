@@ -19,11 +19,12 @@ export function profileHealth(profile: ConnectionProfile): { label: string; tone
   }
 }
 
-export const TONE_STYLE: Record<HealthTone, string> = {
-  ok: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-  blocked: 'bg-destructive/15 text-destructive',
-  unknown: 'bg-muted text-muted-foreground',
+/// The colour of the dot in front of a state.
+export const TONE_DOT: Record<HealthTone, string> = {
+  ok: 'bg-emerald-500',
+  pending: 'bg-amber-500',
+  blocked: 'bg-destructive',
+  unknown: 'bg-muted-foreground/40',
 }
 
 export function isInsecureHttpUrl(value: string) {

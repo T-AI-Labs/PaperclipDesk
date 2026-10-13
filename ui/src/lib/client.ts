@@ -27,9 +27,8 @@ export interface ConnectionProfile {
 
 export interface ConnectionState {
   activeProfileId: string | null
-  alwaysShowChooser: boolean
-  autoConnectLastProfile: boolean
-  chooserMode: ConnectionMode
+  /// The connections opened at launch without asking; none shows the connection page.
+  startupProfileIds: string[]
   localProfileName: string
   localLastConnectedAt?: string
   localLastHealth?: ConnectionHealth
@@ -53,8 +52,28 @@ export interface RemotePreflightResult {
   detail?: string
 }
 
-export type LauncherView = 'chooser' | 'saved' | 'local-boot' | 'connecting' | 'error'
-export type LauncherPage = 'paperclip' | 'connect' | 'logs' | 'appearance' | 'system' | 'server'
+/// A connection that is open, in front or behind it.
+export interface OpenConnection {
+  key: string
+  profileId: string | null
+  name: string
+  local: boolean
+  front: boolean
+}
+
+/// An entry of the menu bar; the host names it by `id` when the user picks it.
+export type MenuEntry =
+  | { kind: 'item'; id: string; label: string; enabled: boolean; checked: boolean | null }
+  | { kind: 'separator' }
+  | { kind: 'submenu'; label: string; enabled: boolean; entries: MenuEntry[] }
+
+export interface Menu {
+  label: string
+  entries: MenuEntry[]
+}
+
+export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
+export type LauncherPage = 'paperclip' | 'connect' | 'connections' | 'logs' | 'appearance' | 'system' | 'server'
 export type BootStep = 'init' | 'database' | 'server' | 'ready'
 
 export interface BootStatus {
@@ -76,6 +95,9 @@ export interface Snapshot {
   hasCurrentConnection: boolean
   currentConnectionName: string | null
   currentProfileId: string | null
+  /// In the order they were opened.
+  openConnections: OpenConnection[]
+  menu: Menu[]
   state: ConnectionState
   profiles: ConnectionProfile[]
   localServerVersion: string | null
@@ -90,7 +112,6 @@ export interface RemoteConnect {
   remoteUrl: string
   displayName?: string
   saveProfile: boolean
-  rememberChoice: boolean
   allowInsecureHttp: boolean
 }
 
@@ -108,6 +129,7 @@ export interface Settings {
   show_logs: boolean
   /// Empties the app's and the server's logs when the app exits.
   clear_logs_on_exit: boolean
+  check_updates_on_start: boolean
   /// A language code, or 'System' for the language Windows runs in.
   language: string
 }
@@ -162,24 +184,27 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const launcherState = () => call<Snapshot>('launcher_state')
-export const setChooserMode = (mode: ConnectionMode) => call<Snapshot>('set_chooser_mode', { mode })
-export const setStartupProfile = (profileId: string | null) => call<Snapshot>('set_startup_profile', { profileId })
-export const setAlwaysShowChooser = (value: boolean) => call<Snapshot>('set_always_show_chooser', { value })
-export const rememberLocal = (remember: boolean) => call<Snapshot>('remember_local', { remember })
+export const setOpenAtStart = (profileId: string, open: boolean) => call<Snapshot>('set_open_at_start', { profileId, open })
+export const activateConnection = (key: string) => call<void>('activate_connection', { key })
+export const closeConnection = (key: string) => call<void>('close_connection', { key })
+export const menuAction = (id: string) => call<void>('menu_action', { id })
+/// While a menu is open above Paperclip, the host lets this webview cover the window.
+export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
 export const saveRemoteProfile = (payload: RemoteProfilePayload) => call<Snapshot>('save_remote_profile', { payload })
 export const duplicateProfile = (profileId: string) => call<Snapshot>('duplicate_profile', { profileId })
 export const deleteProfile = (profileId: string) => call<Snapshot>('delete_profile', { profileId })
 export const verifyRemote = (remoteUrl: string) => call<RemotePreflightResult>('verify_remote', { remoteUrl })
 export const cancelConnect = () => call<void>('cancel_connect')
-export const connectLocal = (rememberChoice: boolean) => call<void>('connect_local', { rememberChoice })
+export const connectLocal = () => call<void>('connect_local')
 export const connectRemote = (payload: RemoteConnect) => call<void>('connect_remote', { payload })
-export const connectSavedProfile = (profileId: string, rememberChoice: boolean) => call<void>('connect_saved_profile', { profileId, rememberChoice })
+export const connectSavedProfile = (profileId: string) => call<void>('connect_saved_profile', { profileId })
 export const returnToCurrentSession = () => call<boolean>('return_to_current_session')
 export const getSettings = () => call<Settings>('get_settings')
 export const updateSettings = (settings: Settings) => call<Settings>('update_settings', { settings })
 export const getLog = (file: string | null, lines: number) => call<LogTail>('get_log', { file, lines })
 export const clearLog = (file: string) => call<void>('clear_log', { file })
 export const openDataFolder = () => call<void>('open_data_folder')
+export const openProjectLink = (link: 'repository' | 'report_issue') => call<void>('open_project_link', { link })
 export const showPage = (page: LauncherPage) => call<void>('show_page', { page })
 export const getAbout = () => call<About>('get_about')
 export const getServerInfo = () => call<ServerInfo>('server_info')
