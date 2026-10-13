@@ -212,4 +212,7 @@ export const en: Catalogue = [
   'Connections',
   'What opens at launch, your remotes and new connections',
   'Add remote',
+  'The app opens these connections at launch without asking; the one used last is in front. With none selected it shows the connection page.',
+  'Disconnect',
+  'All connections',
 ]

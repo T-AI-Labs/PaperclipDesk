@@ -212,4 +212,7 @@ export const it: Catalogue = [
   'Connessioni',
   "Cosa si apre all'avvio, i tuoi remoti e le nuove connessioni",
   'Aggiungi remoto',
+  "L'app apre queste connessioni all'avvio senza chiedere; l'ultima usata è in primo piano. Senza selezione mostra la pagina di connessione.",
+  'Disconnetti',
+  'Tutte le connessioni',
 ]

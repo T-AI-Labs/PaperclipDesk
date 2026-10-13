@@ -212,4 +212,7 @@ export const fr: Catalogue = [
   'Connexions',
   "Ce qui s'ouvre au lancement, vos serveurs distants et les nouvelles connexions",
   'Ajouter un serveur distant',
+  "L'application ouvre ces connexions au lancement sans demander ; la dernière utilisée est au premier plan. Sans sélection, elle affiche la page de connexion.",
+  'Déconnecter',
+  'Toutes les connexions',
 ]

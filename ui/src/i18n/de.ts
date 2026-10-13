@@ -211,6 +211,9 @@ export const de = [
   'Verbindungen',
   'Was beim Start geöffnet wird, deine Remotes und neue Verbindungen',
   'Remote hinzufügen',
+  'Diese Verbindungen öffnet die App beim Start ohne Nachfrage; die zuletzt genutzte liegt vorn. Ohne Auswahl zeigt sie die Verbindungsseite.',
+  'Trennen',
+  'Alle Verbindungen',
 ] as const
 
 export type Message = (typeof de)[number]

@@ -12,8 +12,9 @@ fn main() {
     // Declaring the commands makes them deny-by-default; capabilities/default.json allows them explicitly.
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
         "launcher_state",
-        "set_always_show_chooser",
-        "set_startup_profile",
+        "set_open_at_start",
+        "activate_connection",
+        "close_connection",
         "save_remote_profile",
         "duplicate_profile",
         "delete_profile",

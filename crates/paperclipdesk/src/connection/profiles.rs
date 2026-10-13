@@ -24,8 +24,7 @@ pub fn now_iso() -> String {
 fn default_state() -> ConnectionState {
     ConnectionState {
         active_profile_id: None,
-        always_show_chooser: true,
-        auto_connect_last_profile: false,
+        startup_profile_ids: Vec::new(),
         local_profile_name: "Local".into(),
         local_last_connected_at: None,
         local_last_health: Some(ConnectionHealth::Healthy),
@@ -71,21 +70,11 @@ impl ConnectionStore {
         self.cache.remote_profiles.iter().find(|profile| profile.id == profile_id).cloned()
     }
 
-    /// The profile to connect to without asking; `None` shows the chooser.
-    pub fn startup_profile_id(&self) -> Option<String> {
-        let state = &self.cache.state;
-        if state.always_show_chooser || !state.auto_connect_last_profile {
-            return None;
-        }
-        let active = state.active_profile_id.as_deref()?;
-        if active == LOCAL_PROFILE_ID {
-            return Some(active.to_owned());
-        }
-        self.cache
-            .remote_profiles
-            .iter()
-            .any(|profile| profile.id == active && (!profile.remote_url.as_deref().is_some_and(|url| url.starts_with("http://")) || profile.allow_insecure_http == Some(true)))
-            .then(|| active.to_owned())
+    /// The profiles to connect to at launch without asking; none shows the connection page.
+    pub fn startup_profile_ids(&self) -> Vec<String> {
+        let confirmed = |profile: &ConnectionProfile| !profile.remote_url.as_deref().is_some_and(|url| url.starts_with("http://")) || profile.allow_insecure_http == Some(true);
+        let known = |id: &String| id == LOCAL_PROFILE_ID || self.cache.remote_profiles.iter().any(|profile| profile.id == *id && confirmed(profile));
+        self.cache.state.startup_profile_ids.iter().filter(|id| known(id)).cloned().collect()
     }
 
     pub fn save_remote_profile(&mut self, input: RemoteProfileInput, now: &str) -> Result<ConnectionProfile, String> {
@@ -148,21 +137,16 @@ impl ConnectionStore {
         if self.cache.state.active_profile_id.as_deref() == Some(profile_id) {
             self.cache.state.active_profile_id = None;
         }
+        self.cache.state.startup_profile_ids.retain(|id| id != profile_id);
         self.persist();
     }
 
-    pub fn set_always_show_chooser(&mut self, value: bool) {
-        self.cache.state.always_show_chooser = value;
-        if value {
-            self.cache.state.auto_connect_last_profile = false;
+    pub fn set_open_at_start(&mut self, profile_id: &str, open: bool) {
+        let ids = &mut self.cache.state.startup_profile_ids;
+        ids.retain(|id| id != profile_id);
+        if open {
+            ids.push(profile_id.to_owned());
         }
-        self.persist();
-    }
-
-    pub fn set_remembered_profile(&mut self, profile_id: Option<&str>, remember_choice: bool) {
-        self.cache.state.active_profile_id = profile_id.map(str::to_owned);
-        self.cache.state.auto_connect_last_profile = remember_choice;
-        self.cache.state.always_show_chooser = !remember_choice;
         self.persist();
     }
 
@@ -267,8 +251,11 @@ fn sanitize_state(raw: &Value) -> ConnectionState {
     }
     ConnectionState {
         active_profile_id: raw["activeProfileId"].as_str().map(str::to_owned),
-        always_show_chooser: raw["alwaysShowChooser"] != false,
-        auto_connect_last_profile: raw["autoConnectLastProfile"] == true,
+        startup_profile_ids: match raw["startupProfileIds"].as_array() {
+            Some(ids) => ids.iter().filter_map(|id| id.as_str().map(str::to_owned)).collect(),
+            // A file from before several connections could open at launch names the one that did.
+            None => raw["activeProfileId"].as_str().filter(|_| raw["alwaysShowChooser"] == false && raw["autoConnectLastProfile"] == true).map(str::to_owned).into_iter().collect(),
+        },
         local_profile_name: raw["localProfileName"].as_str().map(str::trim).filter(|name| !name.is_empty()).unwrap_or("Local").to_owned(),
         local_last_connected_at: raw["localLastConnectedAt"].as_str().map(str::to_owned),
         local_last_health: Some(health(&raw["localLastHealth"]).unwrap_or(ConnectionHealth::Healthy)),
@@ -341,7 +328,7 @@ mod tests {
     fn persists_remote_profiles_and_the_startup_preference() {
         let (path, mut store) = temp_store("connections");
         let profile = store.save_remote_profile(remote("Home Server", "https://paperclip-host.tailnet.ts.net/dashboard"), NOW).unwrap();
-        store.set_remembered_profile(Some(&profile.id), true);
+        store.set_open_at_start(&profile.id, true);
         store.record_remote_connection(&profile.id, &signed_out_result(), NOW).unwrap();
 
         let reloaded = ConnectionStore::open(path);
@@ -349,21 +336,22 @@ mod tests {
         assert_eq!(remotes.len(), 1);
         assert_eq!(remotes[0].remote_url.as_deref(), Some("https://paperclip-host.tailnet.ts.net/"));
         assert_eq!(remotes[0].last_health, Some(ConnectionHealth::AuthRequired));
-        assert_eq!(reloaded.startup_profile_id(), Some(profile.id));
+        assert_eq!(reloaded.startup_profile_ids(), [profile.id]);
     }
 
     #[test]
     fn keeps_a_synthetic_local_profile() {
         let (_, mut store) = temp_store("local");
-        assert_eq!(store.startup_profile_id(), None);
+        assert!(store.startup_profile_ids().is_empty());
         store.record_local_connection(NOW);
         let local = store.profile(LOCAL_PROFILE_ID).unwrap();
         assert_eq!(local.mode, ConnectionMode::LocalEmbedded);
         assert_eq!(local.last_connected_at.as_deref(), Some(NOW));
-        store.set_remembered_profile(Some(LOCAL_PROFILE_ID), true);
-        assert_eq!(store.startup_profile_id().as_deref(), Some(LOCAL_PROFILE_ID));
-        store.set_always_show_chooser(true);
-        assert_eq!(store.startup_profile_id(), None);
+        assert!(store.startup_profile_ids().is_empty());
+        store.set_open_at_start(LOCAL_PROFILE_ID, true);
+        assert_eq!(store.startup_profile_ids(), [LOCAL_PROFILE_ID]);
+        store.set_open_at_start(LOCAL_PROFILE_ID, false);
+        assert!(store.startup_profile_ids().is_empty());
     }
 
     #[test]
@@ -414,7 +402,7 @@ mod tests {
         });
         let file = sanitize_file(&raw);
         assert_eq!(file.state.active_profile_id, None);
-        assert!(file.state.always_show_chooser);
+        assert!(file.state.startup_profile_ids.is_empty());
         assert_eq!(file.state.local_profile_name, "Local");
         assert_eq!(file.remote_profiles.len(), 1);
         assert_eq!(file.remote_profiles[0].name, "ok.example.com");

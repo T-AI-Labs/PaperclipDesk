@@ -16,6 +16,7 @@ import { type Message, setLanguage, t } from '@/i18n'
 import { useUpdater } from '@/lib/updater'
 import LoadingPanel from '@/LoadingPanel'
 import Sidebar, { type NavPage } from '@/shell/Sidebar'
+import TabStrip from '@/shell/TabStrip'
 
 import Appearance from './pages/Appearance'
 import Connect from './pages/Connect'
@@ -128,46 +129,50 @@ export default function App() {
   )
 
   return (
-    <div className="relative isolate flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="relative isolate flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <Toaster theme={settings.color_scheme} position="bottom-right" offset={{ bottom: 20, right: 20 }} visibleToasts={3} duration={5000} />
       <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />
 
-      {inSettings && (
-        <Sidebar
-          pages={settingsPages}
-          page={page}
-          onOpen={(id) => void open(id)}
-          backLabel={backLabel}
-          onBack={back}
-          subtitle={snapshot.hasCurrentConnection ? (snapshot.currentConnectionName ?? '') : t('Nicht verbunden')}
-        />
-      )}
+      {snapshot.page === 'paperclip' && snapshot.openConnections.length > 1 && <TabStrip connections={snapshot.openConnections} />}
 
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="glass-surface z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
-          <IconTile icon={current.icon} tone={current.tone} size="lg" />
-          {page === 'logs' && (
-            <Button size="sm" variant="ghost" onClick={back}>
-              <ArrowLeft /> {backLabel}
-            </Button>
-          )}
-          <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <h1 className="truncate font-heading text-lg font-semibold tracking-tight">{t(current.label)}</h1>
-            <p className="truncate text-xs text-muted-foreground">{t(current.description)}</p>
-          </div>
-          {updater.available && page !== 'system' && (
-            <Button size="sm" variant="outline" onClick={() => void open('system')}>
-              <Download /> {t('Update {version}', { version: updater.version })}
-            </Button>
-          )}
-          <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
-            {busy ? t('Verbindet …') : snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : t('Nicht verbunden')}
-          </Badge>
-        </header>
+      <div className="flex min-h-0 flex-1">
+        {inSettings && (
+          <Sidebar
+            pages={settingsPages}
+            page={page}
+            onOpen={(id) => void open(id)}
+            backLabel={backLabel}
+            onBack={back}
+            subtitle={snapshot.hasCurrentConnection ? (snapshot.currentConnectionName ?? '') : t('Nicht verbunden')}
+          />
+        )}
 
-        <main key={page} className="relative z-10 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-          <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>{content}</div>
-        </main>
+        <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+          <header className="glass-surface z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
+            <IconTile icon={current.icon} tone={current.tone} size="lg" />
+            {page === 'logs' && (
+              <Button size="sm" variant="ghost" onClick={back}>
+                <ArrowLeft /> {backLabel}
+              </Button>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+              <h1 className="truncate font-heading text-lg font-semibold tracking-tight">{t(current.label)}</h1>
+              <p className="truncate text-xs text-muted-foreground">{t(current.description)}</p>
+            </div>
+            {updater.available && page !== 'system' && (
+              <Button size="sm" variant="outline" onClick={() => void open('system')}>
+                <Download /> {t('Update {version}', { version: updater.version })}
+              </Button>
+            )}
+            <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
+              {busy ? t('Verbindet …') : snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : t('Nicht verbunden')}
+            </Badge>
+          </header>
+
+          <main key={page} className="relative z-10 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+            <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>{content}</div>
+          </main>
+        </div>
       </div>
     </div>
   )

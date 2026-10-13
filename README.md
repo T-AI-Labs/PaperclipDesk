@@ -28,7 +28,7 @@
 ## TL;DR
 
 - **No terminal, no browser tab.** PaperclipDesk downloads the [Paperclip](https://docs.paperclip.ing/) server, starts it with its database and ends it when you close the window.
-- **Local or remote.** Run Paperclip on this PC, or connect to one that already runs on another machine. Each connection keeps its own login.
+- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between their tabs. Each connection keeps its own login.
 - **Everything in one window.** Paperclip is the main view; settings, the connection page and the log open in the same window.
 - **You stay in control of the server.** See its version, edit its configuration, reinstall it, or reset it with a backup of the old data.
 - **Your data stays on your PC.** No account, no telemetry.
@@ -52,7 +52,7 @@ PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads t
 
 Before it connects, PaperclipDesk checks a remote: that it answers, that it really is a Paperclip, and that its sign-in is ready. A remote over plain `http://` is only opened after you confirmed that you accept an unencrypted connection.
 
-The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Saved remotes also appear in the **Connect** menu, with a tick at the one in use. Under **Settings → Connections** you choose what opens when the app starts: the connection page, the local server, or one of your remotes.
+The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Opening another connection keeps the ones you have open: while several are open, a strip of tabs above Paperclip switches between them, and the cross on a tab or card closes one. Saved remotes also appear in the **Connect** menu, with a tick at the open ones. Under **Settings → Connections** you choose which connections open when the app starts; with none chosen it shows the connection page.
 
 ## Settings
 
@@ -61,7 +61,7 @@ The connection page shows every connection as a card: the local server and each 
 | Category | What you find there |
 | --- | --- |
 | **System** | The language, updates, export and import of your settings, and whether logs are cleared when the app exits |
-| **Connections** | The connection opened at start, your saved remotes to edit, duplicate or delete, and the check of a new remote |
+| **Connections** | The connections opened at start, your saved remotes to edit, duplicate or delete, and the check of a new remote |
 | **Server** | The version of the local Paperclip server, restart and reinstall, an editor for its `config.json` and `.env`, and the reset |
 | **Appearance** | 31 designs, light and dark mode, and an accent color |
 

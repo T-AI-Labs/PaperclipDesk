@@ -6,7 +6,7 @@ import { AppMark } from '@/components/app-mark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { TONE_DOT, profileHealth, relativeTime } from '@/connect/format'
-import { type BootStep, LOCAL_PROFILE_ID, type LauncherView, type Snapshot, cancelConnect, connectLocal, connectSavedProfile, errorMessage, returnToCurrentSession, showPage } from '@/lib/client'
+import { type BootStep, type LauncherView, type OpenConnection, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage, showPage } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 
@@ -88,37 +88,42 @@ function Connecting({ snapshot }: { snapshot: Snapshot }) {
   )
 }
 
-/// One place to connect to. The card of the connection in use leads back to it instead of opening it again.
+/// One place to connect to. The card of an open connection leads back to it instead of opening it again, and can close it.
 function ConnectionCard({
   icon: Icon,
   name,
   status,
-  current,
+  open,
   children,
   action,
 }: {
   icon: LucideIcon
   name: string
   status: ReactNode
-  current: boolean
-  children: ReactNode
-  action: ReactNode
+  open: OpenConnection | undefined
+  children?: ReactNode
+  action?: ReactNode
 }) {
   return (
     <Card>
       <CardContent className="flex h-full flex-col gap-4">
         <div className="flex items-center gap-3">
-          <span className={cn('grid size-10 shrink-0 place-items-center rounded-lg', current ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+          <span className={cn('grid size-10 shrink-0 place-items-center rounded-lg', open ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
             <Icon className="size-5" />
           </span>
-          <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="truncate font-heading font-semibold tracking-tight">{name}</p>
             <div className="flex items-center gap-2.5 text-xs text-muted-foreground">{status}</div>
           </div>
+          {open && (
+            <Button variant="ghost" size="icon-sm" className="self-start text-muted-foreground" title={t('Trennen')} aria-label={t('Trennen')} onClick={() => closeConnection(open.key).catch(failed)}>
+              <X />
+            </Button>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">{children}</div>
-        {current ? (
-          <Button onClick={() => returnToCurrentSession().catch(failed)}>
+        {open ? (
+          <Button onClick={() => activateConnection(open.key).catch(failed)}>
             <ArrowLeft /> {t('Zu Paperclip')}
           </Button>
         ) : (
@@ -146,8 +151,11 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
     start(action)
   }
 
-  const current = snapshot.hasCurrentConnection ? snapshot.currentProfileId : null
+  const open = snapshot.openConnections
+  const openLocal = open.find((connection) => connection.local)
   const remotes = snapshot.profiles.filter((profile) => profile.mode === 'remote_existing')
+  // A remote that was connected once without saving it has no profile, and so no card of its own.
+  const unsaved = open.filter((connection) => !connection.local && !remotes.some((profile) => profile.id === connection.profileId))
   const retry = lastAction ?? (snapshot.state.activeProfileId ? ({ kind: 'saved', profileId: snapshot.state.activeProfileId } satisfies Action) : null)
   const lastLocal = relativeTime(snapshot.state.localLastConnectedAt)
 
@@ -189,89 +197,85 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
-        <ConnectionCard
-          icon={Monitor}
-          name={t('Lokal')}
-          current={current === LOCAL_PROFILE_ID}
-          status={
-            current === LOCAL_PROFILE_ID ? (
-              <span className="flex items-center gap-1.5">
-                <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT.ok)} />
-                {t('Lokaler Server läuft')}
-              </span>
-            ) : (
-              snapshot.localServerVersion !== null && `Paperclip-Server ${snapshot.localServerVersion}`
-            )
-          }
-          action={
-            <Button variant={current === null ? 'default' : 'outline'} disabled={snapshot.localServerVersion === null} onClick={() => run({ kind: 'local' })}>
-              <Play /> {t('Starten')}
-            </Button>
-          }
-        >
-          {snapshot.localServerVersion === null ? (
-            <p className="text-destructive">
-              {t('Der Paperclip-Server fehlt')}. {t('Dieser Build kann ihn nicht nachladen. Im Repository legt „npm run prepare-server“ ihn an.')}
-            </p>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
+      <ConnectionCard
+        icon={Monitor}
+        name={t('Lokal')}
+        open={openLocal}
+        status={
+          openLocal ? (
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT.ok)} />
+              {t('Lokaler Server läuft')}
+            </span>
           ) : (
-            <>
-              <p>{t('Startet den mitgelieferten Paperclip-Server auf diesem Rechner, mit vertrauenswürdigem lokalem Zugriff.')}</p>
-              <p>{snapshot.localServerInstalled ? lastLocal && t('Zuletzt verbunden {when}', { when: lastLocal }) : t('wird beim ersten Start heruntergeladen (einige hundert MB)')}</p>
-            </>
-          )}
-        </ConnectionCard>
-
-        {remotes.map((profile) => {
-          const health = profileHealth(profile)
-          const last = relativeTime(profile.lastConnectedAt)
-          return (
-            <ConnectionCard
-              key={profile.id}
-              icon={Globe}
-              name={profile.name}
-              current={current === profile.id}
-              status={
-                <>
-                  <span className="flex items-center gap-1.5">
-                    <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT[health.tone])} />
-                    {health.label}
-                  </span>
-                  {profile.allowInsecureHttp && (
-                    <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                      <ShieldAlert className="size-3" /> HTTP
-                    </span>
-                  )}
-                </>
-              }
-              action={
-                <Button variant="outline" onClick={() => run({ kind: 'saved', profileId: profile.id })}>
-                  {t('Verbinden')}
-                </Button>
-              }
-            >
-              <p className="truncate font-mono">{profile.remoteUrl}</p>
-              {last && <p>{t('Zuletzt verbunden {when}', { when: last })}</p>}
-            </ConnectionCard>
+            snapshot.localServerVersion !== null && `Paperclip-Server ${snapshot.localServerVersion}`
           )
-        })}
+        }
+        action={
+          <Button variant={open.length === 0 ? 'default' : 'outline'} disabled={snapshot.localServerVersion === null} onClick={() => run({ kind: 'local' })}>
+            <Play /> {t('Starten')}
+          </Button>
+        }
+      >
+        {snapshot.localServerVersion === null ? (
+          <p className="text-destructive">
+            {t('Der Paperclip-Server fehlt')}. {t('Dieser Build kann ihn nicht nachladen. Im Repository legt „npm run prepare-server“ ihn an.')}
+          </p>
+        ) : (
+          <>
+            <p>{t('Startet den mitgelieferten Paperclip-Server auf diesem Rechner, mit vertrauenswürdigem lokalem Zugriff.')}</p>
+            <p>{snapshot.localServerInstalled ? lastLocal && t('Zuletzt verbunden {when}', { when: lastLocal }) : t('wird beim ersten Start heruntergeladen (einige hundert MB)')}</p>
+          </>
+        )}
+      </ConnectionCard>
 
-        <button
-          type="button"
-          onClick={() => showPage('connections').catch(failed)}
-          className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-        >
-          <Plus className="size-5" />
-          {t('Remote hinzufügen')}
-        </button>
-      </div>
+      {remotes.map((profile) => {
+        const health = profileHealth(profile)
+        const last = relativeTime(profile.lastConnectedAt)
+        return (
+          <ConnectionCard
+            key={profile.id}
+            icon={Globe}
+            name={profile.name}
+            open={open.find((connection) => connection.profileId === profile.id)}
+            status={
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT[health.tone])} />
+                  {health.label}
+                </span>
+                {profile.allowInsecureHttp && (
+                  <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                    <ShieldAlert className="size-3" /> HTTP
+                  </span>
+                )}
+              </>
+            }
+            action={
+              <Button variant="outline" onClick={() => run({ kind: 'saved', profileId: profile.id })}>
+                {t('Verbinden')}
+              </Button>
+            }
+          >
+            <p className="truncate font-mono">{profile.remoteUrl}</p>
+            {last && <p>{t('Zuletzt verbunden {when}', { when: last })}</p>}
+          </ConnectionCard>
+        )
+      })}
 
-      {current !== null && (
-        <p className="text-xs text-muted-foreground">
-          {t('Es besteht bereits eine Verbindung')}. {t('Eine neue Verbindung ersetzt sie.')}
-        </p>
-      )}
+      {unsaved.map((connection) => (
+        <ConnectionCard key={connection.key} icon={Globe} name={connection.name} status={null} open={connection} />
+      ))}
+
+      <button
+        type="button"
+        onClick={() => showPage('connections').catch(failed)}
+        className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      >
+        <Plus className="size-5" />
+        {t('Remote hinzufügen')}
+      </button>
     </div>
   )
 }

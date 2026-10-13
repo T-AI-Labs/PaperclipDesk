@@ -43,7 +43,7 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
 pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
     let handle = client.handle();
     let recent = client.store.lock().unwrap().recent_remote_profiles(RECENT_CONNECTIONS);
-    let current = client.current_profile_id();
+    let open = client.open_profile_ids();
     // Paperclip's own view and its zoom exist only while a connection is open.
     let connected = client.paperclip_webview().is_some();
     let server_version = client.local_server_version();
@@ -56,8 +56,8 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
         .text("app.quit", i18n::t("Beenden"))
         .build()?;
 
-    // The places to connect to first, the one in use ticked; choosing and editing below.
-    let connected_to = |profile_id: &str| current.as_deref() == Some(profile_id);
+    // The places to connect to first, the open ones ticked; choosing and editing below.
+    let connected_to = |profile_id: &str| open.iter().any(|id| id == profile_id);
     let local = CheckMenuItemBuilder::with_id("connection.local", i18n::t("Dieser Computer")).checked(connected_to(LOCAL_PROFILE_ID)).build(handle)?;
     let mut connection = SubmenuBuilder::new(handle, i18n::t("Verbinden")).item(&local);
     for profile in &recent {
@@ -137,7 +137,7 @@ pub fn handle(client: &Arc<Client>, id: &str) {
         "connection.chooser" => client.show_launcher(LauncherView::Chooser, None, None),
         "connection.local" => {
             client.invalidate_menu();
-            client.boot_local(None, false);
+            client.boot_local(false);
         }
         "connection.manage" => client.show_page(LauncherPage::Connections),
         "settings.open" => client.show_page(LauncherPage::System),
@@ -182,7 +182,7 @@ pub fn handle(client: &Arc<Client>, id: &str) {
                 client.set_zoom(f64::from(percent) / 100.0);
             } else if let Some(profile_id) = other.strip_prefix(RECENT_PREFIX) {
                 client.invalidate_menu();
-                client.boot_saved_profile(profile_id, None);
+                client.boot_saved_profile(profile_id);
             } else if let Some(window) = client.window() {
                 let webview = client.active_webview();
                 let done = match other {

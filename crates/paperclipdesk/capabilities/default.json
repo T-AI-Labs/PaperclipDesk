@@ -8,8 +8,9 @@
   "permissions": [
     "core:default",
     "allow-launcher-state",
-    "allow-set-always-show-chooser",
-    "allow-set-startup-profile",
+    "allow-set-open-at-start",
+    "allow-activate-connection",
+    "allow-close-connection",
     "allow-save-remote-profile",
     "allow-duplicate-profile",
     "allow-delete-profile",

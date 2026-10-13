@@ -83,12 +83,12 @@ function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; 
 /// The saved remotes: connect, edit, duplicate, delete.
 export default function RemoteConnections({
   profiles,
-  currentProfileId,
+  openProfileIds,
   onConnect,
   onChanged,
 }: {
   profiles: ConnectionProfile[]
-  currentProfileId: string | null
+  openProfileIds: (string | null)[]
   onConnect: (profile: ConnectionProfile) => void
   onChanged: (snapshot: Snapshot) => void
 }) {
@@ -125,7 +125,7 @@ export default function RemoteConnections({
             const last = relativeTime(profile.lastConnectedAt)
             return (
               <li key={profile.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', profile.id === currentProfileId ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', openProfileIds.includes(profile.id) ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
                   <Globe className="size-4" />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -27,8 +27,8 @@ export interface ConnectionProfile {
 
 export interface ConnectionState {
   activeProfileId: string | null
-  alwaysShowChooser: boolean
-  autoConnectLastProfile: boolean
+  /// The connections opened at launch without asking; none shows the connection page.
+  startupProfileIds: string[]
   localProfileName: string
   localLastConnectedAt?: string
   localLastHealth?: ConnectionHealth
@@ -50,6 +50,15 @@ export interface RemotePreflightResult {
   reason?: FailureReason
   warning?: string
   detail?: string
+}
+
+/// A connection that is open, in front or behind it.
+export interface OpenConnection {
+  key: string
+  profileId: string | null
+  name: string
+  local: boolean
+  front: boolean
 }
 
 export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
@@ -75,6 +84,8 @@ export interface Snapshot {
   hasCurrentConnection: boolean
   currentConnectionName: string | null
   currentProfileId: string | null
+  /// In the order they were opened.
+  openConnections: OpenConnection[]
   state: ConnectionState
   profiles: ConnectionProfile[]
   localServerVersion: string | null
@@ -161,8 +172,9 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const launcherState = () => call<Snapshot>('launcher_state')
-export const setStartupProfile = (profileId: string | null) => call<Snapshot>('set_startup_profile', { profileId })
-export const setAlwaysShowChooser = (value: boolean) => call<Snapshot>('set_always_show_chooser', { value })
+export const setOpenAtStart = (profileId: string, open: boolean) => call<Snapshot>('set_open_at_start', { profileId, open })
+export const activateConnection = (key: string) => call<void>('activate_connection', { key })
+export const closeConnection = (key: string) => call<void>('close_connection', { key })
 export const saveRemoteProfile = (payload: RemoteProfilePayload) => call<Snapshot>('save_remote_profile', { payload })
 export const duplicateProfile = (profileId: string) => call<Snapshot>('duplicate_profile', { profileId })
 export const deleteProfile = (profileId: string) => call<Snapshot>('delete_profile', { profileId })
