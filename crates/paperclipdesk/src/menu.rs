@@ -76,6 +76,30 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
     MenuBuilder::new(handle).items(&[&app, &connection, &view, &help]).build()
 }
 
+/// Windows draws the dropdowns itself and follows its own app mode; this makes them follow the app's colour scheme, as the bar does.
+pub fn apply_color_scheme(theme: Option<tauri::Theme>) {
+    use windows_sys::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+
+    // uxtheme exports both by ordinal only: SetPreferredAppMode (135; 1 follows Windows, 2 forces dark, 3 forces light) and FlushMenuThemes (136).
+    let mode: i32 = match theme {
+        Some(tauri::Theme::Dark) => 2,
+        Some(tauri::Theme::Light) => 3,
+        _ => 1,
+    };
+    unsafe {
+        let uxtheme = LoadLibraryW(windows_sys::w!("uxtheme.dll"));
+        if uxtheme.is_null() {
+            return;
+        }
+        if let (Some(set_preferred_app_mode), Some(flush_menu_themes)) = (GetProcAddress(uxtheme, 135 as _), GetProcAddress(uxtheme, 136 as _)) {
+            let set_preferred_app_mode: unsafe extern "system" fn(i32) -> i32 = std::mem::transmute(set_preferred_app_mode);
+            let flush_menu_themes: unsafe extern "system" fn() = std::mem::transmute(flush_menu_themes);
+            set_preferred_app_mode(mode);
+            flush_menu_themes();
+        }
+    }
+}
+
 /// Runs off the main thread: several entries open windows or wait for a connection.
 pub fn handle(client: &Arc<Client>, id: &str) {
     let (client, id) = (Arc::clone(client), id.to_owned());

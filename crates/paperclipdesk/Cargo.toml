@@ -25,6 +25,7 @@ tracing-subscriber.workspace = true
 ureq = { version = "=3.4.2", features = ["json", "platform-verifier"] }
 url = "2"
 uuid = { version = "1", features = ["v4"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader"] }
 
 [build-dependencies]
 serde_json.workspace = true

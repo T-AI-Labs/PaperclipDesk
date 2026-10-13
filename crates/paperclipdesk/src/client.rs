@@ -302,6 +302,7 @@ impl Client {
             "light" => Some(tauri::Theme::Light),
             _ => None,
         };
+        let _ = self.handle.run_on_main_thread(move || crate::menu::apply_color_scheme(theme));
         if let Some(window) = self.window()
             && let Err(e) = window.set_theme(theme)
         {
