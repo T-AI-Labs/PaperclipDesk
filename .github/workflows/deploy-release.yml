@@ -2,12 +2,48 @@ name: 'Deploy Release'
 
 on:
   workflow_dispatch: # manual trigger
+  push:
+    branches: [main]
+    paths:
+      - 'crates/paperclipdesk/tauri.conf.json'
+      - 'release-notes/**'
 
 permissions:
   contents: write
 
+concurrency:
+  group: deploy-release
+  cancel-in-progress: false
+
 jobs:
+  # A push that touches the config or old release notes without a new version must not build a release.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      unreleased: ${{ steps.check.outputs.unreleased }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Check whether this version is released already
+        id: check
+        run: |
+          version=$(jq -r .version crates/paperclipdesk/tauri.conf.json)
+          if [ -n "$(git ls-remote --tags origin "refs/tags/v$version")" ]; then
+            echo "::notice::v$version is released already, nothing to do."
+            echo "unreleased=false" >> "$GITHUB_OUTPUT"
+          elif [ ! -f "release-notes/v$version.md" ]; then
+            echo "::error::release-notes/v$version.md is missing."
+            exit 1
+          else
+            echo "unreleased=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: version
+    if: needs.version.outputs.unreleased == 'true'
     runs-on: windows-latest
 
     env:
