@@ -2279,18 +2279,18 @@
     --tone-spread: 1;
 }
 
-/* Platform designs draw their navigation the way the platform does: plain glyphs instead of tiles. */
+/* Platform designs show plain glyphs instead of tiles, as the platform does; the sidebar (.tone-glyph) does so in every design. */
 :is([data-theme="fluent"], [data-theme="macos"], [data-theme="material"], [data-theme="xp"], [data-theme="win95"]) .tone-tile {
     background: none;
     box-shadow: none !important;
     color: currentColor;
 }
 /* Windows 11 settings: every page has its own coloured glyph, without a tile behind it. */
-[data-theme="fluent"] .tone-tile {
+[data-theme="fluent"] :is(.tone-tile, .tone-glyph) {
     color: oklch(from var(--primary) l c calc(h + var(--tone, 0)));
 }
-.dark [data-theme="fluent"] .tone-tile,
-.dark[data-theme="fluent"] .tone-tile {
+.dark [data-theme="fluent"] :is(.tone-tile, .tone-glyph),
+.dark[data-theme="fluent"] :is(.tone-tile, .tone-glyph) {
     color: oklch(from var(--primary) calc(l + 0.12) c calc(h + var(--tone, 0)));
 }
 :is([data-theme="fluent"], [data-theme="macos"], [data-theme="material"], [data-theme="xp"], [data-theme="win95"]) .tone-tile::before {
@@ -2315,7 +2315,7 @@
 }
 
 /* macOS: sidebar symbols take the accent colour, the selection is a quiet grey. */
-[data-theme="macos"] .tone-tile {
+[data-theme="macos"] :is(.tone-tile, .tone-glyph) {
     color: var(--primary);
 }
 [data-theme="macos"] .tone-soft,
