@@ -488,17 +488,23 @@ impl Client {
         }
     }
 
-    /// Paperclip needs more room than the connection pages; the window grows once, to what the monitor allows.
+    /// Paperclip needs more room than the connection pages; the window grows once, to what its monitor allows, around the place the user left it at.
     fn fit_window_to_paperclip(&self) {
         let Some(window) = self.window() else { return };
-        let Some(monitor) = self.handle.primary_monitor().ok().flatten() else { return };
+        let Some(monitor) = window.current_monitor().ok().flatten() else { return };
         let available = monitor.size().to_logical::<f64>(monitor.scale_factor());
         let wanted = ((available.width - 80.0).clamp(900.0, 1440.0), (available.height - 120.0).clamp(600.0, 900.0));
         let Ok(current) = window.inner_size().map(|size| size.to_logical::<f64>(window.scale_factor().unwrap_or(1.0))) else { return };
-        if current.width < wanted.0 - 100.0 || current.height < wanted.1 - 100.0 {
-            let _ = window.set_size(LogicalSize::new(wanted.0, wanted.1));
-            let _ = window.center();
+        if current.width >= wanted.0 - 100.0 && current.height >= wanted.1 - 100.0 {
+            return;
         }
+        let (Ok(position), Ok(before)) = (window.outer_position(), window.outer_size()) else { return };
+        let _ = window.set_size(LogicalSize::new(wanted.0, wanted.1));
+        let Ok(after) = window.outer_size() else { return };
+        let area = monitor.work_area();
+        let grown = |position: i32, before: u32, after: u32, start: i32, length: u32| (position - (after as i32 - before as i32) / 2).min(start + length as i32 - after as i32).max(start);
+        let (x, y) = (grown(position.x, before.width, after.width, area.position.x, area.size.width), grown(position.y, before.height, after.height, area.position.y, area.size.height));
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
     }
 
     /// Shows the connection's webview again, e.g. after the user went to the settings.
