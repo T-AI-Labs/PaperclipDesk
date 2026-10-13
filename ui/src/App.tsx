@@ -36,7 +36,7 @@ const PAGES: Record<LauncherPage, { label: Message; icon: LucideIcon; tone: Tone
   appearance: { label: 'Darstellung', icon: Palette, tone: 100, description: 'Design, Akzentfarbe und Farbschema dieses Fensters' },
 }
 
-const SETTINGS_PAGES: readonly LauncherPage[] = ['system', 'connections', 'server', 'appearance']
+const SETTINGS_PAGES: readonly LauncherPage[] = ['system', 'appearance', 'connections', 'server']
 
 type Loaded = { snapshot: Snapshot; settings: Settings } | { error: string }
 
