@@ -98,4 +98,10 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Open data folder",
     "File",
     "Third-party licenses",
+    "Connect",
+    "This computer",
+    "{} (Remote: {})",
+    "All connections …",
+    "Edit remotes …",
+    "Settings …",
 ];

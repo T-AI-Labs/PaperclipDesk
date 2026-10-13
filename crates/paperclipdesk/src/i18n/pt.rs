@@ -98,4 +98,10 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Abrir pasta de dados",
     "Ficheiro",
     "Licenças de terceiros",
+    "Conectar",
+    "Este computador",
+    "{} (remoto: {})",
+    "Todas as conexões …",
+    "Editar conexões remotas …",
+    "Configurações …",
 ];

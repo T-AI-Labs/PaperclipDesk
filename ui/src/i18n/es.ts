@@ -39,7 +39,7 @@ export const es: Catalogue = [
   'Esta compilación no puede descargarlo. En el repositorio, «npm run prepare-server» lo prepara.',
   'se descarga en el primer inicio (unos cientos de MB)',
   'Iniciar siempre en local al arrancar',
-  'Omite este selector; el menú «Conexión» te trae de vuelta aquí en cualquier momento.',
+  'Omite este selector; el menú «Conectar» te trae de vuelta aquí en cualquier momento.',
   'Inicialización',
   'Iniciando la base de datos',
   'Iniciando el servidor',

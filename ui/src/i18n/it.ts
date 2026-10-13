@@ -39,7 +39,7 @@ export const it: Catalogue = [
   'Questa build non può scaricarlo. Nel repository, «npm run prepare-server» lo prepara.',
   'viene scaricato al primo avvio (alcune centinaia di MB)',
   "Avvia sempre in locale all'apertura",
-  'Salta questa scelta; il menu «Connessione» ti riporta qui in qualsiasi momento.',
+  'Salta questa scelta; il menu «Connetti» ti riporta qui in qualsiasi momento.',
   'Inizializzazione',
   'Avvio del database',
   'Avvio del server',

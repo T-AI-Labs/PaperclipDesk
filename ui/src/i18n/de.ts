@@ -38,7 +38,7 @@ export const de = [
   'Dieser Build kann ihn nicht nachladen. Im Repository legt „npm run prepare-server“ ihn an.',
   'wird beim ersten Start heruntergeladen (einige hundert MB)',
   'Beim Start immer lokal starten',
-  'Überspringt diese Auswahl; über das Menü „Verbindung“ kommst du jederzeit hierher zurück.',
+  'Überspringt diese Auswahl; über das Menü „Verbinden“ kommst du jederzeit hierher zurück.',
   'Initialisierung',
   'Datenbank starten',
   'Server starten',

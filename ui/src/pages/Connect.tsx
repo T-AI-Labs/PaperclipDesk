@@ -223,7 +223,7 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
                 <SwitchRow
                   id="remember-local"
                   label={t('Beim Start immer lokal starten')}
-                  description={t('Überspringt diese Auswahl; über das Menü „Verbindung“ kommst du jederzeit hierher zurück.')}
+                  description={t('Überspringt diese Auswahl; über das Menü „Verbinden“ kommst du jederzeit hierher zurück.')}
                   checked={rememberLocal}
                   onChange={(checked) => {
                     setRememberLocal(checked)

@@ -26,19 +26,23 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
     let server_version = client.local_server_version();
     let entry = |id: &str, text: &str, enabled: bool| MenuItemBuilder::with_id(id, text).enabled(enabled).build(handle);
 
-    let app = SubmenuBuilder::new(handle, i18n::t("Datei")).text("settings.open", i18n::t("Einstellungen")).separator().text("app.quit", i18n::t("Beenden")).build()?;
+    let app = SubmenuBuilder::new(handle, "PaperclipDesk")
+        .text("settings.open", i18n::t("Einstellungen …"))
+        .text("app.updates", i18n::t("Nach Updates suchen …"))
+        .separator()
+        .text("app.quit", i18n::t("Beenden"))
+        .build()?;
 
-    // The connections themselves first, the one in use ticked; switching and managing below.
+    // The places to connect to first, the one in use ticked; choosing and editing below.
     let connected_to = |profile_id: &str| current.as_deref() == Some(profile_id);
-    let local = CheckMenuItemBuilder::with_id("connection.local", i18n::t("Lokaler Server")).checked(connected_to(LOCAL_PROFILE_ID)).build(handle)?;
-    let mut connection = SubmenuBuilder::new(handle, i18n::t("Verbindung")).item(&local);
+    let local = CheckMenuItemBuilder::with_id("connection.local", i18n::t("Dieser Computer")).checked(connected_to(LOCAL_PROFILE_ID)).build(handle)?;
+    let mut connection = SubmenuBuilder::new(handle, i18n::t("Verbinden")).item(&local);
     for profile in &recent {
         let host = profile.remote_url.as_deref().and_then(|url| tauri::Url::parse(url).ok()).and_then(|url| url.host_str().map(str::to_owned)).unwrap_or_default();
-        let remote = CheckMenuItemBuilder::with_id(format!("{RECENT_PREFIX}{}", profile.id), format!("{} ({host})", profile.name)).checked(connected_to(&profile.id)).build(handle)?;
+        let remote = CheckMenuItemBuilder::with_id(format!("{RECENT_PREFIX}{}", profile.id), i18n::f("{} (Remote: {})", &[&profile.name, &host])).checked(connected_to(&profile.id)).build(handle)?;
         connection = connection.item(&remote);
     }
-    let connection =
-        connection.separator().text("connection.chooser", i18n::t("Verbindung wechseln …")).text("connection.manage", i18n::t("Remote-Verbindungen verwalten")).build()?;
+    let connection = connection.separator().text("connection.chooser", i18n::t("Alle Verbindungen …")).text("connection.manage", i18n::t("Remotes bearbeiten …")).build()?;
 
     let zoom_percent = client.zoom_percent();
     let mut zoom = SubmenuBuilder::new(handle, "Zoom")
@@ -59,7 +63,7 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
         .text("view.fullscreen", i18n::t("Vollbild"))
         .build()?;
 
-    // Everything for looking into a problem, then the updates.
+    // Reading first, then everything for looking into a problem.
     let help = SubmenuBuilder::new(handle, i18n::t("Hilfe"))
         .text("help.docs", i18n::t("Dokumentation"))
         .text("help.licenses", i18n::t("Lizenzen Dritter"))
@@ -67,8 +71,6 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
         .text("help.logs", i18n::t("Protokoll"))
         .text("help.data_folder", i18n::t("Datenordner öffnen"))
         .text("view.devtools", i18n::t("Entwicklertools"))
-        .separator()
-        .text("app.updates", i18n::t("Nach Updates suchen …"))
         .separator()
         .item(&entry("help.version", &format!("Paperclip {}", server_version.as_deref().unwrap_or("–")), false)?)
         .build()?;

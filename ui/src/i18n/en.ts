@@ -39,7 +39,7 @@ export const en: Catalogue = [
   'This build cannot download it. In the repository, “npm run prepare-server” sets it up.',
   'is downloaded on the first start (a few hundred MB)',
   'Always start local on launch',
-  'Skips this chooser; the “Connection” menu brings you back here at any time.',
+  'Skips this chooser; the “Connect” menu brings you back here at any time.',
   'Initialising',
   'Starting the database',
   'Starting the server',

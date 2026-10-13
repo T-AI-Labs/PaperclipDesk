@@ -52,11 +52,11 @@ PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads t
 
 Before it connects, PaperclipDesk checks a remote: that it answers, that it really is a Paperclip, and that its sign-in is ready. A remote over plain `http://` is only opened after you confirmed that you accept an unencrypted connection.
 
-Saved remotes appear in the **Connection** menu, with a tick at the one in use. Under **Settings → System** you choose what opens when the app starts: the connection chooser, the local server, or one of your remotes.
+Saved remotes appear in the **Connect** menu, with a tick at the one in use. Under **Settings → System** you choose what opens when the app starts: the connection chooser, the local server, or one of your remotes.
 
 ## Settings
 
-**File → Settings** opens them in the same window. A back button returns you to Paperclip.
+**PaperclipDesk → Settings** opens them in the same window. A back button returns you to Paperclip.
 
 | Category | What you find there |
 | --- | --- |
@@ -81,10 +81,10 @@ Connections to remotes are not affected.
 
 | Menu | Entries |
 | --- | --- |
-| **File** | Settings, Quit |
-| **Connection** | Local server, your recent remotes, Switch connection, Manage remote connections |
+| **PaperclipDesk** | Settings, Check for updates, Quit |
+| **Connect** | This computer, your recent remotes, All connections, Edit remotes |
 | **View** | Paperclip, Reload, Zoom from 50 % to 200 %, Full screen |
-| **Help** | Documentation, Third-party licenses, Log, Open data folder, Developer tools, Check for updates, and the Paperclip version |
+| **Help** | Documentation, Third-party licenses, Log, Open data folder, Developer tools, and the Paperclip version |
 
 ## Troubleshooting
 

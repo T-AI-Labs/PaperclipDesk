@@ -39,7 +39,7 @@ export const pt: Catalogue = [
   'Esta versão não pode baixá-lo. No repositório, “npm run prepare-server” o prepara.',
   'é baixado na primeira inicialização (algumas centenas de MB)',
   'Sempre iniciar localmente ao abrir',
-  'Pula esta seleção; o menu “Conexão” traz você de volta aqui a qualquer momento.',
+  'Pula esta seleção; o menu “Conectar” traz você de volta aqui a qualquer momento.',
   'Inicialização',
   'Iniciando o banco de dados',
   'Iniciando o servidor',

@@ -39,7 +39,7 @@ export const fr: Catalogue = [
   'Cette version ne peut pas le télécharger. Dans le dépôt, « npm run prepare-server » le met en place.',
   'est téléchargé au premier démarrage (quelques centaines de Mo)',
   'Toujours démarrer en local au lancement',
-  'Ignore ce sélecteur ; le menu « Connexion » vous y ramène à tout moment.',
+  'Ignore ce sélecteur ; le menu « Connecter » vous y ramène à tout moment.',
   'Initialisation',
   'Démarrage de la base de données',
   'Démarrage du serveur',
