@@ -174,7 +174,7 @@ export default function System({ settings, saving, save, updater }: PageProps & 
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="flex flex-col gap-1 text-sm text-muted-foreground">
+        <CardContent className="flex flex-col gap-1 text-xs text-muted-foreground">
           <p>
             PaperclipDesk {about?.version ?? '–'} · Paperclip-Server {about?.server_version ?? '–'}
           </p>

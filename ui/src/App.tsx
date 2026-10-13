@@ -154,16 +154,16 @@ export default function App() {
         )}
 
         <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-          <header className="glass-surface z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
-            <IconTile icon={current.icon} tone={current.tone} size="lg" />
+          <header className="glass-surface z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
+            <IconTile icon={current.icon} tone={current.tone} />
             {page === 'logs' && (
               <Button size="sm" variant="ghost" onClick={back}>
                 <ArrowLeft /> {backLabel}
               </Button>
             )}
             <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <h1 className="truncate font-heading text-lg font-semibold tracking-tight">{t(current.label)}</h1>
-              <p className="truncate text-xs text-muted-foreground">{t(current.description)}</p>
+              <h1 className="truncate font-heading text-sm font-semibold tracking-tight">{t(current.label)}</h1>
+              <p className="truncate text-[11px] text-muted-foreground">{t(current.description)}</p>
             </div>
             {updater.available && page !== 'system' && (
               <Button size="sm" variant="outline" onClick={() => void open('system')}>

@@ -15,7 +15,7 @@ export interface NavPage {
 }
 
 // As in a WinUI NavigationView. Hover changes the fill only: anything that moves or appears makes the row wobble.
-const ITEM = 'relative flex h-9 shrink-0 items-center gap-4 rounded-md px-4 text-sm'
+const ITEM = 'relative flex h-9 shrink-0 items-center gap-4 rounded-md px-4 text-[13px]'
 const ITEM_IDLE = 'text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground active:bg-sidebar-accent/50'
 
 function NavItem({ page, active, shortcut, onOpen }: { page: NavPage; active: boolean; shortcut: string; onOpen: () => void }) {
@@ -71,7 +71,7 @@ export default function Sidebar({
       <div className="flex items-center gap-3 pt-5 pb-2 pl-3.5">
         <AppMark className="size-9 shrink-0" />
         <div className="flex min-w-0 flex-1 flex-col pr-3 leading-tight">
-          <span className="font-heading font-semibold tracking-tight">{t('Einstellungen')}</span>
+          <span className="font-heading text-sm font-semibold tracking-tight">{t('Einstellungen')}</span>
           <span className="truncate text-xs text-sidebar-foreground/60">{subtitle}</span>
         </div>
       </div>
