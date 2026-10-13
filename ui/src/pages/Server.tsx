@@ -72,11 +72,12 @@ function ConfigEditor() {
             <TabsContent key={id} value={id} className="flex flex-col gap-3">
               <textarea
                 aria-label={name}
+                rows={2}
                 spellCheck={false}
                 disabled={saved === null}
                 value={draft[id]}
                 onChange={(event) => setDraft((current) => ({ ...current, [id]: event.target.value }))}
-                className="h-64 w-full resize-y rounded-lg border bg-card/60 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="w-full resize-y rounded-lg border bg-card/60 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
               <div className="flex justify-end">
                 <Button size="sm" disabled={saving || saved === null || saved[id] === draft[id]} onClick={() => save(id)}>
