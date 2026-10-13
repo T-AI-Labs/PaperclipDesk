@@ -29,7 +29,6 @@ export interface ConnectionState {
   activeProfileId: string | null
   alwaysShowChooser: boolean
   autoConnectLastProfile: boolean
-  chooserMode: ConnectionMode
   localProfileName: string
   localLastConnectedAt?: string
   localLastHealth?: ConnectionHealth
@@ -53,8 +52,8 @@ export interface RemotePreflightResult {
   detail?: string
 }
 
-export type LauncherView = 'chooser' | 'saved' | 'local-boot' | 'connecting' | 'error'
-export type LauncherPage = 'paperclip' | 'connect' | 'logs' | 'appearance' | 'system' | 'server'
+export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
+export type LauncherPage = 'paperclip' | 'connect' | 'connections' | 'logs' | 'appearance' | 'system' | 'server'
 export type BootStep = 'init' | 'database' | 'server' | 'ready'
 
 export interface BootStatus {
@@ -90,7 +89,6 @@ export interface RemoteConnect {
   remoteUrl: string
   displayName?: string
   saveProfile: boolean
-  rememberChoice: boolean
   allowInsecureHttp: boolean
 }
 
@@ -163,18 +161,16 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const launcherState = () => call<Snapshot>('launcher_state')
-export const setChooserMode = (mode: ConnectionMode) => call<Snapshot>('set_chooser_mode', { mode })
 export const setStartupProfile = (profileId: string | null) => call<Snapshot>('set_startup_profile', { profileId })
 export const setAlwaysShowChooser = (value: boolean) => call<Snapshot>('set_always_show_chooser', { value })
-export const rememberLocal = (remember: boolean) => call<Snapshot>('remember_local', { remember })
 export const saveRemoteProfile = (payload: RemoteProfilePayload) => call<Snapshot>('save_remote_profile', { payload })
 export const duplicateProfile = (profileId: string) => call<Snapshot>('duplicate_profile', { profileId })
 export const deleteProfile = (profileId: string) => call<Snapshot>('delete_profile', { profileId })
 export const verifyRemote = (remoteUrl: string) => call<RemotePreflightResult>('verify_remote', { remoteUrl })
 export const cancelConnect = () => call<void>('cancel_connect')
-export const connectLocal = (rememberChoice: boolean) => call<void>('connect_local', { rememberChoice })
+export const connectLocal = () => call<void>('connect_local')
 export const connectRemote = (payload: RemoteConnect) => call<void>('connect_remote', { payload })
-export const connectSavedProfile = (profileId: string, rememberChoice: boolean) => call<void>('connect_saved_profile', { profileId, rememberChoice })
+export const connectSavedProfile = (profileId: string) => call<void>('connect_saved_profile', { profileId })
 export const returnToCurrentSession = () => call<boolean>('return_to_current_session')
 export const getSettings = () => call<Settings>('get_settings')
 export const updateSettings = (settings: Settings) => call<Settings>('update_settings', { settings })

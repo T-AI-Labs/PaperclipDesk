@@ -139,7 +139,7 @@ pub fn handle(client: &Arc<Client>, id: &str) {
             client.invalidate_menu();
             client.boot_local(None, false);
         }
-        "connection.manage" => client.show_launcher(LauncherView::Saved, None, None),
+        "connection.manage" => client.show_page(LauncherPage::Connections),
         "settings.open" => client.show_page(LauncherPage::System),
         "view.zoom_reset" => client.change_zoom(None),
         "view.zoom_in" => client.change_zoom(Some(ZOOM_STEP)),

@@ -209,4 +209,7 @@ export const it: Catalogue = [
   "PaperclipDesk trasforma Paperclip in un'app per Windows: avvia il server con il suo database al posto tuo oppure si connette a uno remoto, senza terminale e senza scheda del browser. Open source con licenza MIT, senza telemetria.",
   'Progetto su GitHub',
   'Segnala un problema',
+  'Connessioni',
+  "Cosa si apre all'avvio, i tuoi remoti e le nuove connessioni",
+  'Aggiungi remoto',
 ]

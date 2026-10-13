@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, CircleAlert, Download, Palette, Paperclip, Plug, RefreshCw, ScrollText, Server as ServerIcon, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, Cable, CircleAlert, Download, Palette, Paperclip, Plug, RefreshCw, ScrollText, Server as ServerIcon, SlidersHorizontal } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -19,6 +19,7 @@ import Sidebar, { type NavPage } from '@/shell/Sidebar'
 
 import Appearance from './pages/Appearance'
 import Connect from './pages/Connect'
+import Connections from './pages/Connections'
 import Logs from './pages/Logs'
 import Server from './pages/Server'
 import System from './pages/System'
@@ -27,13 +28,14 @@ import System from './pages/System'
 const PAGES: Record<LauncherPage, { label: Message; icon: LucideIcon; tone: Tone; description: Message }> = {
   paperclip: { label: 'Paperclip', icon: Paperclip, tone: 60, description: 'Paperclip' },
   connect: { label: 'Verbindung', icon: Plug, tone: 0, description: 'Lokalen Server starten oder mit einem Remote verbinden' },
+  connections: { label: 'Verbindungen', icon: Cable, tone: -40, description: 'Was beim Start geöffnet wird, deine Remotes und neue Verbindungen' },
   logs: { label: 'Protokoll', icon: ScrollText, tone: -80, description: 'Was der Paperclip-Server und die App schreiben, live' },
   system: { label: 'System', icon: SlidersHorizontal, tone: -100, description: 'Start, Version und Datenordner' },
   server: { label: 'Server', icon: ServerIcon, tone: 40, description: 'Version, Konfiguration und Zurücksetzen des lokalen Paperclip-Servers' },
   appearance: { label: 'Darstellung', icon: Palette, tone: 100, description: 'Design, Akzentfarbe und Farbschema dieses Fensters' },
 }
 
-const SETTINGS_PAGES: readonly LauncherPage[] = ['system', 'server', 'appearance']
+const SETTINGS_PAGES: readonly LauncherPage[] = ['system', 'connections', 'server', 'appearance']
 
 type Loaded = { snapshot: Snapshot; settings: Settings } | { error: string }
 
@@ -116,11 +118,12 @@ export default function App() {
   const back = () => void open(snapshot.hasCurrentConnection ? 'paperclip' : 'connect')
   const content = (
     <>
-      {page === 'connect' && <Connect snapshot={snapshot} onChanged={setSnapshot} />}
+      {page === 'connect' && <Connect snapshot={snapshot} />}
+      {page === 'connections' && <Connections snapshot={snapshot} onChanged={setSnapshot} />}
       {page === 'logs' && <Logs />}
       {page === 'server' && <Server />}
       {page === 'appearance' && <Appearance {...props} />}
-      {page === 'system' && <System {...props} snapshot={snapshot} onChanged={setSnapshot} updater={updater} />}
+      {page === 'system' && <System {...props} updater={updater} />}
     </>
   )
 

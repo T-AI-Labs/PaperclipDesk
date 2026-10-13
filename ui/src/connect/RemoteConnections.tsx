@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Copy, Globe, Pencil, ShieldAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { SwitchRow } from '@/components/setting-row'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -85,15 +84,11 @@ function EditSheet({ profile, onClose, onSaved }: { profile: ConnectionProfile; 
 export default function RemoteConnections({
   profiles,
   currentProfileId,
-  rememberChoice,
-  onRememberChoice,
   onConnect,
   onChanged,
 }: {
   profiles: ConnectionProfile[]
   currentProfileId: string | null
-  rememberChoice: boolean
-  onRememberChoice: (value: boolean) => void
   onConnect: (profile: ConnectionProfile) => void
   onChanged: (snapshot: Snapshot) => void
 }) {
@@ -169,17 +164,6 @@ export default function RemoteConnections({
             )
           })}
         </ul>
-        {profiles.length > 0 && (
-          <div className="border-t pt-3.5">
-            <SwitchRow
-              id="remember-remote"
-              label={t('Beim Start wieder mit dem gewählten Remote verbinden')}
-              description={t('Gilt für die Verbindung, die du als Nächstes öffnest.')}
-              checked={rememberChoice}
-              onChange={onRememberChoice}
-            />
-          </div>
-        )}
       </CardContent>
 
       {editing && <EditSheet key={editing.id} profile={editing} onClose={() => setEditing(null)} onSaved={onChanged} />}

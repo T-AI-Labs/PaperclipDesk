@@ -209,4 +209,7 @@ export const zh: Catalogue = [
   'PaperclipDesk 把 Paperclip 变成一个 Windows 应用：它会自行启动服务器及其数据库，或连接到远程服务器，无需终端，也无需浏览器标签页。基于 MIT 许可证开源，不含遥测。',
   'GitHub 上的项目',
   '报告问题',
+  '连接',
+  '启动时打开的连接、已保存的远程和新连接',
+  '添加远程',
 ]

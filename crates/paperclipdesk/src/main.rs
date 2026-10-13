@@ -27,7 +27,7 @@ use crate::client::{Client, RemoteConnect, Snapshot};
 use crate::connection::http::UreqFetch;
 use crate::connection::preflight::preflight_remote_connection;
 use crate::connection::profiles::{RemoteProfileInput, now_iso};
-use crate::connection::types::{ConnectionMode, RemotePreflightResult};
+use crate::connection::types::RemotePreflightResult;
 use crate::instance::ConfigFile;
 use crate::logs::LogTail;
 use crate::paths::{DataEnv, DataPaths};
@@ -74,12 +74,6 @@ async fn launcher_state(client: Shared<'_>) -> Result<Snapshot, String> {
 }
 
 #[tauri::command]
-async fn set_chooser_mode(client: Shared<'_>, mode: ConnectionMode) -> Result<Snapshot, String> {
-    client.store.lock().unwrap().set_chooser_mode(mode);
-    Ok(client.snapshot())
-}
-
-#[tauri::command]
 async fn set_always_show_chooser(client: Shared<'_>, value: bool) -> Result<Snapshot, String> {
     client.store.lock().unwrap().set_always_show_chooser(value);
     client.send_state();
@@ -96,14 +90,6 @@ async fn set_startup_profile(client: Shared<'_>, profile_id: Option<String>) -> 
             None => store.set_always_show_chooser(true),
         }
     }
-    client.send_state();
-    Ok(client.snapshot())
-}
-
-/// Whether the app starts the local server on every launch without asking.
-#[tauri::command]
-async fn remember_local(client: Shared<'_>, remember: bool) -> Result<Snapshot, String> {
-    client.store.lock().unwrap().set_remembered_profile(Some(connection::types::LOCAL_PROFILE_ID), remember);
     client.send_state();
     Ok(client.snapshot())
 }
@@ -142,9 +128,9 @@ async fn cancel_connect(client: Shared<'_>) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn connect_local(client: Shared<'_>, remember_choice: bool) -> Result<(), String> {
+async fn connect_local(client: Shared<'_>) -> Result<(), String> {
     let client = Arc::clone(&client);
-    std::thread::spawn(move || client.boot_local(Some(remember_choice), false));
+    std::thread::spawn(move || client.boot_local(None, false));
     Ok(())
 }
 
@@ -156,9 +142,9 @@ async fn connect_remote(client: Shared<'_>, payload: RemoteConnect) -> Result<()
 }
 
 #[tauri::command]
-async fn connect_saved_profile(client: Shared<'_>, profile_id: String, remember_choice: bool) -> Result<(), String> {
+async fn connect_saved_profile(client: Shared<'_>, profile_id: String) -> Result<(), String> {
     let client = Arc::clone(&client);
-    std::thread::spawn(move || client.boot_saved_profile(&profile_id, Some(remember_choice)));
+    std::thread::spawn(move || client.boot_saved_profile(&profile_id, None));
     Ok(())
 }
 
@@ -419,9 +405,7 @@ fn main() -> anyhow::Result<()> {
         })
         .invoke_handler(tauri::generate_handler![
             launcher_state,
-            set_chooser_mode,
             set_always_show_chooser,
-            remember_local,
             set_startup_profile,
             save_remote_profile,
             duplicate_profile,

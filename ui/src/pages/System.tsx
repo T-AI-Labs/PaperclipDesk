@@ -6,13 +6,9 @@ import { SettingRow, SwitchRow } from '@/components/setting-row'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { type About, type ConnectionProfile, type PageProps, type Snapshot, errorMessage, exportSettings, getAbout, importSettings, openDataFolder, openProjectLink, setStartupProfile } from '@/lib/client'
+import { type About, type PageProps, errorMessage, exportSettings, getAbout, importSettings, openDataFolder, openProjectLink } from '@/lib/client'
 import type { Updater } from '@/lib/updater'
 import { LANGUAGES, t } from '@/i18n'
-
-const CHOOSER = 'chooser'
-
-const needsInsecureConfirmation = (profile: ConnectionProfile) => profile.remoteUrl?.startsWith('http://') === true && profile.allowInsecureHttp !== true
 
 function Updates({ updater, version, settings, saving, save }: PageProps & { updater: Updater; version: string | undefined }) {
   // Only a check the user asked for reports its outcome; the one at start-up stays quiet.
@@ -74,17 +70,13 @@ function Updates({ updater, version, settings, saving, save }: PageProps & { upd
   )
 }
 
-export default function System({ settings, saving, save, snapshot, onChanged, updater }: PageProps & { snapshot: Snapshot; onChanged: (snapshot: Snapshot) => void; updater: Updater }) {
+export default function System({ settings, saving, save, updater }: PageProps & { updater: Updater }) {
   const [about, setAbout] = useState<About | null>(null)
   useEffect(() => {
     getAbout()
       .then(setAbout)
       .catch(() => undefined)
   }, [])
-
-  const { state, profiles } = snapshot
-  const remembered = state.autoConnectLastProfile && !state.alwaysShowChooser ? profiles.find((profile) => profile.id === state.activeProfileId) : undefined
-  const startup = remembered?.id ?? CHOOSER
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,29 +87,7 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
           </CardTitle>
           <CardDescription>{t('Paperclip läuft, solange ein Fenster offen ist; mit dem letzten Fenster endet auch der lokale Server.')}</CardDescription>
         </CardHeader>
-        <CardContent className="divide-y">
-          <SettingRow label={t('Beim Start öffnen')} description={t('Die Verbindung, die beim Start ohne Nachfrage geöffnet wird.')}>
-            <Select
-              value={startup}
-              onValueChange={(value) =>
-                setStartupProfile(value === CHOOSER ? null : value)
-                  .then(onChanged)
-                  .catch((e: unknown) => toast.error(errorMessage(e)))
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={CHOOSER}>{t('Verbindungsauswahl anzeigen')}</SelectItem>
-                {profiles.map((profile) => (
-                  <SelectItem key={profile.id} value={profile.id} disabled={needsInsecureConfirmation(profile)}>
-                    {profile.mode === 'local_embedded' ? t('Lokal') : profile.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingRow>
+        <CardContent>
           <SwitchRow
             id="clear-logs-on-exit"
             label={t('Protokolle beim Beenden löschen')}

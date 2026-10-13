@@ -8,9 +8,7 @@
   "permissions": [
     "core:default",
     "allow-launcher-state",
-    "allow-set-chooser-mode",
     "allow-set-always-show-chooser",
-    "allow-remember-local",
     "allow-set-startup-profile",
     "allow-save-remote-profile",
     "allow-duplicate-profile",

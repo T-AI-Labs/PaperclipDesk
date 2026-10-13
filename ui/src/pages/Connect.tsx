@@ -1,32 +1,12 @@
 import { type ReactNode, useState } from 'react'
-import { ArrowLeft, Check, CircleAlert, LoaderCircle, Monitor, Play, RotateCcw, X } from 'lucide-react'
+import { ArrowLeft, Check, CircleAlert, Globe, LoaderCircle, type LucideIcon, Monitor, Play, Plus, RotateCcw, ShieldAlert, X } from 'lucide-react'
 import { toast } from 'sonner'
 
-import RemoteConnections from '@/connect/RemoteConnections'
-import RemoteForm from '@/connect/RemoteForm'
 import { AppMark } from '@/components/app-mark'
-import { SwitchRow } from '@/components/setting-row'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  type BootStep,
-  type ConnectionMode,
-  type ConnectionProfile,
-  LOCAL_PROFILE_ID,
-  type LauncherView,
-  type RemoteConnect,
-  type Snapshot,
-  cancelConnect,
-  connectLocal,
-  connectRemote,
-  connectSavedProfile,
-  errorMessage,
-  rememberLocal as saveRememberLocal,
-  returnToCurrentSession,
-  setChooserMode,
-} from '@/lib/client'
+import { TONE_DOT, profileHealth, relativeTime } from '@/connect/format'
+import { type BootStep, LOCAL_PROFILE_ID, type LauncherView, type Snapshot, cancelConnect, connectLocal, connectSavedProfile, errorMessage, returnToCurrentSession, showPage } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 
@@ -37,11 +17,13 @@ const BOOT_STEPS: { step: BootStep; label: Message }[] = [
   { step: 'ready', label: 'Oberfläche laden' },
 ]
 
-type Action = { kind: 'local'; remember: boolean } | { kind: 'remote'; payload: RemoteConnect } | { kind: 'saved'; profileId: string; remember: boolean }
+type Action = { kind: 'local' } | { kind: 'saved'; profileId: string }
+
+const failed = (e: unknown) => toast.error(errorMessage(e))
 
 function start(action: Action) {
-  const started = action.kind === 'local' ? connectLocal(action.remember) : action.kind === 'remote' ? connectRemote(action.payload) : connectSavedProfile(action.profileId, action.remember)
-  started.catch((e: unknown) => toast.error(errorMessage(e)))
+  const started = action.kind === 'local' ? connectLocal() : connectSavedProfile(action.profileId)
+  started.catch(failed)
 }
 
 /// One centred column for everything between choosing a connection and having it: progress, waiting, failure.
@@ -57,7 +39,7 @@ function Status({ mark, title, children }: { mark: ReactNode; title: string; chi
 
 function Cancel() {
   return (
-    <Button variant="outline" onClick={() => cancelConnect().catch((e: unknown) => toast.error(errorMessage(e)))}>
+    <Button variant="outline" onClick={() => cancelConnect().catch(failed)}>
       <X /> {t('Abbrechen')}
     </Button>
   )
@@ -106,13 +88,50 @@ function Connecting({ snapshot }: { snapshot: Snapshot }) {
   )
 }
 
-/// Starting the local server or picking a remote; while the app connects, the progress and what went wrong.
-export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; onChanged: (snapshot: Snapshot) => void }) {
+/// One place to connect to. The card of the connection in use leads back to it instead of opening it again.
+function ConnectionCard({
+  icon: Icon,
+  name,
+  status,
+  current,
+  children,
+  action,
+}: {
+  icon: LucideIcon
+  name: string
+  status: ReactNode
+  current: boolean
+  children: ReactNode
+  action: ReactNode
+}) {
+  return (
+    <Card>
+      <CardContent className="flex h-full flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <span className={cn('grid size-10 shrink-0 place-items-center rounded-lg', current ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+            <Icon className="size-5" />
+          </span>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="truncate font-heading font-semibold tracking-tight">{name}</p>
+            <div className="flex items-center gap-2.5 text-xs text-muted-foreground">{status}</div>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">{children}</div>
+        {current ? (
+          <Button onClick={() => returnToCurrentSession().catch(failed)}>
+            <ArrowLeft /> {t('Zu Paperclip')}
+          </Button>
+        ) : (
+          action
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/// Every connection as a card to open it; while the app connects, the progress and what went wrong.
+export default function Connect({ snapshot }: { snapshot: Snapshot }) {
   const [view, setView] = useState<LauncherView>(snapshot.view)
-  const [tab, setTab] = useState<ConnectionMode>(snapshot.view === 'saved' ? 'remote_existing' : snapshot.state.chooserMode)
-  const remembered = snapshot.state.autoConnectLastProfile ? snapshot.state.activeProfileId : null
-  const [rememberLocal, setRememberLocal] = useState(remembered === LOCAL_PROFILE_ID)
-  const [rememberRemote, setRememberRemote] = useState(remembered !== null && remembered !== LOCAL_PROFILE_ID)
   const [lastAction, setLastAction] = useState<Action | null>(null)
 
   // The app decides the view when it starts or finishes something; in between the user moves around freely.
@@ -120,7 +139,6 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
   if (snapshot.viewSeq !== seenViewSeq) {
     setSeenViewSeq(snapshot.viewSeq)
     setView(snapshot.view)
-    if (snapshot.view === 'saved') setTab('remote_existing')
   }
 
   function run(action: Action) {
@@ -128,15 +146,10 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
     start(action)
   }
 
-  function switchTab(value: string) {
-    const mode = value as ConnectionMode
-    setTab(mode)
-    setChooserMode(mode).catch(() => undefined)
-  }
-
-  const localRunning = snapshot.hasCurrentConnection && snapshot.currentProfileId === LOCAL_PROFILE_ID
+  const current = snapshot.hasCurrentConnection ? snapshot.currentProfileId : null
   const remotes = snapshot.profiles.filter((profile) => profile.mode === 'remote_existing')
-  const retry = lastAction ?? (snapshot.state.activeProfileId ? ({ kind: 'saved', profileId: snapshot.state.activeProfileId, remember: remembered !== null } satisfies Action) : null)
+  const retry = lastAction ?? (snapshot.state.activeProfileId ? ({ kind: 'saved', profileId: snapshot.state.activeProfileId } satisfies Action) : null)
+  const lastLocal = relativeTime(snapshot.state.localLastConnectedAt)
 
   if (view === 'local-boot') return <BootProgress snapshot={snapshot} />
   if (view === 'connecting') return <Connecting snapshot={snapshot} />
@@ -166,7 +179,7 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
             <ArrowLeft /> {t('Zur Auswahl')}
           </Button>
           {retry?.kind !== 'local' && (
-            <Button onClick={() => run({ kind: 'local', remember: false })}>
+            <Button onClick={() => run({ kind: 'local' })}>
               <Monitor /> {t('Lokal starten')}
             </Button>
           )}
@@ -176,94 +189,89 @@ export default function Connect({ snapshot, onChanged }: { snapshot: Snapshot; o
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {snapshot.hasCurrentConnection && !localRunning && (
-        <Alert>
-          <Check />
-          <AlertTitle>{t('Es besteht bereits eine Verbindung')}</AlertTitle>
-          <AlertDescription className="flex flex-col items-start gap-2">
-            {t('Eine neue Verbindung ersetzt sie.')}
-            <Button size="sm" variant="outline" onClick={() => returnToCurrentSession().catch((e: unknown) => toast.error(errorMessage(e)))}>
-              <ArrowLeft /> {t('Zurück zu {name}', { name: snapshot.currentConnectionName ?? '' })}
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
+        <ConnectionCard
+          icon={Monitor}
+          name={t('Lokal')}
+          current={current === LOCAL_PROFILE_ID}
+          status={
+            current === LOCAL_PROFILE_ID ? (
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT.ok)} />
+                {t('Lokaler Server läuft')}
+              </span>
+            ) : (
+              snapshot.localServerVersion !== null && `Paperclip-Server ${snapshot.localServerVersion}`
+            )
+          }
+          action={
+            <Button variant={current === null ? 'default' : 'outline'} disabled={snapshot.localServerVersion === null} onClick={() => run({ kind: 'local' })}>
+              <Play /> {t('Starten')}
             </Button>
-          </AlertDescription>
-        </Alert>
+          }
+        >
+          {snapshot.localServerVersion === null ? (
+            <p className="text-destructive">
+              {t('Der Paperclip-Server fehlt')}. {t('Dieser Build kann ihn nicht nachladen. Im Repository legt „npm run prepare-server“ ihn an.')}
+            </p>
+          ) : (
+            <>
+              <p>{t('Startet den mitgelieferten Paperclip-Server auf diesem Rechner, mit vertrauenswürdigem lokalem Zugriff.')}</p>
+              <p>{snapshot.localServerInstalled ? lastLocal && t('Zuletzt verbunden {when}', { when: lastLocal }) : t('wird beim ersten Start heruntergeladen (einige hundert MB)')}</p>
+            </>
+          )}
+        </ConnectionCard>
+
+        {remotes.map((profile) => {
+          const health = profileHealth(profile)
+          const last = relativeTime(profile.lastConnectedAt)
+          return (
+            <ConnectionCard
+              key={profile.id}
+              icon={Globe}
+              name={profile.name}
+              current={current === profile.id}
+              status={
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT[health.tone])} />
+                    {health.label}
+                  </span>
+                  {profile.allowInsecureHttp && (
+                    <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                      <ShieldAlert className="size-3" /> HTTP
+                    </span>
+                  )}
+                </>
+              }
+              action={
+                <Button variant="outline" onClick={() => run({ kind: 'saved', profileId: profile.id })}>
+                  {t('Verbinden')}
+                </Button>
+              }
+            >
+              <p className="truncate font-mono">{profile.remoteUrl}</p>
+              {last && <p>{t('Zuletzt verbunden {when}', { when: last })}</p>}
+            </ConnectionCard>
+          )
+        })}
+
+        <button
+          type="button"
+          onClick={() => showPage('connections').catch(failed)}
+          className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        >
+          <Plus className="size-5" />
+          {t('Remote hinzufügen')}
+        </button>
+      </div>
+
+      {current !== null && (
+        <p className="text-xs text-muted-foreground">
+          {t('Es besteht bereits eine Verbindung')}. {t('Eine neue Verbindung ersetzt sie.')}
+        </p>
       )}
-
-      <Tabs value={tab} onValueChange={switchTab} className="gap-6">
-        <TabsList className="self-start">
-          <TabsTrigger value="local_embedded">{t('Lokal')}</TabsTrigger>
-          <TabsTrigger value="remote_existing">{t('Remote')}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="local_embedded">
-          <Card>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-muted">
-                  <Monitor className="size-5" />
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <p className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
-                    {localRunning ? t('Lokaler Server läuft') : t('Lokalen Server starten')}
-                    {localRunning && <span aria-hidden className="size-2 rounded-full bg-emerald-500" />}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {localRunning
-                      ? t('Paperclip ist mit dem Server auf diesem Rechner verbunden. Er läuft, bis das letzte Fenster geschlossen wird.')
-                      : t('Startet den mitgelieferten Paperclip-Server auf diesem Rechner, mit vertrauenswürdigem lokalem Zugriff.')}
-                  </p>
-                </div>
-                {localRunning ? (
-                  <Button size="lg" variant="outline" onClick={() => returnToCurrentSession().catch((e: unknown) => toast.error(errorMessage(e)))}>
-                    <ArrowLeft /> {t('Zu Paperclip')}
-                  </Button>
-                ) : (
-                  <Button size="lg" disabled={snapshot.localServerVersion === null} onClick={() => run({ kind: 'local', remember: rememberLocal })}>
-                    <Play /> {t('Starten')}
-                  </Button>
-                )}
-              </div>
-              {snapshot.localServerVersion === null ? (
-                <Alert variant="destructive">
-                  <CircleAlert />
-                  <AlertTitle>{t('Der Paperclip-Server fehlt')}</AlertTitle>
-                  <AlertDescription>{t('Dieser Build kann ihn nicht nachladen. Im Repository legt „npm run prepare-server“ ihn an.')}</AlertDescription>
-                </Alert>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Paperclip-Server {snapshot.localServerVersion}
-                  {!snapshot.localServerInstalled && ` · ${t('wird beim ersten Start heruntergeladen (einige hundert MB)')}`}
-                </p>
-              )}
-              <div className="border-t pt-3.5">
-                <SwitchRow
-                  id="remember-local"
-                  label={t('Beim Start immer lokal starten')}
-                  description={t('Überspringt diese Auswahl; über das Menü „Verbinden“ kommst du jederzeit hierher zurück.')}
-                  checked={rememberLocal}
-                  onChange={(checked) => {
-                    setRememberLocal(checked)
-                    if (localRunning) saveRememberLocal(checked).then(onChanged).catch((e: unknown) => toast.error(errorMessage(e)))
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="remote_existing" className="flex flex-col gap-6">
-          <RemoteConnections
-            profiles={remotes}
-            currentProfileId={snapshot.currentProfileId}
-            rememberChoice={rememberRemote}
-            onRememberChoice={setRememberRemote}
-            onConnect={(profile: ConnectionProfile) => run({ kind: 'saved', profileId: profile.id, remember: rememberRemote })}
-            onChanged={onChanged}
-          />
-          <RemoteForm rememberChoice={rememberRemote} onConnect={(payload) => run({ kind: 'remote', payload })} />
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }

@@ -88,7 +88,6 @@ pub struct ConnectionState {
     pub active_profile_id: Option<String>,
     pub always_show_chooser: bool,
     pub auto_connect_last_profile: bool,
-    pub chooser_mode: ConnectionMode,
     pub local_profile_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_last_connected_at: Option<String>,

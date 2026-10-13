@@ -12,7 +12,7 @@ import { TONE_DOT, describeVerification, isInsecureHttpUrl, verificationMeta } f
 import { t } from '@/i18n'
 
 /// A new remote: check the URL first, then connect once or connect and keep it.
-export default function RemoteForm({ rememberChoice, onConnect }: { rememberChoice: boolean; onConnect: (payload: RemoteConnect) => void }) {
+export default function RemoteForm({ onConnect }: { onConnect: (payload: RemoteConnect) => void }) {
   const [url, setUrl] = useState('')
   const [name, setName] = useState('')
   const [allowInsecure, setAllowInsecure] = useState(false)
@@ -47,7 +47,7 @@ export default function RemoteForm({ rememberChoice, onConnect }: { rememberChoi
 
   function connect(saveProfile: boolean) {
     if (!result?.ok) return
-    onConnect({ remoteUrl: result.normalizedUrl, displayName: name.trim() || undefined, saveProfile, rememberChoice, allowInsecureHttp: result.insecureTransport && allowInsecure })
+    onConnect({ remoteUrl: result.normalizedUrl, displayName: name.trim() || undefined, saveProfile, allowInsecureHttp: result.insecureTransport && allowInsecure })
   }
 
   return (

@@ -52,7 +52,7 @@ PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads t
 
 Before it connects, PaperclipDesk checks a remote: that it answers, that it really is a Paperclip, and that its sign-in is ready. A remote over plain `http://` is only opened after you confirmed that you accept an unencrypted connection.
 
-Saved remotes appear in the **Connect** menu, with a tick at the one in use. Under **Settings → System** you choose what opens when the app starts: the connection chooser, the local server, or one of your remotes.
+The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Saved remotes also appear in the **Connect** menu, with a tick at the one in use. Under **Settings → Connections** you choose what opens when the app starts: the connection page, the local server, or one of your remotes.
 
 ## Settings
 
@@ -60,7 +60,8 @@ Saved remotes appear in the **Connect** menu, with a tick at the one in use. Und
 
 | Category | What you find there |
 | --- | --- |
-| **System** | The connection opened at start, the language, updates, export and import of your settings, and whether logs are cleared when the app exits |
+| **System** | The language, updates, export and import of your settings, and whether logs are cleared when the app exits |
+| **Connections** | The connection opened at start, your saved remotes to edit, duplicate or delete, and the check of a new remote |
 | **Server** | The version of the local Paperclip server, restart and reinstall, an editor for its `config.json` and `.env`, and the reset |
 | **Appearance** | 31 designs, light and dark mode, and an accent color |
 

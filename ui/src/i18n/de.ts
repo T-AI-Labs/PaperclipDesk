@@ -208,6 +208,9 @@ export const de = [
   'PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.',
   'Projekt auf GitHub',
   'Problem melden',
+  'Verbindungen',
+  'Was beim Start geöffnet wird, deine Remotes und neue Verbindungen',
+  'Remote hinzufügen',
 ] as const
 
 export type Message = (typeof de)[number]

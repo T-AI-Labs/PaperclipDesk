@@ -42,7 +42,6 @@ const LOADING_PAGE: &str = "data:text/html;charset=utf-8,<!doctype html><html la
 #[serde(rename_all = "kebab-case")]
 pub enum LauncherView {
     Chooser,
-    Saved,
     LocalBoot,
     Connecting,
     Error,
@@ -54,6 +53,7 @@ pub enum LauncherView {
 pub enum LauncherPage {
     Paperclip,
     Connect,
+    Connections,
     Logs,
     Appearance,
     System,
@@ -1001,7 +1001,6 @@ impl Client {
                 std::thread::spawn(move || client.boot_saved_profile(&profile_id, None));
             }
             None => {
-                self.store.lock().unwrap().set_chooser_mode(ConnectionMode::LocalEmbedded);
                 self.show_launcher(LauncherView::Chooser, None, None);
             }
         }

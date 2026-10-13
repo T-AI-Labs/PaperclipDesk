@@ -26,7 +26,6 @@ fn default_state() -> ConnectionState {
         active_profile_id: None,
         always_show_chooser: true,
         auto_connect_last_profile: false,
-        chooser_mode: ConnectionMode::LocalEmbedded,
         local_profile_name: "Local".into(),
         local_last_connected_at: None,
         local_last_health: Some(ConnectionHealth::Healthy),
@@ -160,11 +159,6 @@ impl ConnectionStore {
         self.persist();
     }
 
-    pub fn set_chooser_mode(&mut self, mode: ConnectionMode) {
-        self.cache.state.chooser_mode = mode;
-        self.persist();
-    }
-
     pub fn set_remembered_profile(&mut self, profile_id: Option<&str>, remember_choice: bool) {
         self.cache.state.active_profile_id = profile_id.map(str::to_owned);
         self.cache.state.auto_connect_last_profile = remember_choice;
@@ -275,7 +269,6 @@ fn sanitize_state(raw: &Value) -> ConnectionState {
         active_profile_id: raw["activeProfileId"].as_str().map(str::to_owned),
         always_show_chooser: raw["alwaysShowChooser"] != false,
         auto_connect_last_profile: raw["autoConnectLastProfile"] == true,
-        chooser_mode: if raw["chooserMode"] == "remote_existing" { ConnectionMode::RemoteExisting } else { ConnectionMode::LocalEmbedded },
         local_profile_name: raw["localProfileName"].as_str().map(str::trim).filter(|name| !name.is_empty()).unwrap_or("Local").to_owned(),
         local_last_connected_at: raw["localLastConnectedAt"].as_str().map(str::to_owned),
         local_last_health: Some(health(&raw["localLastHealth"]).unwrap_or(ConnectionHealth::Healthy)),
@@ -411,7 +404,7 @@ mod tests {
     fn reads_a_damaged_file_field_by_field() {
         let raw = serde_json::json!({
             "version": 1,
-            "state": { "activeProfileId": 7, "alwaysShowChooser": "yes", "chooserMode": "remote_existing", "localProfileName": "  " },
+            "state": { "activeProfileId": 7, "alwaysShowChooser": "yes", "localProfileName": "  " },
             "remoteProfiles": [
                 { "id": "ok", "mode": "remote_existing", "remoteUrl": "https://ok.example.com/path", "lastHealth": "bogus" },
                 { "id": "no-url", "mode": "remote_existing" },
@@ -422,7 +415,6 @@ mod tests {
         let file = sanitize_file(&raw);
         assert_eq!(file.state.active_profile_id, None);
         assert!(file.state.always_show_chooser);
-        assert_eq!(file.state.chooser_mode, ConnectionMode::RemoteExisting);
         assert_eq!(file.state.local_profile_name, "Local");
         assert_eq!(file.remote_profiles.len(), 1);
         assert_eq!(file.remote_profiles[0].name, "ok.example.com");
