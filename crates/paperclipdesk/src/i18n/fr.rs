@@ -99,7 +99,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Fichier",
     "Licences tierces",
     "Connecter",
-    "Cet ordinateur",
+    "Local",
     "{} (distant : {})",
     "Toutes les connexions …",
     "Modifier les connexions distantes …",

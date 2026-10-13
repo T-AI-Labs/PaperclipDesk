@@ -74,7 +74,7 @@ pub fn build(client: &Client) -> Vec<Menu> {
 
     // The places to connect to first, the open ones ticked: an entry opens its connection or brings it to the front. Choosing and editing below.
     let connected_to = |profile_id: &str| open.iter().any(|id| id == profile_id);
-    let mut connection = vec![check("connection.local".into(), i18n::t("Dieser Computer").into(), connected_to(LOCAL_PROFILE_ID))];
+    let mut connection = vec![check("connection.local".into(), i18n::t("Lokal").into(), connected_to(LOCAL_PROFILE_ID))];
     for profile in &recent {
         let host = profile.remote_url.as_deref().and_then(|url| tauri::Url::parse(url).ok()).and_then(|url| url.host_str().map(str::to_owned)).unwrap_or_default();
         connection.push(check(format!("{RECENT_PREFIX}{}", profile.id), i18n::f("{} (Remote: {})", &[&profile.name, &host]), connected_to(&profile.id)));

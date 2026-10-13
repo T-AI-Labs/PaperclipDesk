@@ -1245,7 +1245,7 @@ fn open_externally(target: &str, allowed_origin: &str) {
 
 fn connection_name(connection: &CurrentConnection, store: &ConnectionStore) -> String {
     if connection.mode == ConnectionMode::LocalEmbedded {
-        return "Lokal".into();
+        return i18n::t("Lokal").into();
     }
     let profile = connection.profile_id.as_deref().and_then(|id| store.profile(id));
     let host = || tauri::Url::parse(&connection.start_url).ok().and_then(|url| url.host_str().map(str::to_owned));

@@ -100,7 +100,7 @@ pub const MESSAGES: [&str; 109] = [
     "Datei",
     "Lizenzen Dritter",
     "Verbinden",
-    "Dieser Computer",
+    "Lokal",
     "{} (Remote: {})",
     "Alle Verbindungen …",
     "Remotes bearbeiten …",
