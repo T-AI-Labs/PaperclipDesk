@@ -104,4 +104,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "All connections …",
     "Edit remotes …",
     "Settings …",
+    "Project on GitHub",
+    "Report a problem …",
+    "Paperclip documentation",
+    "PaperclipDesk turns Paperclip into a Windows app: it starts the server with its database for you, or connects to a remote – no terminal, no browser tab. Open source under the MIT License, without telemetry.",
 ];

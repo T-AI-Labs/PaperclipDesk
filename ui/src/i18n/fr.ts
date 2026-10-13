@@ -206,4 +206,7 @@ export const fr: Catalogue = [
   'Effacer les journaux à la fermeture',
   "Vide les journaux de l'application et du serveur à la fermeture de l'application.",
   'Rechercher des mises à jour au lancement',
+  'PaperclipDesk fait de Paperclip une application Windows : il démarre le serveur et sa base de données pour vous, ou se connecte à un serveur distant, sans terminal ni onglet de navigateur. Open source sous licence MIT, sans télémétrie.',
+  'Projet sur GitHub',
+  'Signaler un problème',
 ]

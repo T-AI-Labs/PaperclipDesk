@@ -206,4 +206,7 @@ export const pt: Catalogue = [
   'Limpar os registos ao sair',
   'Esvazia os registos da app e do servidor quando a app é encerrada.',
   'Procurar atualizações ao iniciar',
+  'O PaperclipDesk transforma o Paperclip em um app para Windows: ele inicia o servidor com o banco de dados para você ou se conecta a um remoto, sem terminal e sem aba do navegador. Código aberto sob a licença MIT, sem telemetria.',
+  'Projeto no GitHub',
+  'Relatar um problema',
 ]

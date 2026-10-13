@@ -206,4 +206,7 @@ export const en: Catalogue = [
   'Clear logs on exit',
   'Empties the logs of the app and the server when the app exits.',
   'Check for updates at launch',
+  'PaperclipDesk turns Paperclip into a Windows app: it starts the server with its database for you, or connects to a remote – no terminal, no browser tab. Open source under the MIT License, without telemetry.',
+  'Project on GitHub',
+  'Report a problem',
 ]

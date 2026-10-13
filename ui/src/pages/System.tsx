@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { AppWindow, Download, FileDown, FileUp, FolderOpen, Info, Languages, LoaderCircle, RefreshCw, Save } from 'lucide-react'
+import { AppWindow, Bug, Download, ExternalLink, FileDown, FileUp, FolderOpen, Info, Languages, LoaderCircle, RefreshCw, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { SettingRow, SwitchRow } from '@/components/setting-row'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { type About, type ConnectionProfile, type PageProps, type Snapshot, errorMessage, exportSettings, getAbout, importSettings, openDataFolder, setStartupProfile } from '@/lib/client'
+import { type About, type ConnectionProfile, type PageProps, type Snapshot, errorMessage, exportSettings, getAbout, importSettings, openDataFolder, openProjectLink, setStartupProfile } from '@/lib/client'
 import type { Updater } from '@/lib/updater'
 import { LANGUAGES, t } from '@/i18n'
 
@@ -195,6 +195,9 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
           <CardTitle className="flex items-center gap-2">
             <Info className="size-4 text-primary" /> {t('Über')}
           </CardTitle>
+          <CardDescription>
+            {t('PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.')}
+          </CardDescription>
           <CardAction>
             <Button variant="outline" size="sm" onClick={() => openDataFolder().catch((e: unknown) => toast.error(errorMessage(e)))}>
               <FolderOpen /> {t('Datenordner')}
@@ -207,6 +210,14 @@ export default function System({ settings, saving, save, snapshot, onChanged, up
           </p>
           <p className="break-all">{t('App-Daten: {path}', { path: about?.user_data ?? '–' })}</p>
           <p className="break-all">{t('Server-Daten (PAPERCLIP_HOME): {path}', { path: about?.paperclip_home ?? '–' })}</p>
+          <div className="flex flex-wrap gap-2 pt-3">
+            <Button variant="outline" size="sm" onClick={() => openProjectLink('repository').catch((e: unknown) => toast.error(errorMessage(e)))}>
+              <ExternalLink /> {t('Projekt auf GitHub')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => openProjectLink('report_issue').catch((e: unknown) => toast.error(errorMessage(e)))}>
+              <Bug /> {t('Problem melden')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

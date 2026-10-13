@@ -26,6 +26,7 @@
     "allow-get-log",
     "allow-clear-log",
     "allow-open-data-folder",
+    "allow-open-project-link",
     "allow-get-about",
     "allow-show-page",
     "allow-server-info",

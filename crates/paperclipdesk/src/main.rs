@@ -200,6 +200,11 @@ async fn open_data_folder(client: Shared<'_>) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn open_project_link(client: Shared<'_>, link: menu::ProjectLink) -> Result<(), String> {
+    menu::open_project_link(&client, link)
+}
+
+#[tauri::command]
 async fn show_page(client: Shared<'_>, page: client::LauncherPage) -> Result<(), String> {
     client.show_page(page);
     Ok(())
@@ -432,6 +437,7 @@ fn main() -> anyhow::Result<()> {
             get_log,
             clear_log,
             open_data_folder,
+            open_project_link,
             get_about,
             show_page,
             server_info,

@@ -30,6 +30,7 @@ fn main() {
         "get_log",
         "clear_log",
         "open_data_folder",
+        "open_project_link",
         "get_about",
         "show_page",
         "server_info",

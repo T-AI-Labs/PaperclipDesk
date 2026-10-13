@@ -104,4 +104,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Todas as conexões …",
     "Editar conexões remotas …",
     "Configurações …",
+    "Projeto no GitHub",
+    "Relatar um problema …",
+    "Documentação do Paperclip",
+    "O PaperclipDesk transforma o Paperclip em um app para Windows: ele inicia o servidor com o banco de dados para você ou se conecta a um remoto, sem terminal e sem aba do navegador. Código aberto sob a licença MIT, sem telemetria.",
 ];

@@ -206,4 +206,7 @@ export const es: Catalogue = [
   'Borrar los registros al salir',
   'Vacía los registros de la app y del servidor al cerrar la app.',
   'Buscar actualizaciones al iniciar',
+  'PaperclipDesk convierte Paperclip en una aplicación de Windows: inicia el servidor con su base de datos por ti o se conecta a uno remoto, sin terminal ni pestaña del navegador. Código abierto bajo la licencia MIT, sin telemetría.',
+  'Proyecto en GitHub',
+  'Informar de un problema',
 ]

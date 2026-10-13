@@ -205,6 +205,9 @@ export const de = [
   'Protokolle beim Beenden löschen',
   'Leert die Protokolle der App und des Servers, wenn die App beendet wird.',
   'Beim Start nach Updates suchen',
+  'PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.',
+  'Projekt auf GitHub',
+  'Problem melden',
 ] as const
 
 export type Message = (typeof de)[number]

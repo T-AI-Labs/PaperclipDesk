@@ -1,8 +1,10 @@
 use crate::i18n;
 use std::sync::Arc;
 
+use serde::Deserialize;
 use tauri::menu::{CheckMenuItemBuilder, Menu, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Manager, Wry};
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 use crate::client::{Client, LauncherPage, LauncherView};
 use crate::connection::types::LOCAL_PROFILE_ID;
@@ -13,8 +15,29 @@ const ZOOM_LEVELS: [u32; 9] = [50, 75, 90, 100, 110, 125, 150, 175, 200];
 pub const RECENT_CONNECTIONS: usize = 5;
 const ZOOM_STEP: f64 = 0.1;
 const DOCS_URL: &str = "https://docs.paperclip.ing/";
+const REPOSITORY_URL: &str = "https://github.com/T-AI-Labs/PaperclipDesk";
 /// Written by `npm run licenses` and shipped as a resource next to the app.
 const LICENSES_FILE: &str = "THIRD_PARTY_LICENSES.txt";
+
+/// The project's own pages. They are fixed here, so the window never hands the app a URL to open.
+#[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectLink {
+    Repository,
+    ReportIssue,
+}
+
+/// Opens the page in the browser; a new issue starts with the versions it is about.
+pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), String> {
+    let url = match link {
+        ProjectLink::Repository => REPOSITORY_URL.to_owned(),
+        ProjectLink::ReportIssue => {
+            let versions = format!("\n\n---\nPaperclipDesk {}, Paperclip server {}", env!("CARGO_PKG_VERSION"), client.local_server_version().as_deref().unwrap_or("–"));
+            tauri::Url::parse_with_params(&format!("{REPOSITORY_URL}/issues/new"), [("body", versions)]).map_err(|e| e.to_string())?.into()
+        }
+    };
+    tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
 
 /// The menu bar of the Paperclip window; rebuilt whenever the saved connections or the one in use change.
 pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
@@ -65,7 +88,9 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
 
     // Reading first, then everything for looking into a problem.
     let help = SubmenuBuilder::new(handle, i18n::t("Hilfe"))
-        .text("help.docs", i18n::t("Dokumentation"))
+        .text("help.docs", i18n::t("Paperclip-Dokumentation"))
+        .text("help.repository", i18n::t("Projekt auf GitHub"))
+        .text("help.report_issue", i18n::t("Problem melden …"))
         .text("help.licenses", i18n::t("Lizenzen Dritter"))
         .separator()
         .text("help.logs", i18n::t("Protokoll"))
@@ -73,6 +98,7 @@ pub fn build(client: &Client) -> tauri::Result<Menu<Wry>> {
         .text("view.devtools", i18n::t("Entwicklertools"))
         .separator()
         .item(&entry("help.version", &format!("Paperclip {}", server_version.as_deref().unwrap_or("–")), false)?)
+        .text("help.about", i18n::t("Über PaperclipDesk"))
         .build()?;
 
     MenuBuilder::new(handle).items(&[&app, &connection, &view, &help]).build()
@@ -129,6 +155,21 @@ pub fn handle(client: &Arc<Client>, id: &str) {
             if let Err(e) = tauri_plugin_opener::open_path(&client.paths.user_data, None::<&str>) {
                 tracing::warn!("opening the data folder: {e}");
             }
+        }
+        "help.repository" | "help.report_issue" => {
+            let link = if id == "help.repository" { ProjectLink::Repository } else { ProjectLink::ReportIssue };
+            if let Err(e) = open_project_link(&client, link) {
+                tracing::warn!("opening a project page: {e}");
+            }
+        }
+        "help.about" => {
+            let description = i18n::t("PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.");
+            let versions = i18n::f("PaperclipDesk {}\nPaperclip-Server: {}\n\nDaten: {}", &[&env!("CARGO_PKG_VERSION"), &client.local_server_version().as_deref().unwrap_or("–"), &client.paths.user_data.display()]);
+            let dialog = client.handle().dialog().message(format!("{description}\n\n{versions}\n\n{REPOSITORY_URL}")).title(i18n::t("Über PaperclipDesk")).kind(MessageDialogKind::Info);
+            match client.window() {
+                Some(window) => dialog.parent(&window).blocking_show(),
+                None => dialog.blocking_show(),
+            };
         }
         "help.docs" => {
             if let Err(e) = tauri_plugin_opener::open_url(DOCS_URL, None::<&str>) {

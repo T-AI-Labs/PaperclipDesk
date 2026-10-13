@@ -104,4 +104,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "すべての接続 …",
     "リモート接続を編集 …",
     "設定 …",
+    "GitHub のプロジェクト",
+    "問題を報告 …",
+    "Paperclip のドキュメント",
+    "PaperclipDesk は Paperclip を Windows アプリにします。サーバーとデータベースを自動で起動するか、リモートに接続します。ターミナルもブラウザーのタブも不要です。MIT ライセンスのオープンソースで、テレメトリはありません。",
 ];

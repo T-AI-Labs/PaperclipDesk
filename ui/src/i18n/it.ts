@@ -206,4 +206,7 @@ export const it: Catalogue = [
   "Cancella i registri all'uscita",
   "Svuota i registri dell'app e del server alla chiusura dell'app.",
   "Cerca aggiornamenti all'avvio",
+  "PaperclipDesk trasforma Paperclip in un'app per Windows: avvia il server con il suo database al posto tuo oppure si connette a uno remoto, senza terminale e senza scheda del browser. Open source con licenza MIT, senza telemetria.",
+  'Progetto su GitHub',
+  'Segnala un problema',
 ]

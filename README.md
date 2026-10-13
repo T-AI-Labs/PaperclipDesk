@@ -84,7 +84,7 @@ Connections to remotes are not affected.
 | **PaperclipDesk** | Settings, Check for updates, Quit |
 | **Connect** | This computer, your recent remotes, All connections, Edit remotes |
 | **View** | Paperclip, Reload, Zoom from 50 % to 200 %, Full screen |
-| **Help** | Documentation, Third-party licenses, Log, Open data folder, Developer tools, and the Paperclip version |
+| **Help** | Paperclip documentation, Project on GitHub, Report a problem, Third-party licenses, Log, Open data folder, Developer tools, the Paperclip version, and About PaperclipDesk |
 
 ## Troubleshooting
 

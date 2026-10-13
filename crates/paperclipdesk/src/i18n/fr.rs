@@ -104,4 +104,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Toutes les connexions …",
     "Modifier les connexions distantes …",
     "Réglages …",
+    "Projet sur GitHub",
+    "Signaler un problème …",
+    "Documentation de Paperclip",
+    "PaperclipDesk fait de Paperclip une application Windows : il démarre le serveur et sa base de données pour vous, ou se connecte à un serveur distant, sans terminal ni onglet de navigateur. Open source sous licence MIT, sans télémétrie.",
 ];
