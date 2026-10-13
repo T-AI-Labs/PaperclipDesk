@@ -61,6 +61,17 @@ export interface OpenConnection {
   front: boolean
 }
 
+/// An entry of the menu bar; the host names it by `id` when the user picks it.
+export type MenuEntry =
+  | { kind: 'item'; id: string; label: string; enabled: boolean; checked: boolean | null }
+  | { kind: 'separator' }
+  | { kind: 'submenu'; label: string; enabled: boolean; entries: MenuEntry[] }
+
+export interface Menu {
+  label: string
+  entries: MenuEntry[]
+}
+
 export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
 export type LauncherPage = 'paperclip' | 'connect' | 'connections' | 'logs' | 'appearance' | 'system' | 'server'
 export type BootStep = 'init' | 'database' | 'server' | 'ready'
@@ -86,6 +97,7 @@ export interface Snapshot {
   currentProfileId: string | null
   /// In the order they were opened.
   openConnections: OpenConnection[]
+  menu: Menu[]
   state: ConnectionState
   profiles: ConnectionProfile[]
   localServerVersion: string | null
@@ -175,6 +187,9 @@ export const launcherState = () => call<Snapshot>('launcher_state')
 export const setOpenAtStart = (profileId: string, open: boolean) => call<Snapshot>('set_open_at_start', { profileId, open })
 export const activateConnection = (key: string) => call<void>('activate_connection', { key })
 export const closeConnection = (key: string) => call<void>('close_connection', { key })
+export const menuAction = (id: string) => call<void>('menu_action', { id })
+/// While a menu is open above Paperclip, the host lets this webview cover the window.
+export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
 export const saveRemoteProfile = (payload: RemoteProfilePayload) => call<Snapshot>('save_remote_profile', { payload })
 export const duplicateProfile = (profileId: string) => call<Snapshot>('duplicate_profile', { profileId })
 export const deleteProfile = (profileId: string) => call<Snapshot>('delete_profile', { profileId })

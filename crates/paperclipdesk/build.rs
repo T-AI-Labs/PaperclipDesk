@@ -15,6 +15,8 @@ fn main() {
         "set_open_at_start",
         "activate_connection",
         "close_connection",
+        "menu_action",
+        "set_menu_open",
         "save_remote_profile",
         "duplicate_profile",
         "delete_profile",

@@ -93,6 +93,19 @@ async fn close_connection(client: Shared<'_>, key: String) -> Result<(), String>
     Ok(())
 }
 
+/// The user picked an entry of the menu bar.
+#[tauri::command]
+async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
+    menu::handle(&client, &id);
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_menu_open(client: Shared<'_>, open: bool) -> Result<(), String> {
+    client.set_menu_open(open);
+    Ok(())
+}
+
 #[tauri::command]
 async fn save_remote_profile(client: Shared<'_>, payload: RemoteProfilePayload) -> Result<Snapshot, String> {
     let input = RemoteProfileInput { profile_id: payload.profile_id, name: payload.name, remote_url: payload.remote_url, allow_insecure_http: payload.allow_insecure_http };
@@ -396,7 +409,6 @@ fn main() -> anyhow::Result<()> {
             client.start();
             Ok(())
         })
-        .on_menu_event(|app, event| menu::handle(&app.state::<Arc<Client>>(), event.id().as_ref()))
         .on_window_event(|window, event| {
             if matches!(event, WindowEvent::Resized(_)) {
                 window.state::<Arc<Client>>().relayout();
@@ -407,6 +419,8 @@ fn main() -> anyhow::Result<()> {
             set_open_at_start,
             activate_connection,
             close_connection,
+            menu_action,
+            set_menu_open,
             save_remote_profile,
             duplicate_profile,
             delete_profile,

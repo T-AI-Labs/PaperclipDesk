@@ -15,7 +15,7 @@ import { useApplyColorScheme } from '@/lib/theme'
 import { type Message, setLanguage, t } from '@/i18n'
 import { useUpdater } from '@/lib/updater'
 import LoadingPanel from '@/LoadingPanel'
-import ConnectionRail from '@/shell/ConnectionRail'
+import MenuBar from '@/shell/MenuBar'
 import Sidebar, { type NavPage } from '@/shell/Sidebar'
 
 import Appearance from './pages/Appearance'
@@ -74,6 +74,12 @@ export default function App() {
     return onLauncherState(setSnapshot)
   }, [load])
 
+  // Above Paperclip this webview shows the menu bar only; whatever else it covers stays see-through.
+  const onPaperclip = snapshot?.page === 'paperclip'
+  useEffect(() => {
+    document.documentElement.classList.toggle('see-through', onPaperclip)
+  }, [onPaperclip])
+
   async function save(next: Settings, success: string) {
     setSaving(true)
     try {
@@ -106,8 +112,8 @@ export default function App() {
   }
 
   setLanguage(snapshot.language)
-  // While Paperclip fills the window this webview is hidden; it keeps the settings rendered, so opening them shows no empty frame.
-  const page = snapshot.page === 'paperclip' ? SETTINGS_PAGES[0] : snapshot.page
+  // While Paperclip is the main view the pages are invisible; the settings stay rendered, so opening them shows no empty frame.
+  const page = onPaperclip ? SETTINGS_PAGES[0] : snapshot.page
   const current = PAGES[page]
   const props: PageProps = { settings, saving, save }
   const busy = snapshot.view === 'local-boot' || snapshot.view === 'connecting'
@@ -129,13 +135,13 @@ export default function App() {
   )
 
   return (
-    <div className="relative isolate flex h-screen overflow-hidden bg-background text-foreground">
+    <div className={cn('relative isolate flex h-screen flex-col overflow-hidden text-foreground', !onPaperclip && 'bg-background')}>
       <Toaster theme={settings.color_scheme} position="bottom-right" offset={{ bottom: 20, right: 20 }} visibleToasts={3} duration={5000} />
-      <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />
+      {!onPaperclip && <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />}
 
-      {snapshot.page === 'paperclip' && (snapshot.openConnections.length > 1 || snapshot.profiles.length > 1) && <ConnectionRail snapshot={snapshot} />}
+      <MenuBar menus={snapshot.menu} />
 
-      <div className="flex min-w-0 flex-1">
+      <div className={cn('flex min-h-0 min-w-0 flex-1', onPaperclip && 'invisible')}>
         {inSettings && (
           <Sidebar
             pages={settingsPages}

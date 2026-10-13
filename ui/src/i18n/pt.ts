@@ -214,5 +214,4 @@ export const pt: Catalogue = [
   'Adicionar remoto',
   'O app abre estas conexões ao iniciar sem perguntar; a última usada fica na frente. Sem nenhuma selecionada, mostra a página de conexão.',
   'Desconectar',
-  'Todas as conexões',
 ]

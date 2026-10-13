@@ -1,7 +1,7 @@
 use crate::i18n;
 use std::collections::VecDeque;
 use std::io::Write;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
@@ -31,8 +31,8 @@ pub const STATE_EVENT: &str = "launcher:state";
 const PAGE_LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const SERVER_OUTPUT_LINES: usize = 200;
-/// The width of the shell while it shows the connections next to Paperclip; `ConnectionRail.tsx` fills it.
-const CONNECTION_RAIL_WIDTH: f64 = 48.0;
+/// The height of the menu bar, which the shell keeps visible above Paperclip; `MenuBar.tsx` fills it.
+const MENU_BAR_HEIGHT: f64 = 32.0;
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -138,6 +138,7 @@ pub struct Snapshot {
     current_connection_name: Option<String>,
     current_profile_id: Option<String>,
     open_connections: Vec<OpenConnection>,
+    menu: Vec<crate::menu::Menu>,
     state: ConnectionState,
     profiles: Vec<ConnectionProfile>,
     local_server_version: Option<String>,
@@ -193,8 +194,10 @@ pub struct Client {
     failure_dialog_open: AtomicBool,
     quitting: AtomicBool,
     zoom: Mutex<f64>,
-    menu_signature: Mutex<String>,
-    layout: Mutex<Option<(String, u32, u32, u32)>>,
+    /// Whether a menu of the shell's menu bar is open and needs room below the bar.
+    menu_open: AtomicBool,
+    shell_hwnd: AtomicIsize,
+    layout: Mutex<Option<(String, u32, u32, bool)>>,
 }
 
 impl Client {
@@ -218,7 +221,8 @@ impl Client {
             failure_dialog_open: AtomicBool::new(false),
             quitting: AtomicBool::new(false),
             zoom: Mutex::new(1.0),
-            menu_signature: Mutex::default(),
+            menu_open: AtomicBool::new(false),
+            shell_hwnd: AtomicIsize::new(0),
             layout: Mutex::default(),
         })
     }
@@ -260,6 +264,7 @@ impl Client {
     }
 
     pub fn snapshot(&self) -> Snapshot {
+        let menu = crate::menu::build(self);
         let launcher = self.launcher.lock().unwrap();
         let store = self.store.lock().unwrap();
         let current = self.current.lock().unwrap();
@@ -289,6 +294,7 @@ impl Client {
                     front,
                 })
                 .collect(),
+            menu,
             state: store.state().clone(),
             profiles: store.list_profiles(),
             local_server_version: self.local_server_version(),
@@ -297,13 +303,12 @@ impl Client {
         }
     }
 
-    /// Tells the app's window what changed and brings the menu's recent connections and checkbox up to date.
+    /// Tells the app's window what changed.
     pub fn send_state(&self) {
         if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, STATE_EVENT, self.snapshot()) {
             tracing::warn!("sending the launcher state: {e}");
         }
         self.relayout();
-        self.refresh_menu();
     }
 
     /// The saved connections that are open, the one in front first.
@@ -311,6 +316,16 @@ impl Client {
         let front = self.current.lock().unwrap().as_ref().and_then(|connection| connection.profile_id.clone());
         let parked: Vec<_> = self.parked.lock().unwrap().iter().filter_map(|parked| parked.connection.profile_id.clone()).collect();
         front.into_iter().chain(parked).collect()
+    }
+
+    /// The open connections that have no saved profile, by key and name: a remote that was connected once without saving it.
+    pub fn open_unsaved_connections(&self) -> Vec<(String, String)> {
+        let front = self.current.lock().unwrap().clone();
+        let parked: Vec<_> = self.parked.lock().unwrap().iter().map(|parked| parked.connection.clone()).collect();
+        let store = self.store.lock().unwrap();
+        let mut unsaved: Vec<_> = front.into_iter().chain(parked).filter(|connection| connection.profile_id.is_none()).map(|connection| (connection.partition.clone(), connection_name(&connection, &store))).collect();
+        unsaved.sort();
+        unsaved
     }
 
     fn is_open(&self, matches: impl Fn(&CurrentConnection) -> bool) -> bool {
@@ -384,7 +399,7 @@ impl Client {
         }
     }
 
-    /// Shows an open connection, e.g. from its tab.
+    /// Shows an open connection, e.g. from its menu entry.
     pub fn activate_connection(&self, key: &str) {
         if self.bring_to_front(|connection| connection.partition == key) {
             self.show_paperclip();
@@ -409,30 +424,7 @@ impl Client {
         }
     }
 
-    /// A click ticks a menu entry by itself; the next refresh puts the ticks back where they belong.
-    pub fn invalidate_menu(&self) {
-        self.menu_signature.lock().unwrap().clear();
-    }
-
-    /// Replacing the menu redraws the window, so it only happens when an entry changed.
-    fn refresh_menu(&self) {
-        let signature = {
-            let current = self.open_profile_ids();
-            let recent: Vec<_> = self.store.lock().unwrap().recent_remote_profiles(crate::menu::RECENT_CONNECTIONS).into_iter().map(|profile| (profile.id, profile.name, profile.remote_url)).collect();
-            format!("{}|{current:?}|{}|{}|{:?}|{recent:?}", i18n::current(), self.paperclip_webview().is_some(), self.zoom_percent(), self.local_server_version())
-        };
-        let Some(window) = self.window() else { return };
-        let mut shown = self.menu_signature.lock().unwrap();
-        if *shown == signature {
-            return;
-        }
-        match crate::menu::build(self).and_then(|menu| window.set_menu(menu)) {
-            Ok(_) => *shown = signature,
-            Err(e) => tracing::warn!("rebuilding the menu: {e}"),
-        }
-    }
-
-    /// The title bar and the menu bar follow the app's colour scheme instead of only Windows' own.
+    /// The title bar follows the app's colour scheme instead of only Windows' own.
     pub fn apply_color_scheme(&self) {
         let theme = match self.settings.lock().unwrap().color_scheme.as_str() {
             "dark" => Some(tauri::Theme::Dark),
@@ -457,7 +449,8 @@ impl Client {
         on_paperclip.then(|| self.paperclip_webview()).flatten().or_else(|| self.handle.get_webview(LAUNCHER_LABEL))
     }
 
-    /// The webviews are laid out by hand: Paperclip fills the window while it is the main view, the shell for its own pages.
+    /// The webviews are laid out by hand: for its own pages the shell fills the window; while Paperclip is the main view, the shell
+    /// is only the menu bar above it.
     pub fn relayout(&self) {
         let Some(window) = self.window() else { return };
         let Ok(size) = window.inner_size() else { return };
@@ -466,28 +459,54 @@ impl Client {
         }
         let paperclip = self.paperclip_webview();
         let on_paperclip = paperclip.is_some() && self.launcher.lock().unwrap().page == LauncherPage::Paperclip;
-        // With more than one connection to switch between, the left edge of the shell stays visible next to Paperclip: the rail of the connections.
-        let several = on_paperclip && (!self.parked.lock().unwrap().is_empty() || self.store.lock().unwrap().list_profiles().len() > 1);
-        let rail = if several { ((CONNECTION_RAIL_WIDTH * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.width / 2) } else { 0 };
         let shown = paperclip.as_ref().filter(|_| on_paperclip).map_or_else(|| LAUNCHER_LABEL.to_owned(), |webview| webview.label().to_owned());
-        // Showing and resizing a webview that already sits right makes it flicker.
-        let layout = (shown, size.width, size.height, rail);
+        // An open menu needs room below the bar: the shell then lies over Paperclip, see-through wherever it draws nothing.
+        let menu_open = on_paperclip && self.menu_open.load(Ordering::SeqCst);
+        let layout = (shown, size.width, size.height, menu_open);
         let mut applied = self.layout.lock().unwrap();
         if applied.as_ref() == Some(&layout) {
             return;
         }
-        let shell_width = if on_paperclip { rail } else { size.width };
-        for (webview, left, width) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_width), (paperclip, rail, if on_paperclip { size.width - rail } else { 0 })] {
+        // Showing and resizing a webview that already sits right makes it flicker.
+        let only_menu = applied.as_ref().is_some_and(|applied| (&applied.0, applied.1, applied.2) == (&layout.0, layout.1, layout.2));
+        let bar = if on_paperclip { ((MENU_BAR_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height) } else { 0 };
+        let shell_height = if on_paperclip && !menu_open { bar } else { size.height };
+        for (webview, top, height) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_height), (paperclip.filter(|_| !only_menu), bar, if on_paperclip { size.height - bar } else { 0 })] {
             let Some(webview) = webview else { continue };
-            if width > 0 {
-                let _ = webview.set_position(tauri::PhysicalPosition::new(left, 0));
-                let _ = webview.set_size(tauri::PhysicalSize::new(width, size.height));
+            if height > 0 {
+                let _ = webview.set_position(tauri::PhysicalPosition::new(0, top));
+                let _ = webview.set_size(tauri::PhysicalSize::new(size.width, height));
                 let _ = webview.show();
             } else {
                 let _ = webview.hide();
             }
         }
+        if menu_open {
+            self.raise_shell();
+        }
         *applied = Some(layout);
+    }
+
+    /// Puts the shell above the Paperclip webviews: they were created after it and so lie over it, and Tauri has no call for the order of webviews.
+    fn raise_shell(&self) {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowPos};
+        let shell = self.shell_hwnd.load(Ordering::SeqCst);
+        // On the main thread, so it comes after the resize that was queued there.
+        let _ = self.handle.run_on_main_thread(move || unsafe {
+            SetWindowPos(shell as _, HWND_TOP, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+        });
+    }
+
+    /// The shell opened or closed a menu of its menu bar; once it is closed, the keyboard is Paperclip's again.
+    pub fn set_menu_open(&self, open: bool) {
+        self.menu_open.store(open, Ordering::SeqCst);
+        self.relayout();
+        if !open
+            && self.launcher.lock().unwrap().page == LauncherPage::Paperclip
+            && let Some(paperclip) = self.paperclip_webview()
+        {
+            let _ = paperclip.set_focus();
+        }
     }
 
     /// Opens the app's own window on one of its pages.
@@ -533,10 +552,11 @@ impl Client {
             return window.set_focus();
         }
         let config = self.handle.config().app.windows.iter().find(|w| w.label == WINDOW_LABEL).expect("main window in tauri.conf.json");
-        let window = WindowBuilder::from_config(&self.handle, config)?.menu(crate::menu::build(self)?).build()?;
+        let window = WindowBuilder::from_config(&self.handle, config)?.build()?;
         // Its own browser profile under the app's data, so a run with moved data shares nothing with an installed one.
         let profile = self.paths.webview_data.join("launcher");
         add_shell(&window, config.url.clone(), profile)?;
+        self.shell_hwnd.store(webview_hwnd(&window), Ordering::SeqCst);
         self.apply_color_scheme();
         self.relayout();
         Ok(())
@@ -1189,7 +1209,7 @@ impl Client {
         let factor = factor.clamp(0.3, 3.0);
         *self.zoom.lock().unwrap() = factor;
         let _ = webview.set_zoom(factor);
-        self.refresh_menu();
+        self.send_state();
     }
 
     pub fn zoom_percent(&self) -> u32 {
@@ -1242,15 +1262,21 @@ fn remote_error_title(result: &RemotePreflightResult) -> &'static str {
     }
 }
 
-/// The shell webview. A dev build loads its pages from Vite, which may still be starting (or answer 500 while it bundles);
-/// the webview shows a loading page until Vite answers.
+/// The window of the webview on top, which right after the shell was added is the shell's.
+fn webview_hwnd(window: &Window) -> isize {
+    use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowExW;
+    window.hwnd().map_or(0, |parent| unsafe { FindWindowExW(parent.0 as _, std::ptr::null_mut(), windows_sys::w!("WRY_WEBVIEW"), std::ptr::null()) as isize })
+}
+
+/// The shell webview; see-through, so that only its menu covers Paperclip while one is open. A dev build loads its pages from Vite,
+/// which may still be starting (or answer 500 while it bundles); the webview shows a loading page until Vite answers.
 fn add_shell(window: &Window, url: WebviewUrl, profile: std::path::PathBuf) -> tauri::Result<()> {
     let size = window.inner_size()?.to_logical::<f64>(window.scale_factor()?);
     let (position, size) = (LogicalPosition::new(0.0, 0.0), LogicalSize::new(size.width, size.height));
     #[cfg(dev)]
     if let Some(dev_url) = window.app_handle().config().build.dev_url.clone() {
         let waiting = WebviewUrl::External(tauri::Url::parse(LOADING_PAGE).expect("loading page is a valid data URL"));
-        let webview = window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, waiting).data_directory(profile), position, size)?;
+        let webview = window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, waiting).transparent(true).data_directory(profile), position, size)?;
         std::thread::spawn(move || {
             let deadline = Instant::now() + DEV_SERVER_WAIT;
             while Instant::now() < deadline && ureq::get(dev_url.as_str()).call().is_err() {
@@ -1262,5 +1288,5 @@ fn add_shell(window: &Window, url: WebviewUrl, profile: std::path::PathBuf) -> t
         });
         return Ok(());
     }
-    window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, url).data_directory(profile), position, size).map(|_| ())
+    window.add_child(WebviewBuilder::new(LAUNCHER_LABEL, url).transparent(true).data_directory(profile), position, size).map(|_| ())
 }

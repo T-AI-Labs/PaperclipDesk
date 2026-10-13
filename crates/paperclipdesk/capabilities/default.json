@@ -11,6 +11,8 @@
     "allow-set-open-at-start",
     "allow-activate-connection",
     "allow-close-connection",
+    "allow-menu-action",
+    "allow-set-menu-open",
     "allow-save-remote-profile",
     "allow-duplicate-profile",
     "allow-delete-profile",

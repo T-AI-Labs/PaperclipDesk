@@ -14,11 +14,11 @@ or connects to a remote one, and shows Paperclip's own web UI in a native window
   a browser profile of its own per connection, and has no capability at all.
 
 Several remotes can be open at once, next to the one local server. One connection is in front; the others stay open
-with their webviews hidden. While Paperclip is the main view, the connection in front fills the window and the shell
-is hidden, unless there is more than one connection to switch between: then the left edge of the shell stays visible
-as a rail with one entry per connection.
-For the app's own pages the shell fills the window. The host owns all state. It sends the shell a snapshot whenever
-something changes, and the shell renders what the snapshot says.
+with their webviews hidden; the Connect menu switches between them. The shell draws the menu bar. While Paperclip is
+the main view, the shell is only that bar and the connection in front fills the window below it; while a menu is open,
+the shell lies over Paperclip, see-through wherever it draws nothing. For the app's own pages the shell fills the
+window. The host owns all state, the entries of the menu bar included. It sends the shell a snapshot whenever something
+changes, and the shell renders what the snapshot says.
 
 **The local server is a child process.** The host starts the bundled Node.js with the Paperclip server and its embedded
 PostgreSQL, watches its health, and ends it with the app. Nothing of Paperclip is reimplemented here.
@@ -63,7 +63,7 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | --- | --- |
 | `crates/paperclipdesk/src/client.rs` | The state of the window, the layout of the webviews, starting and stopping connections |
 | `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
-| `crates/paperclipdesk/src/menu.rs` | The menu bar |
+| `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
 | `crates/paperclipdesk/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |

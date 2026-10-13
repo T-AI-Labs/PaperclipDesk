@@ -2259,6 +2259,11 @@
     }
 }
 
+/* Above Paperclip the shell is the menu bar only; the rest of it must not hide what lies below (see App.tsx). */
+html.see-through body {
+    background: transparent;
+}
+
 /* Page icon tiles (components/icon-tile.tsx): drawn from the design's primary colour. The colourful designs fan the
    pages out over neighbouring hues (--tone from lib/tones.ts times --tone-spread), the others keep every tile in the
    primary, and a black-and-white design keeps them black and white. */
