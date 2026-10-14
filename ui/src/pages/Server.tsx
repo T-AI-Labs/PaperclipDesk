@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Download, FileCog, LoaderCircle, RotateCcw, Server as ServerIcon, Trash2 } from 'lucide-react'
-import { toast } from '@/lib/notify'
+import { toast } from 'sonner'
 
 import { SwitchRow } from '@/components/setting-row'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '@/components/ui/alert-dialog'

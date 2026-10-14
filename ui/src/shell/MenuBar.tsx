@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Bell, CircleCheck, OctagonX } from 'lucide-react'
 
-import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLabel, MenubarMenu, MenubarSeparator, MenubarSub, MenubarSubContent, MenubarSubTrigger, MenubarTrigger } from '@/components/ui/menubar'
+import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarMenu, MenubarSeparator, MenubarSub, MenubarSubContent, MenubarSubTrigger, MenubarTrigger } from '@/components/ui/menubar'
 import { type Menu, type MenuEntry, menuAction, setMenuOpen } from '@/lib/client'
-import { clearNotices, markNoticesRead, useNotices } from '@/lib/notify'
-import { t } from '@/i18n'
 
 // Above Paperclip the webview is no taller than the bar until the host has made room for a menu.
 const BAR_HEIGHT = 32
-const NOTICES = 'notices'
 
 async function makeRoom() {
   await setMenuOpen(true)
@@ -48,50 +44,12 @@ function Entries({ entries }: { entries: MenuEntry[] }) {
   })
 }
 
-function Notices() {
-  const { list, unread } = useNotices()
-  return (
-    <MenubarMenu value={NOTICES}>
-      <MenubarTrigger aria-label={t('Benachrichtigungen')} className="relative ms-auto rounded-md px-2 py-1 hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent">
-        <Bell className="size-3.5" />
-        {unread > 0 && (
-          <span className="absolute -top-0.5 end-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-primary px-0.5 text-[9px] leading-none font-semibold text-primary-foreground">{unread > 9 ? '9+' : unread}</span>
-        )}
-      </MenubarTrigger>
-      <MenubarContent align="end" sideOffset={5} alignOffset={0} className="w-80">
-        <MenubarLabel className="text-xs">{t('Benachrichtigungen')}</MenubarLabel>
-        <MenubarSeparator />
-        {list.length === 0 ? (
-          <p className="px-2 py-3 text-xs text-muted-foreground">{t('Keine Benachrichtigungen')}</p>
-        ) : (
-          <>
-            <ul className="max-h-80 overflow-y-auto">
-              {list.map((notice) => (
-                <li key={notice.id} className="flex gap-2 px-2 py-1.5 text-xs">
-                  {notice.kind === 'error' ? <OctagonX className="mt-px size-3.5 shrink-0 text-rose-600 dark:text-rose-400" /> : <CircleCheck className="mt-px size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
-                  <span className="min-w-0 flex-1 break-words">{notice.message}</span>
-                  <time className="shrink-0 text-muted-foreground tabular-nums">{notice.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
-                </li>
-              ))}
-            </ul>
-            <MenubarSeparator />
-            <MenubarItem onSelect={clearNotices} className="text-xs">
-              {t('Alle entfernen')}
-            </MenubarItem>
-          </>
-        )}
-      </MenubarContent>
-    </MenubarMenu>
-  )
-}
-
 /// The menu bar at the top of the window; the host says what is in it and does what an entry stands for.
 export default function MenuBar({ menus }: { menus: Menu[] }) {
   const [open, setOpen] = useState('')
 
   async function change(next: string) {
     if (next !== '' && open === '') await makeRoom()
-    if (next === NOTICES) markNoticesRead()
     setOpen(next)
     if (next === '') void setMenuOpen(false)
   }
@@ -120,7 +78,6 @@ export default function MenuBar({ menus }: { menus: Menu[] }) {
           </MenubarContent>
         </MenubarMenu>
       ))}
-      <Notices />
     </Menubar>
   )
 }

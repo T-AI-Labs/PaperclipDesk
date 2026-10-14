@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from 'react'
 import { ArrowLeft, Check, CircleAlert, Globe, LoaderCircle, type LucideIcon, Monitor, Play, Plus, RotateCcw, ShieldAlert, X } from 'lucide-react'
-import { toast } from '@/lib/notify'
+import { toast } from 'sonner'
 
 import { AppMark } from '@/components/app-mark'
 import { Button } from '@/components/ui/button'

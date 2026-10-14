@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownToLine, Copy, FolderOpen, Pause, Play, Search, Trash2 } from 'lucide-react'
-import { toast } from '@/lib/notify'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
