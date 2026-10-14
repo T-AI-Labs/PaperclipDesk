@@ -40,24 +40,29 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "--normal-text": "var(--popover-foreground)",
             "--normal-border": "var(--border)",
             "--border-radius": "var(--radius)",
+            "--width": "320px",
           } as React.CSSProperties
         }
         toastOptions={{
           classNames: {
-            toast: "cn-toast cursor-pointer",
-            description: "opacity-90",
-            // A tint per kind, readable in both themes; the default toast keeps the popover colours.
-            success:
-              "!border-emerald-500/40 !bg-emerald-50 !text-emerald-950 dark:!bg-emerald-950 dark:!text-emerald-50 [&_[data-icon]]:text-emerald-600 dark:[&_[data-icon]]:text-emerald-400",
-            info: "!border-sky-500/40 !bg-sky-50 !text-sky-950 dark:!bg-sky-950 dark:!text-sky-50 [&_[data-icon]]:text-sky-600 dark:[&_[data-icon]]:text-sky-400",
-            warning:
-              "!border-amber-500/50 !bg-amber-50 !text-amber-950 dark:!bg-amber-950 dark:!text-amber-50 [&_[data-icon]]:text-amber-600 dark:[&_[data-icon]]:text-amber-400",
-            error:
-              "!border-rose-500/50 !bg-rose-50 !text-rose-950 dark:!bg-rose-950 dark:!text-rose-50 [&_[data-icon]]:text-rose-600 dark:[&_[data-icon]]:text-rose-400",
+            toast:
+              "cn-toast group/toast cursor-pointer !items-center !gap-3 !rounded-xl !border-border/70 !bg-popover/95 !py-2.5 !ps-2.5 !pe-9 !text-popover-foreground !shadow-lg !shadow-black/10 backdrop-blur-md",
+            title: "!text-[13px] !font-medium !leading-snug",
+            description: "!text-xs text-muted-foreground",
+            icon: "!m-0 !grid !size-7 shrink-0 place-items-center rounded-full bg-muted",
+            closeButton:
+              "!start-auto !end-1.5 !top-1/2 ![transform:translateY(-50%)] !size-6 !border-0 !bg-transparent !text-muted-foreground opacity-0 transition-opacity group-hover/toast:opacity-100 hover:!bg-muted",
+            // Only the icon carries the kind, in a tint readable in both themes.
+            success: "[&_[data-icon]]:bg-emerald-500/15 [&_[data-icon]]:text-emerald-600 dark:[&_[data-icon]]:text-emerald-400",
+            info: "[&_[data-icon]]:bg-sky-500/15 [&_[data-icon]]:text-sky-600 dark:[&_[data-icon]]:text-sky-400",
+            warning: "[&_[data-icon]]:bg-amber-500/15 [&_[data-icon]]:text-amber-600 dark:[&_[data-icon]]:text-amber-400",
+            error: "[&_[data-icon]]:bg-rose-500/15 [&_[data-icon]]:text-rose-600 dark:[&_[data-icon]]:text-rose-400",
             loading: "[&_[data-icon]]:text-primary",
             actionButton: "!bg-primary !text-primary-foreground",
           },
         }}
+        expand
+        gap={8}
         closeButton
         {...props}
       />
