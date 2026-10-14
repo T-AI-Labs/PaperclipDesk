@@ -136,7 +136,8 @@ export default function App() {
 
   return (
     <div className={cn('relative isolate flex h-screen flex-col overflow-hidden text-foreground', !onPaperclip && 'bg-background')}>
-      <Toaster theme={settings.color_scheme} position="bottom-right" offset={{ bottom: 20, right: 20 }} visibleToasts={3} duration={5000} />
+      {/* Above Paperclip this webview is no taller than the menu bar, so a toast would land on it. */}
+      {!onPaperclip && <Toaster theme={settings.color_scheme} position="bottom-right" offset={{ bottom: 20, right: 20 }} visibleToasts={3} duration={5000} />}
       {!onPaperclip && <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />}
 
       <MenuBar menus={snapshot.menu} />
