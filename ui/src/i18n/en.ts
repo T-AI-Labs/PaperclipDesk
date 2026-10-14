@@ -214,4 +214,7 @@ export const en: Catalogue = [
   'Add remote',
   'The app opens these connections at launch without asking; the one used last is in front. With none selected it shows the connection page.',
   'Disconnect',
+  'Notifications',
+  'No notifications',
+  'Clear all',
 ]

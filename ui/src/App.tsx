@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Cable, CircleAlert, Download, Palette, Paperclip, Plug, RefreshCw, ScrollText, Server as ServerIcon, SlidersHorizontal } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notify'
 
 import { IconTile } from '@/components/icon-tile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -136,8 +136,8 @@ export default function App() {
 
   return (
     <div className={cn('relative isolate flex h-screen flex-col overflow-hidden text-foreground', !onPaperclip && 'bg-background')}>
-      {/* Above Paperclip this webview is no taller than the menu bar, so a toast would land on it. */}
-      {!onPaperclip && <Toaster theme={settings.color_scheme} position="bottom-right" offset={{ bottom: 20, right: 20 }} visibleToasts={3} duration={5000} />}
+      {/* Above Paperclip this webview is no taller than the menu bar; the bell in it keeps what a toast would have said. */}
+      {!onPaperclip && <Toaster theme={settings.color_scheme} position="top-right" offset={{ top: 40, right: 8 }} visibleToasts={3} duration={5000} />}
       {!onPaperclip && <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />}
 
       <MenuBar menus={snapshot.menu} />
