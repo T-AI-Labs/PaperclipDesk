@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AppWindow, Bug, Download, ExternalLink, FileDown, FileUp, FolderOpen, Info, Languages, LoaderCircle, RefreshCw, Save } from 'lucide-react'
-import { toast } from '@/lib/notify'
+import { toast } from 'sonner'
 
 import { SettingRow, SwitchRow } from '@/components/setting-row'
 import { Button } from '@/components/ui/button'
