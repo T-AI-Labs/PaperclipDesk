@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tauri::webview::{NewWindowResponse, PageLoadEvent};
+use tauri::webview::{DownloadEvent, NewWindowResponse, PageLoadEvent};
 use tauri::webview::{Webview, WebviewBuilder};
 use tauri::window::{Window, WindowBuilder};
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl};
@@ -33,6 +33,10 @@ const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const SERVER_OUTPUT_LINES: usize = 200;
 /// The height of the menu bar, which the shell keeps visible above Paperclip; `MenuBar.tsx` fills it.
 const MENU_BAR_HEIGHT: f64 = 32.0;
+/// Paperclip's routes start with the company's prefix, and its UI keeps the selected company in local storage.
+const OPEN_COMPANY_PAGE: &str = "path => fetch('/api/companies').then(r => r.json()).then(companies => { const company = companies.find(c => c.id === localStorage.getItem('paperclip.selectedCompanyId')) ?? companies[0]; if (company) { history.pushState(null, '', `/${company.issuePrefix}/${path}`); dispatchEvent(new PopStateEvent('popstate')); } })";
+/// Paperclip opens its command palette on Ctrl+K at the document; its actions are told apart only by their English labels.
+const COMMAND_PALETTE: &str = "action => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })); if (action) setTimeout(() => document.querySelector(`[cmdk-item][data-value^=\"${action}\"]`)?.click(), 300); }";
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -620,6 +624,7 @@ impl Client {
                 open_externally(target.as_str(), &popup_origin);
                 NewWindowResponse::Deny
             })
+            .on_download(save_download)
             .on_page_load(move |_webview, payload| {
                 if payload.event() == PageLoadEvent::Finished {
                     let _ = loaded.send(());
@@ -1214,6 +1219,57 @@ impl Client {
 
     pub fn zoom_percent(&self) -> u32 {
         (*self.zoom.lock().unwrap() * 100.0).round() as u32
+    }
+
+    /// Brings Paperclip to the front on one of its pages, `path` taken relative to the company selected there.
+    pub fn open_company_page(&self, path: &str) {
+        self.eval_in_front(&format!("({OPEN_COMPANY_PAGE})({})", serde_json::Value::from(path)));
+    }
+
+    /// Brings Paperclip to the front with its command palette open, and picks `action` there if it is given and found.
+    pub fn open_command_palette(&self, action: Option<&str>) {
+        self.eval_in_front(&format!("({COMMAND_PALETTE})({})", serde_json::Value::from(action)));
+    }
+
+    fn eval_in_front(&self, script: &str) {
+        if !self.reopen_current_connection_window() {
+            return;
+        }
+        if let Some(Err(e)) = self.paperclip_webview().map(|webview| webview.eval(script)) {
+            tracing::warn!("running a menu action in Paperclip: {e}");
+        }
+    }
+}
+
+/// A download from Paperclip goes to a folder of its own first, and is then saved where the user says: a dialog must not block the
+/// webview while the download starts.
+fn save_download(webview: Webview, event: DownloadEvent<'_>) -> bool {
+    match event {
+        DownloadEvent::Requested { destination, .. } => {
+            let name = destination.file_name().map_or_else(|| "download".into(), ToOwned::to_owned);
+            let folder = std::env::temp_dir().join("PaperclipDesk").join(uuid::Uuid::new_v4().to_string());
+            *destination = folder.join(name);
+            std::fs::create_dir_all(&folder).is_ok()
+        }
+        DownloadEvent::Finished { path: Some(path), success: true, .. } => {
+            std::thread::spawn(move || keep_download(&webview, &path));
+            true
+        }
+        _ => true,
+    }
+}
+
+fn keep_download(webview: &Webview, download: &std::path::Path) {
+    let name = download.file_name().unwrap_or_default().to_string_lossy();
+    let target = webview.dialog().file().set_file_name(name).set_parent(&webview.window()).blocking_save_file().and_then(|target| target.into_path().ok());
+    if let Some(target) = target
+        && let Err(e) = std::fs::copy(download, &target)
+    {
+        tracing::warn!("saving the download {} to {}: {e}", download.display(), target.display());
+        return;
+    }
+    if let Some(folder) = download.parent() {
+        let _ = std::fs::remove_dir_all(folder);
     }
 }
 

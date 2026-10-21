@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
-use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind, MessageDialogResult};
 
 use crate::client::{Client, LauncherPage, LauncherView};
 use crate::connection::types::LOCAL_PROFILE_ID;
@@ -11,6 +11,7 @@ use crate::connection::types::LOCAL_PROFILE_ID;
 const RECENT_PREFIX: &str = "connection.recent.";
 const OPEN_PREFIX: &str = "connection.open.";
 const ZOOM_PREFIX: &str = "view.zoom.";
+const PAGE_PREFIX: &str = "paperclip.page.";
 const ZOOM_LEVELS: [u32; 9] = [50, 75, 90, 100, 110, 125, 150, 175, 200];
 pub const RECENT_CONNECTIONS: usize = 5;
 const ZOOM_STEP: f64 = 0.1;
@@ -68,9 +69,8 @@ pub fn build(client: &Client) -> Vec<Menu> {
     let open = client.open_profile_ids();
     // Paperclip's own zoom exists only while a connection is open.
     let connected = client.paperclip_webview().is_some();
-    let server_version = client.local_server_version();
 
-    let app = vec![item("settings.open", i18n::t("Einstellungen …")), item("app.updates", i18n::t("Nach Updates suchen …")), Entry::Separator, item("app.quit", i18n::t("Beenden"))];
+    let app = vec![item("settings.open", i18n::t("Einstellungen …")), Entry::Separator, item("app.quit", i18n::t("Beenden"))];
 
     // The places to connect to first, the open ones ticked: an entry opens its connection or brings it to the front. Choosing and editing below.
     let connected_to = |profile_id: &str| open.iter().any(|id| id == profile_id);
@@ -81,28 +81,48 @@ pub fn build(client: &Client) -> Vec<Menu> {
     }
     connection.extend(client.open_unsaved_connections().into_iter().map(|(key, name)| check(format!("{OPEN_PREFIX}{key}"), name, true)));
     connection.extend([Entry::Separator, item("connection.chooser", i18n::t("Alle Verbindungen …")), item("connection.manage", i18n::t("Remotes bearbeiten …"))]);
+    // What to do in the Paperclip in front goes below the connections, so the menu can grow without pushing them away.
+    // Creating first, then the pages a user goes to most, then the company as a whole.
+    let action = |id: String, label: &str| Entry::Item { id, label: label.to_owned(), enabled: connected, checked: None };
+    let page = |path: &str, label: &str| action(format!("{PAGE_PREFIX}{path}"), label);
+    let paperclip = vec![
+        Entry::Submenu { label: i18n::t("Verbindung").into(), enabled: true, entries: connection },
+        Entry::Separator,
+        action("paperclip.new_issue".into(), i18n::t("Neue Aufgabe …")),
+        page("agents/new", i18n::t("Neuer Agent …")),
+        action("paperclip.search".into(), i18n::t("Suchen …")),
+        Entry::Separator,
+        page("dashboard", i18n::t("Dashboard")),
+        page("inbox", i18n::t("Posteingang")),
+        page("issues", i18n::t("Aufgaben")),
+        page("agents", i18n::t("Agenten")),
+        page("approvals", i18n::t("Genehmigungen")),
+        page("costs", i18n::t("Kosten")),
+        Entry::Separator,
+        page("company/import", i18n::t("Firma importieren …")),
+        page("company/export", i18n::t("Firma exportieren …")),
+        page("company/settings", i18n::t("Firmeneinstellungen")),
+    ];
 
     let zoom_percent = client.zoom_percent();
     let mut zoom = vec![item("view.zoom_in", i18n::t("Vergrößern")), item("view.zoom_out", i18n::t("Verkleinern")), item("view.zoom_reset", i18n::t("Zoom zurücksetzen")), Entry::Separator];
     zoom.extend(ZOOM_LEVELS.map(|percent| check(format!("{ZOOM_PREFIX}{percent}"), format!("{percent} %"), percent == zoom_percent)));
     let view = vec![item("view.reload", i18n::t("Neu laden")), Entry::Separator, Entry::Submenu { label: "Zoom".into(), enabled: connected, entries: zoom }, item("view.fullscreen", i18n::t("Vollbild"))];
 
-    // Reading first, then everything for looking into a problem.
+    // Reading first, then everything for looking into a problem, then the app itself; the project page and the licenses are in its About box.
     let help = vec![
         item("help.docs", i18n::t("Paperclip-Dokumentation")),
-        item("help.repository", i18n::t("Projekt auf GitHub")),
         item("help.report_issue", i18n::t("Problem melden …")),
-        item("help.licenses", i18n::t("Lizenzen Dritter")),
         Entry::Separator,
         item("help.logs", i18n::t("Protokoll")),
         item("help.data_folder", i18n::t("Datenordner öffnen")),
         item("view.devtools", i18n::t("Entwicklertools")),
         Entry::Separator,
-        Entry::Item { id: "help.version".into(), label: format!("Paperclip {}", server_version.as_deref().unwrap_or("–")), enabled: false, checked: None },
+        item("app.updates", i18n::t("Nach Updates suchen …")),
         item("help.about", i18n::t("Über PaperclipDesk")),
     ];
 
-    [("PaperclipDesk", app), (i18n::t("Verbinden"), connection), (i18n::t("Ansicht"), view), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
+    [("PaperclipDesk", app), ("Paperclip", paperclip), (i18n::t("Ansicht"), view), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
 }
 
 /// Windows draws the menu of the title bar itself and follows its own app mode; this makes it follow the app's colour scheme.
@@ -135,6 +155,8 @@ pub fn handle(client: &Arc<Client>, id: &str) {
     std::thread::spawn(move || match id.as_str() {
         "app.updates" => client.show_page(LauncherPage::System),
         "app.quit" => client.handle().exit(0),
+        "paperclip.new_issue" => client.open_command_palette(Some("Create new task")),
+        "paperclip.search" => client.open_command_palette(None),
         "connection.chooser" => client.show_launcher(LauncherView::Chooser, None, None),
         "connection.local" => client.boot_local(false),
         "connection.manage" => client.show_page(LauncherPage::Connections),
@@ -142,33 +164,18 @@ pub fn handle(client: &Arc<Client>, id: &str) {
         "view.zoom_reset" => client.change_zoom(None),
         "view.zoom_in" => client.change_zoom(Some(ZOOM_STEP)),
         "view.zoom_out" => client.change_zoom(Some(-ZOOM_STEP)),
-        "help.licenses" => {
-            let opened = client.handle().path().resource_dir().map_err(|e| e.to_string()).and_then(|dir| tauri_plugin_opener::open_path(dir.join(LICENSES_FILE), None::<&str>).map_err(|e| e.to_string()));
-            if let Err(e) = opened {
-                tracing::warn!("opening the third-party licenses: {e}");
-            }
-        }
         "help.logs" => client.show_page(LauncherPage::Logs),
         "help.data_folder" => {
             if let Err(e) = tauri_plugin_opener::open_path(&client.paths.user_data, None::<&str>) {
                 tracing::warn!("opening the data folder: {e}");
             }
         }
-        "help.repository" | "help.report_issue" => {
-            let link = if id == "help.repository" { ProjectLink::Repository } else { ProjectLink::ReportIssue };
-            if let Err(e) = open_project_link(&client, link) {
+        "help.report_issue" => {
+            if let Err(e) = open_project_link(&client, ProjectLink::ReportIssue) {
                 tracing::warn!("opening a project page: {e}");
             }
         }
-        "help.about" => {
-            let description = i18n::t("PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.");
-            let versions = i18n::f("PaperclipDesk {}\nPaperclip-Server: {}\n\nDaten: {}", &[&env!("CARGO_PKG_VERSION"), &client.local_server_version().as_deref().unwrap_or("–"), &client.paths.user_data.display()]);
-            let dialog = client.handle().dialog().message(format!("{description}\n\n{versions}\n\n{REPOSITORY_URL}")).title(i18n::t("Über PaperclipDesk")).kind(MessageDialogKind::Info);
-            match client.window() {
-                Some(window) => dialog.parent(&window).blocking_show(),
-                None => dialog.blocking_show(),
-            };
-        }
+        "help.about" => show_about(&client),
         "help.docs" => {
             if let Err(e) = tauri_plugin_opener::open_url(DOCS_URL, None::<&str>) {
                 tracing::warn!("opening the documentation: {e}");
@@ -177,6 +184,8 @@ pub fn handle(client: &Arc<Client>, id: &str) {
         other => {
             if let Some(percent) = other.strip_prefix(ZOOM_PREFIX).and_then(|percent| percent.parse::<u32>().ok()) {
                 client.set_zoom(f64::from(percent) / 100.0);
+            } else if let Some(path) = other.strip_prefix(PAGE_PREFIX) {
+                client.open_company_page(path);
             } else if let Some(profile_id) = other.strip_prefix(RECENT_PREFIX) {
                 client.boot_saved_profile(profile_id);
             } else if let Some(key) = other.strip_prefix(OPEN_PREFIX) {
@@ -200,4 +209,30 @@ pub fn handle(client: &Arc<Client>, id: &str) {
             }
         }
     });
+}
+
+/// The versions, and the way to the project page and to the licenses that ship with the app.
+fn show_about(client: &Client) {
+    let (repository, licenses) = (i18n::t("Projekt auf GitHub"), i18n::t("Lizenzen Dritter"));
+    let description = i18n::t("PaperclipDesk macht Paperclip zu einem Windows-Programm: Es startet den Server samt Datenbank selbst oder verbindet sich mit einem Remote – ohne Terminal und ohne Browser-Tab. Open Source unter der MIT-Lizenz, ohne Telemetrie.");
+    let versions = i18n::f("PaperclipDesk {}\nPaperclip-Server: {}\n\nDaten: {}", &[&env!("CARGO_PKG_VERSION"), &client.local_server_version().as_deref().unwrap_or("–"), &client.paths.user_data.display()]);
+    let dialog = client
+        .handle()
+        .dialog()
+        .message(format!("{description}\n\n{versions}"))
+        .title(i18n::t("Über PaperclipDesk"))
+        .kind(MessageDialogKind::Info)
+        .buttons(MessageDialogButtons::YesNoCancelCustom(repository.into(), licenses.into(), "OK".into()));
+    let picked = match client.window() {
+        Some(window) => dialog.parent(&window).blocking_show_with_result(),
+        None => dialog.blocking_show_with_result(),
+    };
+    let opened = match picked {
+        MessageDialogResult::Custom(label) if label == repository => open_project_link(client, ProjectLink::Repository),
+        MessageDialogResult::Custom(label) if label == licenses => client.handle().path().resource_dir().map_err(|e| e.to_string()).and_then(|dir| tauri_plugin_opener::open_path(dir.join(LICENSES_FILE), None::<&str>).map_err(|e| e.to_string())),
+        _ => Ok(()),
+    };
+    if let Err(e) = opened {
+        tracing::warn!("opening from the About box: {e}");
+    }
 }

@@ -14,7 +14,7 @@ or connects to a remote one, and shows Paperclip's own web UI in a native window
   a browser profile of its own per connection, and has no capability at all.
 
 Several remotes can be open at once, next to the one local server. One connection is in front; the others stay open
-with their webviews hidden; the Connect menu switches between them. The shell draws the menu bar. While Paperclip is
+with their webviews hidden; the Connection submenu of the Paperclip menu switches between them. The shell draws the menu bar. While Paperclip is
 the main view, the shell is only that bar and the connection in front fills the window below it; while a menu is open,
 the shell lies over Paperclip, see-through wherever it draws nothing. For the app's own pages the shell fills the
 window. The host owns all state, the entries of the menu bar included. It sends the shell a snapshot whenever something
@@ -86,7 +86,7 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
    database's shared memory and the next start fails; `kill_stale_postgres` ends what belongs to this app's own server.
 6. **User data is never deleted silently.** A reset asks first and offers a backup.
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
-   opens from the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
+   opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
 8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates and the server package.
 
 ## The Paperclip server version
