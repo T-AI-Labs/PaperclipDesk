@@ -818,14 +818,14 @@ impl Client {
         server::write_pid_file(&self.paths.user_data, None);
     }
 
-    /// Stops a server whose boot failed or was overtaken, and tracks the one that ran before it again.
-    fn abandon_attempt(&self, attempted: Option<u32>, previous: Option<u32>) {
+    /// Stops a server whose boot failed or was overtaken.
+    fn abandon_attempt(&self, attempted: Option<u32>) {
         let tracked = *self.server_pid.lock().unwrap();
         let Some(pid) = attempted.filter(|_| server::is_same_process(tracked, attempted)) else {
             return;
         };
         // Untracked first, so the exit that follows is not taken for a crash.
-        self.track_server(previous.filter(|_| server::should_restore_previous_server(previous, attempted, tracked)));
+        self.track_server(None);
         server::kill_process_tree(pid);
     }
 
@@ -889,7 +889,6 @@ impl Client {
         let boot_id = self.next_boot();
         self.stop_monitor();
         let is_local = |connection: &CurrentConnection| connection.mode == ConnectionMode::LocalEmbedded;
-        let running_local = self.is_open(is_local);
         let in_front = !force_restart && self.bring_to_front(is_local);
         let current = self.current.lock().unwrap().clone();
 
@@ -905,11 +904,18 @@ impl Client {
             return;
         }
 
-        let previous_server = if running_local { *self.server_pid.lock().unwrap() } else { None };
+        // A second server would take over the first one's PostgreSQL, and that dies with the first one. start_local ends what it leaves behind.
+        let running = *self.server_pid.lock().unwrap();
+        if let Some(pid) = running {
+            self.close_open(is_local);
+            // Untracked first, so the exit that follows is not taken for a crash.
+            self.track_server(None);
+            server::kill_process_tree(pid);
+        }
         self.show_launcher(LauncherView::LocalBoot, None, None);
         let mut attempted = None;
-        if let Err(error) = self.start_local(boot_id, previous_server, &mut attempted) {
-            self.abandon_attempt(attempted, previous_server);
+        if let Err(error) = self.start_local(boot_id, &mut attempted) {
+            self.abandon_attempt(attempted);
             if !self.superseded(boot_id) {
                 self.fail(i18n::t("Lokales Paperclip konnte nicht gestartet werden"), error);
             }
@@ -923,7 +929,7 @@ impl Client {
         self.send_state();
     }
 
-    fn start_local(self: &Arc<Self>, boot_id: u64, previous_server: Option<u32>, attempted: &mut Option<u32>) -> Result<(), String> {
+    fn start_local(self: &Arc<Self>, boot_id: u64, attempted: &mut Option<u32>) -> Result<(), String> {
         self.boot_status(BootStep::Init, i18n::t("Umgebung wird vorbereitet …"), 5);
         let layout = match self.layout() {
             Ok(layout) => layout,
@@ -932,9 +938,7 @@ impl Client {
                 self.layout()?
             }
         };
-        if previous_server.is_none() && self.server_pid.lock().unwrap().is_none() {
-            server::kill_stale_postgres(&layout);
-        }
+        server::kill_stale_postgres(&layout);
         let port = server::find_free_port(server::PREFERRED_PORT)?;
         if self.superseded(boot_id) {
             return Ok(());
@@ -1023,7 +1027,7 @@ impl Client {
             None
         })?;
         if self.superseded(boot_id) {
-            self.abandon_attempt(*attempted, previous_server);
+            self.abandon_attempt(*attempted);
             return Ok(());
         }
 
@@ -1042,7 +1046,7 @@ impl Client {
             std::thread::sleep(Duration::from_millis(500));
         }
         if self.superseded(boot_id) {
-            self.abandon_attempt(*attempted, previous_server);
+            self.abandon_attempt(*attempted);
             return Ok(());
         }
 
@@ -1064,15 +1068,12 @@ impl Client {
         let window = self.open_main_window(&connection)?;
         if self.superseded(boot_id) {
             let _ = window.close();
-            self.abandon_attempt(*attempted, previous_server);
+            self.abandon_attempt(*attempted);
             return Ok(());
         }
 
         let allowed_origin = connection.allowed_origin.clone();
         self.put_in_front(connection, &window);
-        if let Some(previous) = previous_server.filter(|_| server::should_kill_superseded_server(previous_server, Some(pid))) {
-            server::kill_process_tree(previous);
-        }
         self.store.lock().unwrap().record_local_connection(&now_iso());
         self.boot_status(BootStep::Ready, i18n::t("Bereit!"), 100);
         self.start_monitor(format!("http://127.0.0.1:{port}"), allowed_origin);

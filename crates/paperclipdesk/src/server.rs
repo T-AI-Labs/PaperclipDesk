@@ -96,14 +96,6 @@ pub fn is_same_process(left: Option<u32>, right: Option<u32>) -> bool {
     left.is_some() && left == right
 }
 
-pub fn should_kill_superseded_server(previous: Option<u32>, next: Option<u32>) -> bool {
-    previous.is_some() && next.is_some() && previous != next
-}
-
-pub fn should_restore_previous_server(previous: Option<u32>, attempted: Option<u32>, tracked: Option<u32>) -> bool {
-    previous.is_some() && is_same_process(tracked, attempted) && !is_same_process(previous, attempted)
-}
-
 /// Tools the server starts, such as the `claude` CLI, are often installed where a GUI process's PATH may not reach.
 fn enriched_path() -> OsString {
     let base = std::env::var_os("PATH").unwrap_or_default();
@@ -299,17 +291,6 @@ mod tests {
         assert!(!is_same_process(Some(101), Some(202)));
         assert!(!is_same_process(Some(101), None));
         assert!(!is_same_process(None, None));
-    }
-
-    #[test]
-    fn the_previous_server_is_killed_after_a_swap_and_restored_after_a_failed_one() {
-        assert!(should_kill_superseded_server(Some(101), Some(202)));
-        assert!(!should_kill_superseded_server(Some(101), Some(101)));
-        assert!(!should_kill_superseded_server(None, Some(202)));
-
-        assert!(should_restore_previous_server(Some(101), Some(202), Some(202)));
-        assert!(!should_restore_previous_server(None, Some(202), Some(202)));
-        assert!(!should_restore_previous_server(Some(101), Some(202), Some(303)));
     }
 
     #[test]
