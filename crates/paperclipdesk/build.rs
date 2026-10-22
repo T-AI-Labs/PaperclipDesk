@@ -17,6 +17,7 @@ fn main() {
         "close_connection",
         "menu_action",
         "set_menu_open",
+        "import_company_template",
         "save_remote_profile",
         "duplicate_profile",
         "delete_profile",

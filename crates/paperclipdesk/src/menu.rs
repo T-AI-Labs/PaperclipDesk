@@ -10,9 +10,12 @@ use crate::connection::types::LOCAL_PROFILE_ID;
 
 const RECENT_PREFIX: &str = "connection.recent.";
 const OPEN_PREFIX: &str = "connection.open.";
-const ZOOM_PREFIX: &str = "view.zoom.";
 const PAGE_PREFIX: &str = "paperclip.page.";
-const ZOOM_LEVELS: [u32; 9] = [50, 75, 90, 100, 110, 125, 150, 175, 200];
+const COMPANY_PREFIX: &str = "company.";
+/// Entries with these ids open a panel of the shell; the shell handles them itself and never hands them to `handle`.
+const SHELL_UPDATES: &str = "shell.updates";
+const SHELL_CONNECTIONS: &str = "shell.connections";
+const SHELL_TEMPLATES: &str = "shell.templates";
 pub const RECENT_CONNECTIONS: usize = 5;
 const ZOOM_STEP: f64 = 0.1;
 const DOCS_URL: &str = "https://docs.paperclip.ing/";
@@ -46,7 +49,8 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
 pub enum Entry {
     Item { id: String, label: String, enabled: bool, checked: Option<bool> },
     Separator,
-    Submenu { label: String, enabled: bool, entries: Vec<Entry> },
+    /// A heading above the entries that follow it.
+    Label { label: String },
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -63,51 +67,47 @@ fn check(id: String, label: String, checked: bool) -> Entry {
     Entry::Item { id, label, enabled: true, checked: Some(checked) }
 }
 
-/// The menu bar of the window. The shell draws it; it is part of every snapshot, so it follows the saved connections and the ones in use.
+fn label(label: &str) -> Entry {
+    Entry::Label { label: label.to_owned() }
+}
+
+/// The menus at the left of the menu bar, all about the Paperclip in front. The shell draws them; they are part of every snapshot.
 pub fn build(client: &Client) -> Vec<Menu> {
-    let recent = client.store.lock().unwrap().recent_remote_profiles(RECENT_CONNECTIONS);
-    let open = client.open_profile_ids();
-    // Paperclip's own zoom exists only while a connection is open.
+    // Paperclip's pages exist only while a connection is open.
     let connected = client.paperclip_webview().is_some();
-
-    let app = vec![item("settings.open", i18n::t("Einstellungen …")), Entry::Separator, item("app.quit", i18n::t("Beenden"))];
-
-    // The places to connect to first, the open ones ticked: an entry opens its connection or brings it to the front. Choosing and editing below.
-    let connected_to = |profile_id: &str| open.iter().any(|id| id == profile_id);
-    let mut connection = vec![check("connection.local".into(), i18n::t("Lokal").into(), connected_to(LOCAL_PROFILE_ID))];
-    for profile in &recent {
-        let host = profile.remote_url.as_deref().and_then(|url| tauri::Url::parse(url).ok()).and_then(|url| url.host_str().map(str::to_owned)).unwrap_or_default();
-        connection.push(check(format!("{RECENT_PREFIX}{}", profile.id), i18n::f("{} (Remote: {})", &[&profile.name, &host]), connected_to(&profile.id)));
-    }
-    connection.extend(client.open_unsaved_connections().into_iter().map(|(key, name)| check(format!("{OPEN_PREFIX}{key}"), name, true)));
-    connection.extend([Entry::Separator, item("connection.chooser", i18n::t("Alle Verbindungen …")), item("connection.manage", i18n::t("Remotes bearbeiten …"))]);
-    // What to do in the Paperclip in front goes below the connections, so the menu can grow without pushing them away.
-    // Creating first, then the pages a user goes to most, then the company as a whole.
     let action = |id: String, label: &str| Entry::Item { id, label: label.to_owned(), enabled: connected, checked: None };
     let page = |path: &str, label: &str| action(format!("{PAGE_PREFIX}{path}"), label);
-    let paperclip = vec![
-        Entry::Submenu { label: i18n::t("Verbindung").into(), enabled: true, entries: connection },
+
+    // The company the page is on names the menu. Without the list, Paperclip's own overview of the companies does the switching.
+    let known = client.known_companies();
+    let current = known.as_ref().and_then(|known| known.current_company());
+    let mut company = match known.as_ref().and_then(|known| known.companies.as_ref()).filter(|companies| !companies.is_empty()) {
+        Some(companies) => companies.iter().map(|company| check(format!("{COMPANY_PREFIX}{}", company.id), company.name.clone(), Some(company) == current)).collect(),
+        None => vec![page("companies", i18n::t("Firma wechseln …"))],
+    };
+    company.extend([
         Entry::Separator,
-        action("paperclip.new_issue".into(), i18n::t("Neue Aufgabe …")),
-        page("agents/new", i18n::t("Neuer Agent …")),
-        action("paperclip.search".into(), i18n::t("Suchen …")),
+        page("company/settings", i18n::t("Firmeneinstellungen")),
+        page("company/import", i18n::t("Firma importieren …")),
+        page("company/export", i18n::t("Firma exportieren …")),
         Entry::Separator,
+        action("paperclip.new_company".into(), i18n::t("Neue Firma …")),
+        action(SHELL_TEMPLATES.into(), i18n::t("Firma aus Vorlage …")),
+    ]);
+    let company_label = current.map_or_else(|| i18n::t("Firma").to_owned(), |company| company.name.clone());
+
+    let new = vec![action("paperclip.new_issue".into(), i18n::t("Neue Aufgabe …")), page("agents/new", i18n::t("Neuer Agent …")), Entry::Separator, action("paperclip.search".into(), i18n::t("Suchen …"))];
+
+    let go = vec![
+        label(i18n::t("Arbeit")),
         page("dashboard", i18n::t("Dashboard")),
         page("inbox", i18n::t("Posteingang")),
         page("issues", i18n::t("Aufgaben")),
+        label(i18n::t("Team")),
         page("agents", i18n::t("Agenten")),
         page("approvals", i18n::t("Genehmigungen")),
         page("costs", i18n::t("Kosten")),
-        Entry::Separator,
-        page("company/import", i18n::t("Firma importieren …")),
-        page("company/export", i18n::t("Firma exportieren …")),
-        page("company/settings", i18n::t("Firmeneinstellungen")),
     ];
-
-    let zoom_percent = client.zoom_percent();
-    let mut zoom = vec![item("view.zoom_in", i18n::t("Vergrößern")), item("view.zoom_out", i18n::t("Verkleinern")), item("view.zoom_reset", i18n::t("Zoom zurücksetzen")), Entry::Separator];
-    zoom.extend(ZOOM_LEVELS.map(|percent| check(format!("{ZOOM_PREFIX}{percent}"), format!("{percent} %"), percent == zoom_percent)));
-    let view = vec![item("view.reload", i18n::t("Neu laden")), Entry::Separator, Entry::Submenu { label: "Zoom".into(), enabled: connected, entries: zoom }, item("view.fullscreen", i18n::t("Vollbild"))];
 
     // Reading first, then everything for looking into a problem, then the app itself; the project page and the licenses are in its About box.
     let help = vec![
@@ -118,11 +118,26 @@ pub fn build(client: &Client) -> Vec<Menu> {
         item("help.data_folder", i18n::t("Datenordner öffnen")),
         item("view.devtools", i18n::t("Entwicklertools")),
         Entry::Separator,
-        item("app.updates", i18n::t("Nach Updates suchen …")),
+        item(SHELL_UPDATES, i18n::t("Nach Updates suchen …")),
         item("help.about", i18n::t("Über PaperclipDesk")),
     ];
 
-    [("PaperclipDesk", app), ("Paperclip", paperclip), (i18n::t("Ansicht"), view), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
+    [(company_label.as_str(), company), (i18n::t("Neu"), new), (i18n::t("Gehe zu"), go), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
+}
+
+/// The places to connect to, the open ones ticked: an entry opens its connection or brings it to the front. Choosing and editing below.
+pub fn connection_entries(client: &Client) -> Vec<Entry> {
+    let recent = client.store.lock().unwrap().recent_remote_profiles(RECENT_CONNECTIONS);
+    let open = client.open_profile_ids();
+    let connected_to = |profile_id: &str| open.iter().any(|id| id == profile_id);
+    let mut connection = vec![check("connection.local".into(), i18n::t("Lokal").into(), connected_to(LOCAL_PROFILE_ID))];
+    for profile in &recent {
+        let host = profile.remote_url.as_deref().and_then(|url| tauri::Url::parse(url).ok()).and_then(|url| url.host_str().map(str::to_owned)).unwrap_or_default();
+        connection.push(check(format!("{RECENT_PREFIX}{}", profile.id), i18n::f("{} (Remote: {})", &[&profile.name, &host]), connected_to(&profile.id)));
+    }
+    connection.extend(client.open_unsaved_connections().into_iter().map(|(key, name)| check(format!("{OPEN_PREFIX}{key}"), name, true)));
+    connection.extend([Entry::Separator, item("connection.chooser", i18n::t("Alle Verbindungen …")), item(SHELL_CONNECTIONS, i18n::t("Remotes bearbeiten …"))]);
+    connection
 }
 
 /// Windows draws the menu of the title bar itself and follows its own app mode; this makes it follow the app's colour scheme.
@@ -153,14 +168,12 @@ pub fn apply_color_scheme(theme: Option<tauri::Theme>) {
 pub fn handle(client: &Arc<Client>, id: &str) {
     let (client, id) = (Arc::clone(client), id.to_owned());
     std::thread::spawn(move || match id.as_str() {
-        "app.updates" => client.show_page(LauncherPage::System),
         "app.quit" => client.handle().exit(0),
         "paperclip.new_issue" => client.open_command_palette(Some("Create new task")),
         "paperclip.search" => client.open_command_palette(None),
+        "paperclip.new_company" => client.new_company(),
         "connection.chooser" => client.show_launcher(LauncherView::Chooser, None, None),
         "connection.local" => client.boot_local(false),
-        "connection.manage" => client.show_page(LauncherPage::Connections),
-        "settings.open" => client.show_page(LauncherPage::System),
         "view.zoom_reset" => client.change_zoom(None),
         "view.zoom_in" => client.change_zoom(Some(ZOOM_STEP)),
         "view.zoom_out" => client.change_zoom(Some(-ZOOM_STEP)),
@@ -182,8 +195,8 @@ pub fn handle(client: &Arc<Client>, id: &str) {
             }
         }
         other => {
-            if let Some(percent) = other.strip_prefix(ZOOM_PREFIX).and_then(|percent| percent.parse::<u32>().ok()) {
-                client.set_zoom(f64::from(percent) / 100.0);
+            if let Some(id) = other.strip_prefix(COMPANY_PREFIX) {
+                client.switch_company(id);
             } else if let Some(path) = other.strip_prefix(PAGE_PREFIX) {
                 client.open_company_page(path);
             } else if let Some(profile_id) = other.strip_prefix(RECENT_PREFIX) {

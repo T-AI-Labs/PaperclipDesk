@@ -1,5 +1,5 @@
 use crate::i18n;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
@@ -12,6 +12,7 @@ use tauri::window::{Window, WindowBuilder};
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
+use crate::companies;
 use crate::connection::http::UreqFetch;
 use crate::connection::preflight::{preflight_remote_connection, probe_session};
 use crate::connection::profiles::{ConnectionStore, RemoteProfileInput, connections_file_path, now_iso};
@@ -25,7 +26,7 @@ use crate::settings::{self, Settings};
 
 /// The window of the app; it holds the shell and, once connected, Paperclip as webviews, one shown at a time.
 pub const WINDOW_LABEL: &str = "main";
-/// The webview with the app's own pages: connection and settings.
+/// The webview with the menu bar, the app's own pages and its settings.
 pub const LAUNCHER_LABEL: &str = "shell";
 pub const STATE_EVENT: &str = "launcher:state";
 const PAGE_LOAD_TIMEOUT: Duration = Duration::from_secs(30);
@@ -37,6 +38,8 @@ const MENU_BAR_HEIGHT: f64 = 32.0;
 const OPEN_COMPANY_PAGE: &str = "path => fetch('/api/companies').then(r => r.json()).then(companies => { const company = companies.find(c => c.id === localStorage.getItem('paperclip.selectedCompanyId')) ?? companies[0]; if (company) { history.pushState(null, '', `/${company.issuePrefix}/${path}`); dispatchEvent(new PopStateEvent('popstate')); } })";
 /// Paperclip opens its command palette on Ctrl+K at the document; its actions are told apart only by their English labels.
 const COMMAND_PALETTE: &str = "action => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })); if (action) setTimeout(() => document.querySelector(`[cmdk-item][data-value^=\"${action}\"]`)?.click(), 300); }";
+/// Paperclip creates a company from the button on its overview of the companies; like the palette's actions, it has an English label only.
+const NEW_COMPANY: &str = "() => setTimeout(() => [...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'New Organization')?.click(), 300)";
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -53,17 +56,13 @@ pub enum LauncherView {
     Error,
 }
 
-/// The pages of the app's own window; each has its menu entry.
+/// The pages of the app's own window; the settings are no page, the shell shows them over whatever is in front.
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum LauncherPage {
     Paperclip,
     Connect,
-    Connections,
     Logs,
-    Appearance,
-    System,
-    Server,
 }
 
 #[derive(Serialize, Clone, Copy, PartialEq, Eq, Debug)]
@@ -143,6 +142,9 @@ pub struct Snapshot {
     current_profile_id: Option<String>,
     open_connections: Vec<OpenConnection>,
     menu: Vec<crate::menu::Menu>,
+    /// What the connection chip at the right of the menu bar offers.
+    connection_menu: Vec<crate::menu::Entry>,
+    zoom_percent: u32,
     state: ConnectionState,
     profiles: Vec<ConnectionProfile>,
     local_server_version: Option<String>,
@@ -202,6 +204,9 @@ pub struct Client {
     menu_open: AtomicBool,
     shell_hwnd: AtomicIsize,
     layout: Mutex<Option<(String, u32, u32, bool)>>,
+    companies: Mutex<Option<companies::Known>>,
+    /// Bumped whenever the app itself moves Paperclip to another company, so a list read before that does not undo it.
+    companies_generation: AtomicU64,
 }
 
 impl Client {
@@ -228,6 +233,8 @@ impl Client {
             menu_open: AtomicBool::new(false),
             shell_hwnd: AtomicIsize::new(0),
             layout: Mutex::default(),
+            companies: Mutex::default(),
+            companies_generation: AtomicU64::new(0),
         })
     }
 
@@ -269,6 +276,7 @@ impl Client {
 
     pub fn snapshot(&self) -> Snapshot {
         let menu = crate::menu::build(self);
+        let connection_menu = crate::menu::connection_entries(self);
         let launcher = self.launcher.lock().unwrap();
         let store = self.store.lock().unwrap();
         let current = self.current.lock().unwrap();
@@ -299,6 +307,8 @@ impl Client {
                 })
                 .collect(),
             menu,
+            connection_menu,
+            zoom_percent: self.zoom_percent(),
             state: store.state().clone(),
             profiles: store.list_profiles(),
             local_server_version: self.local_server_version(),
@@ -504,6 +514,10 @@ impl Client {
     /// The shell opened or closed a menu of its menu bar; once it is closed, the keyboard is Paperclip's again.
     pub fn set_menu_open(&self, open: bool) {
         self.menu_open.store(open, Ordering::SeqCst);
+        // The user may have switched the company in Paperclip itself since the list was read.
+        if open {
+            self.refresh_companies();
+        }
         self.relayout();
         if !open
             && self.launcher.lock().unwrap().page == LauncherPage::Paperclip
@@ -573,6 +587,69 @@ impl Client {
         if let Some(paperclip) = self.paperclip_webview() {
             let _ = paperclip.set_focus();
         }
+        self.refresh_companies();
+    }
+
+    /// Reads the companies of the connection in front again; the menu bar shows them once the page has answered.
+    fn refresh_companies(&self) {
+        let client = Arc::clone(&self.handle.state::<Arc<Client>>());
+        std::thread::spawn(move || {
+            let Some(webview) = client.paperclip_webview() else { return };
+            let generation = client.companies_generation.load(Ordering::SeqCst);
+            let known = companies::read(&webview);
+            let changed = {
+                let mut stored = client.companies.lock().unwrap();
+                let current = client.companies_generation.load(Ordering::SeqCst) == generation && stored.as_ref() != Some(&known);
+                if current {
+                    *stored = Some(known);
+                }
+                current
+            };
+            if changed {
+                client.send_state();
+            }
+        });
+    }
+
+    /// The companies of the connection in front, once they were read from its view.
+    pub fn known_companies(&self) -> Option<companies::Known> {
+        let view = self.main_label.lock().unwrap().clone()?;
+        self.companies.lock().unwrap().clone().filter(|known| known.view == view)
+    }
+
+    /// Imports a template of Paperclip's catalog as a new company and switches to it once Paperclip has made it.
+    pub fn import_template(&self, template: &str, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<(), String> {
+        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
+        let id = companies::import(&webview, template, name, secrets)?;
+        let known = companies::read(&webview);
+        let company = known.companies.iter().flatten().find(|company| company.id == id).cloned();
+        *self.companies.lock().unwrap() = Some(known);
+        if let Some(company) = company {
+            companies::reopen(&webview, &company);
+            self.mark_current_company(company.issue_prefix);
+        }
+        Ok(())
+    }
+
+    /// Switches Paperclip to one of the companies the menu lists.
+    pub fn switch_company(&self, id: &str) {
+        let Some(company) = self.known_companies().and_then(|known| known.companies?.into_iter().find(|company| company.id == id)) else { return };
+        if !self.reopen_current_connection_window() {
+            return;
+        }
+        if let Some(webview) = self.paperclip_webview()
+            && companies::switch(&webview, &company)
+        {
+            self.mark_current_company(company.issue_prefix);
+        }
+    }
+
+    fn mark_current_company(&self, prefix: String) {
+        self.companies_generation.fetch_add(1, Ordering::SeqCst);
+        if let Some(known) = self.companies.lock().unwrap().as_mut() {
+            known.current = Some(prefix);
+        }
+        self.send_state();
     }
 
     fn boot_status(&self, step: BootStep, detail: &str, progress: u8) {
@@ -665,7 +742,7 @@ impl Client {
         let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
     }
 
-    /// Shows the connection's webview again, e.g. after the user went to the settings.
+    /// Shows the connection's webview again, e.g. after the user went to the log.
     pub fn reopen_current_connection_window(&self) -> bool {
         if self.paperclip_webview().is_some() {
             self.show_paperclip();
@@ -1224,6 +1301,11 @@ impl Client {
     /// Brings Paperclip to the front on one of its pages, `path` taken relative to the company selected there.
     pub fn open_company_page(&self, path: &str) {
         self.eval_in_front(&format!("({OPEN_COMPANY_PAGE})({})", serde_json::Value::from(path)));
+    }
+
+    /// Opens Paperclip's dialog for a new company.
+    pub fn new_company(&self) {
+        self.eval_in_front(&format!("({OPEN_COMPANY_PAGE})('companies').then({NEW_COMPANY})"));
     }
 
     /// Brings Paperclip to the front with its command palette open, and picks `action` there if it is given and found.

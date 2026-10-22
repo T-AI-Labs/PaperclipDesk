@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod client;
+mod companies;
 mod connection;
 mod i18n;
 mod instance;
@@ -12,6 +13,7 @@ mod server_package;
 mod settings;
 mod updater;
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -98,6 +100,12 @@ async fn close_connection(client: Shared<'_>, key: String) -> Result<(), String>
 async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
     menu::handle(&client, &id);
     Ok(())
+}
+
+#[tauri::command]
+async fn import_company_template(client: Shared<'_>, template: String, name: Option<String>, secrets: HashMap<String, String>) -> Result<(), String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.import_template(&template, name.as_deref(), &secrets)).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -421,6 +429,7 @@ fn main() -> anyhow::Result<()> {
             close_connection,
             menu_action,
             set_menu_open,
+            import_company_template,
             save_remote_profile,
             duplicate_profile,
             delete_profile,
