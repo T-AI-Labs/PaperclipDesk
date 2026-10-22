@@ -8,6 +8,7 @@
     "postinstall": "npm --prefix ui install",
     "dev": "cd crates/paperclipdesk && npx --prefix ../../ui tauri dev",
     "prepare-server": "node scripts/prepare-server.mjs",
+    "bundle-server": "node scripts/bundle-server.mjs",
     "prepare-server-ui": "node scripts/build-ui.mjs",
     "pack-server": "node scripts/pack-server.mjs",
     "licenses": "node scripts/create-licenses.mjs",
@@ -54,5 +55,8 @@
       "undici@7.28.0": "7.29.0",
       "ws": "8.21.3"
     }
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

@@ -48,6 +48,7 @@ npm run build               # release build without an installer
 npm run dist                # release build with the NSIS installer
 npm run app:install         # build and copy to %LOCALAPPDATA%\PaperclipDesk, with a Start menu entry
 npm run prepare-server      # stage the pinned Paperclip server and Node.js under build/
+npm run bundle-server       # bundle the staged server into one file again; prepare-server does it too
 npm run prepare-server-ui   # build Paperclip's web UI into the staged server
 npm run pack-server         # pack the staged server into the archive a release build downloads
 npm run licenses            # rewrite THIRD_PARTY_LICENSES.txt; needs cargo-license
@@ -97,6 +98,10 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 `package.json` pins it under `paperclip.server`. A build from this repository uses the server staged under `build/`. A
 release build has no server inside: it downloads the package for its pinned version on the first local start. A newer
 server therefore arrives with a new app version.
+
+`prepare-server` also bundles the server into `dist/index.bundle.mjs`, which starts several seconds sooner than its
+thousands of modules; the app starts it when it is there and `dist/index.js` otherwise. A package that was published
+before the bundle existed keeps starting from `dist/index.js` until the next server version.
 
 ## Where data lives
 

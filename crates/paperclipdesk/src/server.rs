@@ -54,6 +54,13 @@ impl ServerLayout {
             .ok_or_else(|| i18n::f("Der Paperclip-Server {} ist noch nicht installiert.", &[&crate::server_package::VERSION]))
     }
 
+    /// The single-file bundle `prepare-server` writes starts several seconds sooner; a package without one starts from its modules.
+    fn entry(&self) -> PathBuf {
+        let dist = self.server_dir.join("dist");
+        let bundle = dist.join("index.bundle.mjs");
+        if bundle.is_file() { bundle } else { dist.join("index.js") }
+    }
+
     pub fn version(&self) -> Option<String> {
         let raw = std::fs::read_to_string(self.server_dir.join("package.json")).ok()?;
         serde_json::from_str::<serde_json::Value>(&raw).ok()?["version"].as_str().map(str::to_owned)
@@ -119,7 +126,7 @@ pub fn start_server(
     on_exit: impl FnOnce(Option<i32>) + Send + 'static,
 ) -> std::io::Result<u32> {
     let mut child = Command::new(&layout.node)
-        .arg(layout.server_dir.join("dist").join("index.js"))
+        .arg(layout.entry())
         .current_dir(&layout.cwd)
         .env("PATH", enriched_path())
         .env("NODE_ENV", "production")
