@@ -7,16 +7,18 @@ or connects to a remote one, and shows Paperclip's own web UI in a native window
 
 **One window, a shell webview and one webview per open connection.** The Rust host lays them out by hand:
 
-- **shell webview** (`shell`) — the app's own pages, served by Tauri from the local bundle: connection, settings, log.
+- **shell webview** (`shell`) — the menu bar and the app's own pages, served by Tauri from the local bundle: connection and log. The settings are
+  no page: the gear menu at the right of the bar, and panels it opens over whatever is in front.
   It is the only webview with access to the app's commands.
 - **Paperclip webviews** (`paperclip-N`) — Paperclip's web UI, one webview per open connection, loaded from the
   server's origin. Each is locked to that origin, opens every other link in the system browser, keeps its session in
   a browser profile of its own per connection, and has no capability at all.
 
 Several remotes can be open at once, next to the one local server. One connection is in front; the others stay open
-with their webviews hidden; the Connection submenu of the Paperclip menu switches between them. The shell draws the menu bar. While Paperclip is
-the main view, the shell is only that bar and the connection in front fills the window below it; while a menu is open,
-the shell lies over Paperclip, see-through wherever it draws nothing. For the app's own pages the shell fills the
+with their webviews hidden; the connection chip at the right of the menu bar switches between them. The shell draws the
+menu bar: Paperclip's menus at the left, the first named after the company in front, the connection and the gear at the
+right. While Paperclip is the main view, the shell is only that bar and the connection in front fills the window below
+it; while a menu or a panel is open, the shell lies over Paperclip, see-through wherever it draws nothing. For the app's own pages the shell fills the
 window. The host owns all state, the entries of the menu bar included. It sends the shell a snapshot whenever something
 changes, and the shell renders what the snapshot says.
 
@@ -63,11 +65,12 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | --- | --- |
 | `crates/paperclipdesk/src/client.rs` | The state of the window, the layout of the webviews, starting and stopping connections |
 | `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
-| `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it |
+| `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it, `SettingsMenu.tsx` is the gear |
+| `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
 | `crates/paperclipdesk/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |
-| `ui/src/App.tsx` | Which page is shown; pages are in `ui/src/pages` |
+| `ui/src/App.tsx` | Which page or panel is shown; pages are in `ui/src/pages`, the settings panels in `ui/src/panels` |
 | `ui/src/lib/client.ts` | Every command and type the shell shares with the host |
 | `scripts` | Staging and packing the server, the local install script |
 | `release-notes` | One file per app version; the release workflow publishes it |
