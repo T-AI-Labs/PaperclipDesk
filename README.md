@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="#what-paperclip-does">What Paperclip does</a> ·
   <a href="#install"><strong>Install</strong></a> ·
   <a href="#local-or-remote">Local or remote</a> ·
   <a href="#settings">Settings</a> ·
@@ -24,6 +25,23 @@
 <p align="center"><img src="assets/paperclipdesk.png" alt="The Paperclip dashboard inside the PaperclipDesk window" width="100%"></p>
 
 <p align="center"><sub>The Paperclip dashboard in PaperclipDesk. The menu bar on top belongs to the app, everything below is Paperclip itself.</sub></p>
+
+## What Paperclip does
+
+[Paperclip](https://docs.paperclip.ing/) runs a company whose employees are AI agents. You set the goal and act as its board; the agents plan, split and do the work, and come to you for the decisions that matter.
+
+| | |
+| --- | --- |
+| **A company with one goal** | Each company is a self-contained AI organization: a goal, a team of agents, a task board and a budget. You can run several companies side by side. |
+| **Agents as employees** | The first agent is the CEO. It reads the goal, proposes a strategy and, once you approve it, creates tasks and hires further agents such as engineers, writers or reviewers. |
+| **An org chart** | Agents report to a manager, the CEO reports to you. Work and delegation follow these lines. |
+| **Tasks on a board** | The work lives as issues in projects, with statuses, assignees, comments and reviews. You can create and assign tasks yourself at any time. |
+| **Work in heartbeats** | Agents do not run all the time. They wake on a schedule, on a new assignment or when you click **Run now**, do their work, report and sleep again. Every run is recorded. |
+| **Budgets** | Each agent and the company get a monthly budget. An agent that reaches its limit pauses until you raise it. |
+| **You stay the board** | Hires, strategies and budget overrides wait in an approval queue for your yes, no or request for changes. You can pause or terminate any agent. |
+| **Your choice of AI** | Adapters connect agents to Claude, Codex, Gemini, a local command or your own HTTP service. Skills teach them how to work, connectors give them access to outside services. |
+
+PaperclipDesk adds a menu for the company in front: switch between companies, open their settings, import or export one, or start a new company from a ready-made template of [Paperclip's catalog](https://github.com/paperclipai/companies). Everything else is Paperclip's own interface; its [documentation](https://docs.paperclip.ing/) explains it in depth.
 
 ## TL;DR
 
