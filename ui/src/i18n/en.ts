@@ -245,4 +245,5 @@ export const en: Catalogue = [
   'Importing …',
   'Import as a new company',
   'Large templates take a few minutes.',
+  '{agents} agents · 1 skill',
 ]

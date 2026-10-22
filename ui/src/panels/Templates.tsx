@@ -11,7 +11,7 @@ import { t } from '@/i18n'
 import { TEMPLATES, TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from './catalog'
 
 function Counts({ template }: { template: Template }) {
-  return <span>{t('{agents} Agenten · {skills} Skills', { agents: template.agents, skills: template.skills })}</span>
+  return <span>{template.skills === 1 ? t('{agents} Agenten · 1 Skill', { agents: template.agents }) : t('{agents} Agenten · {skills} Skills', { agents: template.agents, skills: template.skills })}</span>
 }
 
 function Catalog({ onPick }: { onPick: (template: Template) => void }) {

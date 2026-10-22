@@ -245,4 +245,5 @@ export const it: Catalogue = [
   'Importazione …',
   'Importa come nuova azienda',
   'I modelli grandi richiedono alcuni minuti.',
+  '{agents} agenti · 1 skill',
 ]

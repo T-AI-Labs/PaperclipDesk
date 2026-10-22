@@ -244,6 +244,7 @@ export const de = [
   'Wird importiert …',
   'Als neue Firma importieren',
   'Große Vorlagen brauchen einige Minuten.',
+  '{agents} Agenten · 1 Skill',
 ] as const
 
 export type Message = (typeof de)[number]
