@@ -15,8 +15,8 @@
   <a href="#what-paperclip-does">What Paperclip does</a> ·
   <a href="#install"><strong>Install</strong></a> ·
   <a href="#local-or-remote">Local or remote</a> ·
-  <a href="#settings">Settings</a> ·
-  <a href="#the-menu">Menu</a> ·
+  <a href="#the-menu-bar">Menu bar</a> ·
+  <a href="#the-gear">Settings</a> ·
   <a href="#troubleshooting">Troubleshooting</a> ·
   <a href="#building-from-source">Build</a> ·
   <a href="#license">License</a>
@@ -46,9 +46,10 @@ PaperclipDesk adds a menu for the company in front: switch between companies, op
 ## TL;DR
 
 - **No terminal, no browser tab.** PaperclipDesk downloads the [Paperclip](https://docs.paperclip.ing/) server, starts it with its database and ends it when you close the window.
-- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them in the **Connect** menu. Each connection keeps its own login.
-- **Everything in one window.** Paperclip is the main view; settings, the connection page and the log open in the same window.
-- **You stay in control of the server.** See its version, edit its configuration, reinstall it, or reset it with a backup of the old data.
+- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them with the connection button at the right of the menu bar. Each connection keeps its own login.
+- **Paperclip's actions in a real menu bar.** Switch companies, create issues and agents, and jump to the inbox, approvals or costs from menus named after the company in front.
+- **Settings without leaving Paperclip.** The gear at the right of the menu bar holds the view, the appearance and the app's options, and opens panels over Paperclip for the local server and your remotes.
+- **You stay in control of the server.** See its version, edit its configuration, restart or reinstall it, or reset it with a backup of the old data.
 - **Your data stays on your PC.** No account, no telemetry.
 
 ## Install
@@ -72,24 +73,43 @@ Before it connects, PaperclipDesk checks a remote: that it answers, that it real
 
 <p align="center"><img src="assets/connection-page.png" alt="The connection page with a card for the local server, one for a saved remote and one to add a remote" width="100%"></p>
 
-The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Opening another connection keeps the ones you have open. The **Connect** menu lists **Local** and your remotes with a tick at the open ones: an entry opens its connection or brings it to the front. The cross on a card closes a connection. Under **Settings → Connections** you choose which connections open when the app starts; with none chosen it shows the connection page.
+The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Opening another connection keeps the ones you have open.
 
-## Settings
+The **connection button** at the right of the menu bar names the connection in front. Its menu lists **Local** and your recent remotes with a tick at the open ones: an entry opens its connection or brings it to the front. **All connections …** shows the connection page, **Edit remotes …** opens a panel where you edit, duplicate or delete your remotes, add a new one, and choose under **Open at start** which connections open when the app starts. With none chosen, the app starts on the connection page.
 
-**PaperclipDesk → Settings** opens them in the same window. A back button returns you to Paperclip.
+## The menu bar
 
-<p align="center"><img src="assets/settings.png" alt="The Server page of the settings, with the server version, the configuration editor and the reset" width="100%"></p>
+The menus at the left are about the Paperclip in front; Paperclip's own pages open from them.
 
-| Category | What you find there |
+| Menu | Entries |
 | --- | --- |
-| **System** | The language, updates, export and import of your settings, and whether logs are cleared when the app exits |
-| **Appearance** | 31 designs, light and dark mode, and an accent color |
-| **Connections** | The connections opened at start, your saved remotes to edit, duplicate or delete, and the check of a new remote |
-| **Server** | The version of the local Paperclip server, restart and reinstall, an editor for its `config.json` and `.env`, and the reset |
+| *The company in front* | Your companies with a tick at the one in front, **Company settings**, **Import company …**, **Export company …**, **New company …** and **Company from template …**, which creates a company from a ready-made template of Paperclip's catalog |
+| **New** | **New issue …**, **New agent …**, **Search …** |
+| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Agents**, **Approvals**, **Costs** |
+| **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
+
+At the right sit the connection button and the gear.
+
+## The gear
+
+The gear opens the settings as a menu, with a search field on top.
+
+| Section | What you find there |
+| --- | --- |
+| **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen** |
+| **Appearance** | The colour scheme (system, light or dark), an accent colour and 32 designs |
+| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, and **Back up settings** to export or import them |
+| | **Local server …** opens the panel for the local server; **Quit** ends the app |
+
+<p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
+
+**Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, restarts or reinstalls it, has an editor for its `config.json` and `.env`, and resets it.
+
+<p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the server version, the configuration editor and the reset" width="100%"></p>
 
 ### Resetting the local server
 
-**Settings → Server → Reset** stops the local server and empties its data: organizations, database and secrets. Two switches, both on by default, keep you safe:
+**Gear → Local server … → Reset local server** stops the local server and empties its data: companies, database and secrets. Two switches, both on by default, keep you safe:
 
 - **Keep a backup** moves the old data aside instead of deleting it.
 - **Keep the configuration** carries `config.json` and `.env` over.
@@ -100,15 +120,6 @@ Connections to remotes are not affected.
 
 **Help → Log** follows the server's and the app's log live. Filter by level, search, format the server's JSON lines, or collapse every entry to its first line. A button clears the log shown.
 
-## The menu
-
-| Menu | Entries |
-| --- | --- |
-| **PaperclipDesk** | Settings, Check for updates, Quit |
-| **Connect** | Local, your recent and your open remotes, All connections, Edit remotes |
-| **View** | Reload, Zoom from 50 % to 200 %, Full screen |
-| **Help** | Paperclip documentation, Project on GitHub, Report a problem, Third-party licenses, Log, Open data folder, Developer tools, the Paperclip version, and About PaperclipDesk |
-
 ## Troubleshooting
 
 | What you see | What to do |
@@ -116,8 +127,8 @@ Connections to remotes are not affected.
 | **Local Paperclip could not be started** | Read the message, then **Help → Log** for the server's own output. **Try again** starts it once more. |
 | The first local start takes long | It downloads the server and creates the database. Later starts are much faster. |
 | A remote is refused | The message names the reason: not reachable, a certificate problem, not a Paperclip, or a sign-in that is not set up yet. |
-| Paperclip looks stuck | **View → Reload**. If that does not help, **Settings → Server → Restart**. |
-| You want to start over | **Settings → Server → Reset**, with the backup switch on. |
+| Paperclip looks stuck | **Gear → View → Reload**. If that does not help, **Gear → Local server … → Restart**. |
+| You want to start over | **Gear → Local server … → Reset local server**, with the backup switch on. |
 
 If nothing helps, [open an issue](https://github.com/T-AI-Labs/PaperclipDesk/issues) and attach the relevant part of the log.
 
