@@ -592,9 +592,23 @@ impl Client {
 
     /// Reads the companies of the connection in front again; the menu bar shows them once the page has answered.
     fn refresh_companies(&self) {
+        self.read_companies(false);
+    }
+
+    /// Paperclip moved to another route or loaded its page anew, e.g. after the user signed in or picked a company there.
+    fn follow_route(&self, view: &str) {
+        if self.main_label.lock().unwrap().as_deref() == Some(view) {
+            self.read_companies(true);
+        }
+    }
+
+    fn read_companies(&self, unless_on_same_company: bool) {
         let client = Arc::clone(&self.handle.state::<Arc<Client>>());
         std::thread::spawn(move || {
             let Some(webview) = client.paperclip_webview() else { return };
+            if unless_on_same_company && client.known_companies().is_some_and(|known| companies::stays_on(&webview, &known)) {
+                return;
+            }
             let generation = client.companies_generation.load(Ordering::SeqCst);
             let known = companies::read(&webview);
             let changed = {
@@ -702,13 +716,16 @@ impl Client {
                 NewWindowResponse::Deny
             })
             .on_download(save_download)
-            .on_page_load(move |_webview, payload| {
+            .on_page_load(move |webview, payload| {
                 if payload.event() == PageLoadEvent::Finished {
                     let _ = loaded.send(());
+                    webview.state::<Arc<Client>>().follow_route(webview.label());
                 }
             });
         let size = window.inner_size()?.to_logical::<f64>(window.scale_factor()?);
         let webview = window.add_child(builder, LogicalPosition::new(0.0, 0.0), LogicalSize::new(size.width.max(1.0), size.height.max(1.0)))?;
+        let handle = self.handle.clone();
+        companies::watch_routes(&webview, move || handle.state::<Arc<Client>>().follow_route(&label));
         webview.hide()?;
         Ok((webview, load_finished))
     }

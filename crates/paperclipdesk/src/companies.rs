@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde::Deserialize;
 use tauri::webview::Webview;
-use webview2_com::CallDevToolsProtocolMethodCompletedHandler;
+use webview2_com::{CallDevToolsProtocolMethodCompletedHandler, HistoryChangedEventHandler};
 use windows::core::{HSTRING, w};
 
 use crate::i18n;
@@ -54,10 +54,33 @@ impl Known {
 pub fn read(webview: &Webview) -> Known {
     let companies = evaluate(webview, LIST, ANSWER_TIMEOUT).as_deref().and_then(parse);
     let prefix = |company: &Company| company.issue_prefix.clone();
-    let in_path = webview.url().ok().and_then(|url| url.path_segments()?.next().map(str::to_owned)).filter(|segment| companies.iter().flatten().any(|company| company.issue_prefix.eq_ignore_ascii_case(segment)));
+    let in_path = first_segment(webview).filter(|segment| companies.iter().flatten().any(|company| company.issue_prefix.eq_ignore_ascii_case(segment)));
     // Right after a start the path names no company yet; Paperclip then shows the one it selected last.
     let current = in_path.or_else(|| evaluate(webview, SELECTED, ANSWER_TIMEOUT).and_then(|id| companies.iter().flatten().find(|company| company.id == id).map(prefix)));
     Known { view: webview.label().to_owned(), companies, current }
+}
+
+/// Whether the page still shows the company the host knows of, so moving within it needs no new list.
+pub fn stays_on(webview: &Webview, known: &Known) -> bool {
+    known.companies.is_some() && known.current.as_deref().zip(first_segment(webview)).is_some_and(|(current, segment)| current.eq_ignore_ascii_case(&segment))
+}
+
+fn first_segment(webview: &Webview) -> Option<String> {
+    webview.url().ok().and_then(|url| url.path_segments()?.next().map(str::to_owned))
+}
+
+/// Calls `changed` whenever Paperclip moves to another route, which it does without loading a page, e.g. when the user picks a company there.
+pub fn watch_routes(webview: &Webview, changed: impl Fn() + Send + 'static) {
+    let _ = webview.with_webview(move |platform| {
+        let handler = HistoryChangedEventHandler::create(Box::new(move |_, _| {
+            changed();
+            Ok(())
+        }));
+        let mut token = 0;
+        if let Err(e) = unsafe { platform.controller().CoreWebView2().and_then(|core| core.add_HistoryChanged(&handler, &mut token)) } {
+            tracing::warn!("watching Paperclip's routes: {e}");
+        }
+    });
 }
 
 /// Switches the page to the company and waits until Paperclip has taken the route, so a list read afterwards sees it in front.
