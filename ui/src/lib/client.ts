@@ -65,7 +65,7 @@ export interface OpenConnection {
 export type MenuEntry =
   | { kind: 'item'; id: string; label: string; enabled: boolean; checked: boolean | null }
   | { kind: 'separator' }
-  | { kind: 'submenu'; label: string; enabled: boolean; entries: MenuEntry[] }
+  | { kind: 'label'; label: string }
 
 export interface Menu {
   label: string
@@ -73,7 +73,7 @@ export interface Menu {
 }
 
 export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
-export type LauncherPage = 'paperclip' | 'connect' | 'connections' | 'logs' | 'appearance' | 'system' | 'server'
+export type LauncherPage = 'paperclip' | 'connect' | 'logs'
 export type BootStep = 'init' | 'database' | 'server' | 'ready'
 
 export interface BootStatus {
@@ -97,7 +97,11 @@ export interface Snapshot {
   currentProfileId: string | null
   /// In the order they were opened.
   openConnections: OpenConnection[]
+  /// The menus at the left of the menu bar, about the Paperclip in front.
   menu: Menu[]
+  /// What the connection chip at the right of the menu bar offers.
+  connectionMenu: MenuEntry[]
+  zoomPercent: number
   state: ConnectionState
   profiles: ConnectionProfile[]
   localServerVersion: string | null
@@ -134,7 +138,7 @@ export interface Settings {
   language: string
 }
 
-/// What every settings page gets from the shell.
+/// What the settings menu and its panels get from the shell.
 export interface PageProps {
   settings: Settings
   saving: boolean
@@ -190,6 +194,17 @@ export const closeConnection = (key: string) => call<void>('close_connection', {
 export const menuAction = (id: string) => call<void>('menu_action', { id })
 /// While a menu is open above Paperclip, the host lets this webview cover the window.
 export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
+
+const overlayHolders = new Set<string>()
+
+/// Menus and panels that lie over Paperclip share the one request for room: the host is asked once the first opens and told when the last closes.
+export async function holdOverlay(holder: string, open: boolean) {
+  const before = overlayHolders.size > 0
+  if (open) overlayHolders.add(holder)
+  else overlayHolders.delete(holder)
+  const after = overlayHolders.size > 0
+  if (before !== after) await setMenuOpen(after)
+}
 export const saveRemoteProfile = (payload: RemoteProfilePayload) => call<Snapshot>('save_remote_profile', { payload })
 export const duplicateProfile = (profileId: string) => call<Snapshot>('duplicate_profile', { profileId })
 export const deleteProfile = (profileId: string) => call<Snapshot>('delete_profile', { profileId })
@@ -217,6 +232,8 @@ export const resetLocalServer = (keepConfig: boolean, backup: boolean) => call<s
 /// Both resolve to null when the user cancelled the file dialog.
 export const exportSettings = () => call<string | null>('export_settings')
 export const importSettings = () => call<Settings | null>('import_settings')
+/// Imports a template of Paperclip's catalog as a new company in the Paperclip in front and switches to it.
+export const importCompanyTemplate = (template: string, name: string, secrets: Record<string, string>) => call<void>('import_company_template', { template, name, secrets })
 
 export function onLauncherState(handler: (snapshot: Snapshot) => void): () => void {
   const unlisten = listen<Snapshot>('launcher:state', (event) => handler(event.payload))

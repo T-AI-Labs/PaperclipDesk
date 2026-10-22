@@ -6,7 +6,7 @@ import { AppMark } from '@/components/app-mark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { TONE_DOT, profileHealth, relativeTime } from '@/connect/format'
-import { type BootStep, type LauncherView, type OpenConnection, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage, showPage } from '@/lib/client'
+import { type BootStep, type LauncherView, type OpenConnection, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 
@@ -135,7 +135,7 @@ function ConnectionCard({
 }
 
 /// Every connection as a card to open it; while the app connects, the progress and what went wrong.
-export default function Connect({ snapshot }: { snapshot: Snapshot }) {
+export default function Connect({ snapshot, onAddRemote }: { snapshot: Snapshot; onAddRemote: () => void }) {
   const [view, setView] = useState<LauncherView>(snapshot.view)
   const [lastAction, setLastAction] = useState<Action | null>(null)
 
@@ -270,7 +270,7 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
 
       <button
         type="button"
-        onClick={() => showPage('connections').catch(failed)}
+        onClick={onAddRemote}
         className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
       >
         <Plus className="size-5" />
