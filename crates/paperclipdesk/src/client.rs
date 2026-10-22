@@ -565,6 +565,10 @@ impl Client {
     fn open_launcher_window(&self) -> tauri::Result<()> {
         let _opening = self.launcher_opening.lock().unwrap();
         if let Some(window) = self.window() {
+            // Tauri's set_focus takes the foreground by force, even from a game in full screen, so a boot that ends in the background only flashes the taskbar button.
+            if !app_in_front() {
+                return window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+            }
             window.unminimize()?;
             window.show()?;
             return window.set_focus();
@@ -789,14 +793,17 @@ impl Client {
         opened
     }
 
-    /// A second start of the app lands here.
+    /// A second start of the app lands here; the user started it to see it, so it comes forward.
     pub fn focus_existing(&self) {
         if self.paperclip_webview().is_some() {
             self.reopen_current_connection_window();
-        } else if self.window().is_some() {
-            let _ = self.open_launcher_window();
-        } else {
+        } else if self.window().is_none() {
             self.show_launcher(LauncherView::Chooser, None, None);
+        }
+        if let Some(window) = self.window() {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
         }
     }
 
@@ -1416,6 +1423,14 @@ fn remote_error_title(result: &RemotePreflightResult) -> &'static str {
         Some(FailureReason::AuthNotReady) => i18n::t("Anmeldung des Remotes nicht bereit"),
         _ => i18n::t("Remote ließ sich nicht prüfen"),
     }
+}
+
+/// Whether the window in front belongs to this app, e.g. its main window or one of its dialogs.
+fn app_in_front() -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+    let mut owner = 0;
+    unsafe { GetWindowThreadProcessId(GetForegroundWindow(), &mut owner) };
+    owner == std::process::id()
 }
 
 /// The window of the webview on top, which right after the shell was added is the shell's.
