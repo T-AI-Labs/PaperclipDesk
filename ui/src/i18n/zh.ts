@@ -9,7 +9,6 @@ export const zh: Catalogue = [
   '已连接：{name}',
   '未连接',
   '连接',
-  '启动本地服务器或连接到远程服务器',
   '日志',
   'Paperclip 服务器和应用的实时输出',
   '系统',

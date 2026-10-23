@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, CircleAlert, Download, Plug, RefreshCw, ScrollText } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { ArrowLeft, CircleAlert, Download, RefreshCw, ScrollText } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { IconTile } from '@/components/icon-tile'
@@ -10,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
 import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, holdOverlay, launcherState, onLauncherState, showPage, updateSettings } from '@/lib/client'
-import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { useApplyColorScheme } from '@/lib/theme'
 import { type Message, setLanguage, t } from '@/i18n'
@@ -25,12 +23,6 @@ import Remotes from './panels/Remotes'
 import Server from './panels/Server'
 import Templates from './panels/Templates'
 import Updates from './panels/Updates'
-
-/// The pages of the window besides Paperclip itself; the settings are panels over whatever is in front.
-const PAGES: Record<Exclude<LauncherPage, 'paperclip'>, { label: Message; icon: LucideIcon; tone: Tone; description: Message }> = {
-  connect: { label: 'Verbindung', icon: Plug, tone: 0, description: 'Lokalen Server starten oder mit einem Remote verbinden' },
-  logs: { label: 'Protokoll', icon: ScrollText, tone: -80, description: 'Was der Paperclip-Server und die App schreiben, live' },
-}
 
 const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage' }
 
@@ -128,7 +120,6 @@ export default function App() {
   setLanguage(snapshot.language)
   const props: PageProps = { settings, saving, save }
   const busy = snapshot.view === 'local-boot' || snapshot.view === 'connecting'
-  const current = PAGES[page === 'paperclip' ? 'connect' : page]
 
   function open(next: LauncherPage) {
     // Paperclip's view is the host's to show; drawn early, the shell would only turn see-through over nothing.
@@ -159,26 +150,26 @@ export default function App() {
 
       {!onPaperclip && (
         <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="glass-surface z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
-            <IconTile icon={current.icon} tone={current.tone} />
-            {page === 'logs' && (
+          {page === 'logs' && (
+            <header className="glass-surface z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
+              <IconTile icon={ScrollText} tone={-80} />
               <Button size="sm" variant="ghost" onClick={back}>
                 <ArrowLeft /> {backLabel}
               </Button>
-            )}
-            <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <h1 className="truncate font-heading text-sm font-semibold tracking-tight">{t(current.label)}</h1>
-              <p className="truncate text-[11px] text-muted-foreground">{t(current.description)}</p>
-            </div>
-            {updater.available && (
-              <Button size="sm" variant="outline" onClick={() => openPanel('updates')}>
-                <Download /> {t('Update {version}', { version: updater.version })}
-              </Button>
-            )}
-            <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
-              {snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : busy ? t('Verbindet …') : t('Nicht verbunden')}
-            </Badge>
-          </header>
+              <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                <h1 className="truncate font-heading text-sm font-semibold tracking-tight">{t('Protokoll')}</h1>
+                <p className="truncate text-[11px] text-muted-foreground">{t('Was der Paperclip-Server und die App schreiben, live')}</p>
+              </div>
+              {updater.available && (
+                <Button size="sm" variant="outline" onClick={() => openPanel('updates')}>
+                  <Download /> {t('Update {version}', { version: updater.version })}
+                </Button>
+              )}
+              <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
+                {snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : busy ? t('Verbindet …') : t('Nicht verbunden')}
+              </Badge>
+            </header>
+          )}
 
           <main key={page} className="relative z-10 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
             <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>

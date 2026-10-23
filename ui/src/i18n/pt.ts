@@ -9,7 +9,6 @@ export const pt: Catalogue = [
   'Conectado: {name}',
   'Não conectado',
   'Conexão',
-  'Iniciar o servidor local ou conectar a um remoto',
   'Registro',
   'O que o servidor do Paperclip e o app escrevem, ao vivo',
   'Sistema',

@@ -9,7 +9,6 @@ export const fr: Catalogue = [
   'Connecté : {name}',
   'Non connecté',
   'Connexion',
-  'Démarrer le serveur local ou se connecter à un serveur distant',
   'Journal',
   "Ce qu'écrivent le serveur Paperclip et l'application, en direct",
   'Système',

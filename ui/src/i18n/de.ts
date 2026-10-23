@@ -8,7 +8,6 @@ export const de = [
   'Verbunden: {name}',
   'Nicht verbunden',
   'Verbindung',
-  'Lokalen Server starten oder mit einem Remote verbinden',
   'Protokoll',
   'Was der Paperclip-Server und die App schreiben, live',
   'System',

@@ -9,7 +9,6 @@ export const en: Catalogue = [
   'Connected: {name}',
   'Not connected',
   'Connection',
-  'Start the local server or connect to a remote',
   'Log',
   'What the Paperclip server and the app write, live',
   'System',
