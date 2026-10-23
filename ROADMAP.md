@@ -1,7 +1,8 @@
 # Roadmap
 
 Ideas that are wanted but not scheduled yet. The focus of the app moves towards setting up Paperclip companies with
-wizards; the items below are ordered by that focus, not by size.
+wizards; the items below are ordered by that focus, not by size. The worked-out plan for n8n next to Paperclip, and
+why Agno is not part of it, is in `PLAN.md`.
 
 ## Company wizard
 
