@@ -238,6 +238,18 @@ export const de = [
   'Als neue Firma importieren',
   'Große Vorlagen brauchen einige Minuten.',
   '{agents} Agenten · 1 Skill',
+  'Willkommen bei PaperclipDesk',
+  'Führe deine KI-Firma hier auf diesem PC oder verbinde dich mit einem Paperclip, das schon läuft.',
+  'Lokal auf diesem PC',
+  'Empfohlen',
+  'Paperclip läuft mit eigener Datenbank auf diesem Rechner. Keine Anmeldung, deine Daten bleiben hier.',
+  'Beim ersten Start lädt die App den Paperclip-Server herunter, einige hundert MB. Danach startet er schnell.',
+  'Der Paperclip-Server fehlt. Im Repository legt „npm run prepare-server“ ihn an.',
+  'Mit einem Remote verbinden',
+  'Für ein Paperclip auf einem anderen Rechner, etwa den Server deines Teams. Es fragt nach seiner eigenen Anmeldung.',
+  'Diese Seite bei jedem Start zeigen',
+  'Die gewählte Verbindung künftig automatisch starten',
+  'Willkommensseite bei jedem Start',
 ] as const
 
 export type Message = (typeof de)[number]

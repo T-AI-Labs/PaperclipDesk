@@ -207,6 +207,14 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
           ),
         },
         {
+          words: [t('Willkommensseite bei jedem Start')],
+          node: (
+            <MenubarCheckboxItem key="welcome" checked={settings.show_welcome} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ show_welcome: checked })}>
+              {t('Willkommensseite bei jedem Start')}
+            </MenubarCheckboxItem>
+          ),
+        },
+        {
           words: [t('Einstellungen sichern'), t('Exportieren'), t('Importieren')],
           node: (
             <MenubarSub key="backup">

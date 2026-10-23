@@ -173,7 +173,7 @@ export default function App() {
 
           <main key={page} className="relative z-10 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
             <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>
-              {page === 'connect' && <Connect snapshot={snapshot} onAddRemote={() => openPanel('remotes')} />}
+              {page === 'connect' && <Connect snapshot={snapshot} onAddRemote={() => openPanel('remotes')} {...props} />}
               {page === 'logs' && <Logs />}
             </div>
           </main>

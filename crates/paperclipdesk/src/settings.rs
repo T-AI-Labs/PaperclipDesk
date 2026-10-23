@@ -15,13 +15,15 @@ pub struct Settings {
     /// Empties the app's and the server's logs when the app exits.
     pub clear_logs_on_exit: bool,
     pub check_updates_on_start: bool,
+    /// Shows the welcome page at every start; without it, only a start with nothing chosen to open shows it.
+    pub show_welcome: bool,
     /// A language code, or "System" for the language Windows runs in.
     pub language: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, language: "System".into() }
+        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, language: "System".into() }
     }
 }
 

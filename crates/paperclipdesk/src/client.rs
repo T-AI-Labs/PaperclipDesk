@@ -50,6 +50,9 @@ const LOADING_PAGE: &str = "data:text/html;charset=utf-8,<!doctype html><html la
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub enum LauncherView {
+    /// Local or remote, offered on the first start and whenever the user wants to choose at every start.
+    Welcome,
+    /// The saved remotes.
     Chooser,
     LocalBoot,
     Connecting,
@@ -218,7 +221,7 @@ impl Client {
             settings: Mutex::new(settings),
             handle,
             paths,
-            launcher: Mutex::new(Launcher { page: LauncherPage::Connect, view: LauncherView::Chooser, view_seq: 0, label: None, url: None, boot_status: None, connection_error: None }),
+            launcher: Mutex::new(Launcher { page: LauncherPage::Connect, view: LauncherView::Welcome, view_seq: 0, label: None, url: None, boot_status: None, connection_error: None }),
             launcher_opening: Mutex::default(),
             current: Mutex::default(),
             parked: Mutex::default(),
@@ -433,7 +436,7 @@ impl Client {
         let on_paperclip = self.launcher.lock().unwrap().page == LauncherPage::Paperclip;
         match (self.paperclip_webview().is_some(), on_paperclip) {
             (true, true) => self.show_paperclip(),
-            (false, true) => self.show_launcher(LauncherView::Chooser, None, None),
+            (false, true) => self.show_launcher(LauncherView::Welcome, None, None),
             _ => self.send_state(),
         }
     }
@@ -798,7 +801,7 @@ impl Client {
         if self.paperclip_webview().is_some() {
             self.reopen_current_connection_window();
         } else if self.window().is_none() {
-            self.show_launcher(LauncherView::Chooser, None, None);
+            self.show_launcher(LauncherView::Welcome, None, None);
         }
         if let Some(window) = self.window() {
             let _ = window.unminimize();
@@ -932,7 +935,7 @@ impl Client {
     /// Gives up the connection that is being made; the boot notices at its next step and cleans up after itself.
     pub fn cancel_boot(&self) {
         self.next_boot();
-        self.navigate(LauncherView::Chooser, None, None);
+        self.navigate(LauncherView::Welcome, None, None);
         self.send_state();
     }
 
@@ -1243,8 +1246,9 @@ impl Client {
             let front = order.remove(front);
             order.push(front);
         }
-        let Some(first) = order.first() else {
-            return self.show_launcher(LauncherView::Chooser, None, None);
+        let welcome = self.settings.lock().unwrap().show_welcome;
+        let Some(first) = order.first().filter(|_| !welcome) else {
+            return self.show_launcher(LauncherView::Welcome, None, None);
         };
         let remote_url = self.store.lock().unwrap().profile(first).and_then(|profile| profile.remote_url);
         match remote_url {

@@ -6,7 +6,8 @@ import { AppMark } from '@/components/app-mark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { TONE_DOT, profileHealth, relativeTime } from '@/connect/format'
-import { type BootStep, type LauncherView, type OpenConnection, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage } from '@/lib/client'
+import Welcome from '@/connect/Welcome'
+import { type BootStep, type LauncherView, type OpenConnection, type PageProps, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 
@@ -134,8 +135,8 @@ function ConnectionCard({
   )
 }
 
-/// Every connection as a card to open it; while the app connects, the progress and what went wrong.
-export default function Connect({ snapshot, onAddRemote }: { snapshot: Snapshot; onAddRemote: () => void }) {
+/// The welcome page, or the saved remotes as cards to open them; while the app connects, the progress and what went wrong.
+export default function Connect({ snapshot, onAddRemote, ...props }: PageProps & { snapshot: Snapshot; onAddRemote: () => void }) {
   const [view, setView] = useState<LauncherView>(snapshot.view)
   const [lastAction, setLastAction] = useState<Action | null>(null)
 
@@ -157,6 +158,7 @@ export default function Connect({ snapshot, onAddRemote }: { snapshot: Snapshot;
   const unsaved = open.filter((connection) => !connection.local && !remotes.some((profile) => profile.id === connection.profileId))
   const retry = lastAction ?? (snapshot.state.activeProfileId ? ({ kind: 'saved', profileId: snapshot.state.activeProfileId } satisfies Action) : null)
 
+  if (view === 'welcome') return <Welcome snapshot={snapshot} onStart={run} onAddRemote={onAddRemote} {...props} />
   if (view === 'local-boot') return <BootProgress snapshot={snapshot} />
   if (view === 'connecting') return <Connecting snapshot={snapshot} />
 
@@ -181,7 +183,7 @@ export default function Connect({ snapshot, onAddRemote }: { snapshot: Snapshot;
               <RotateCcw /> {t('Erneut versuchen')}
             </Button>
           )}
-          <Button variant="outline" onClick={() => setView('chooser')}>
+          <Button variant="outline" onClick={() => setView('welcome')}>
             <ArrowLeft /> {t('Zur Auswahl')}
           </Button>
           {retry?.kind !== 'local' && (

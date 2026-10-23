@@ -56,7 +56,7 @@ PaperclipDesk adds a menu for the company in front: switch between companies, op
 
 1. Download the latest installer from the [Releases page](https://github.com/T-AI-Labs/PaperclipDesk/releases/latest) and run it.
 2. Start **PaperclipDesk** from the Start menu.
-3. Choose **Local** in the connection button at the right of the menu bar to run Paperclip on this PC, or add a remote on the start page to connect to an existing one.
+3. The welcome page suggests **Start local** to run Paperclip on this PC; the other card connects to a Paperclip that already runs elsewhere. Tick **Start the chosen connection automatically from now on** to skip the page next time.
 
 PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads the Paperclip server, about 530 MB. After that the app updates itself.
 
@@ -75,7 +75,9 @@ Before it connects, PaperclipDesk checks a remote: that it answers, that it real
 
 The page for remote connections shows each saved remote as a card, with its state and a button to connect, and a card to add a remote. Opening another connection keeps the ones you have open.
 
-The **connection button** at the right of the menu bar names the connection in front. Its menu lists **Local** and your recent remotes with a tick at the open ones: an entry opens its connection or brings it to the front; **Local** starts the local server. **Edit remotes …** opens a panel where you edit, duplicate or delete your remotes, add a new one, and choose under **Open at start** which connections open when the app starts. **Manage remote connections …** at the bottom shows the page for remote connections; with no connection chosen to open at start, the app starts on that page.
+The **connection button** at the right of the menu bar names the connection in front. Its menu lists **Local** and your recent remotes with a tick at the open ones: an entry opens its connection or brings it to the front; **Local** starts the local server. **Edit remotes …** opens a panel where you edit, duplicate or delete your remotes, add a new one, and choose under **Open at start** which connections open when the app starts. **Manage remote connections …** at the bottom shows the page for remote connections.
+
+With no connection chosen to open at start, the app starts on the welcome page, which offers the local server and your remotes. **Show this page at every start** on that page, or **Welcome page at every start** in the gear, shows it even when connections are chosen to open at start.
 
 ## The menu bar
 
@@ -98,7 +100,7 @@ The gear opens the settings as a menu, with a search field on top.
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen** |
 | **Appearance** | The colour scheme (system, light or dark), an accent colour and 32 designs |
-| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, and **Back up settings** to export or import them |
+| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server; **Quit** ends the app |
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>

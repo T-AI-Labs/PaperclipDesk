@@ -72,7 +72,7 @@ export interface Menu {
   entries: MenuEntry[]
 }
 
-export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
+export type LauncherView = 'welcome' | 'chooser' | 'local-boot' | 'connecting' | 'error'
 export type LauncherPage = 'paperclip' | 'connect' | 'logs'
 export type BootStep = 'init' | 'database' | 'server' | 'ready'
 
@@ -134,6 +134,8 @@ export interface Settings {
   /// Empties the app's and the server's logs when the app exits.
   clear_logs_on_exit: boolean
   check_updates_on_start: boolean
+  /// Shows the welcome page at every start; without it, only a start with nothing chosen to open shows it.
+  show_welcome: boolean
   /// A language code, or 'System' for the language Windows runs in.
   language: string
 }
