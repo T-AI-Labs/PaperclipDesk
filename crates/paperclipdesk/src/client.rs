@@ -45,6 +45,8 @@ const MENU_BAR_HEIGHT: f64 = 32.0;
 const OPEN_COMPANY_PAGE: &str = "path => fetch('/api/companies').then(r => r.json()).then(companies => { const company = companies.find(c => c.id === localStorage.getItem('paperclip.selectedCompanyId')) ?? companies[0]; if (company) { history.pushState(null, '', `/${company.issuePrefix}/${path}`); dispatchEvent(new PopStateEvent('popstate')); } })";
 /// Paperclip opens its command palette on Ctrl+K at the document; its actions are told apart only by their English labels.
 const COMMAND_PALETTE: &str = "action => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })); if (action) setTimeout(() => document.querySelector(`[cmdk-item][data-value^=\"${action}\"]`)?.click(), 300); }";
+/// Paperclip keeps a light or dark mode chosen in its own menu; without one it follows the colour scheme the app gives the webview.
+const PAPERCLIP_THEME_KEY: &str = "paperclip.theme";
 /// Paperclip creates a company from the button on its overview of the companies; like the palette's actions, it has an English label only.
 const NEW_COMPANY: &str = "() => setTimeout(() => [...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'New Organization')?.click(), 300)";
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
@@ -461,6 +463,18 @@ impl Client {
     }
 
     /// The title bar follows the app's colour scheme instead of only Windows' own.
+    /// Makes every open Paperclip follow the app's colour scheme again; a page that has a mode of its own reloads without it.
+    pub fn reset_paperclip_theme(&self) {
+        let script = format!("try {{ if (localStorage.getItem('{PAPERCLIP_THEME_KEY}') !== null) {{ localStorage.removeItem('{PAPERCLIP_THEME_KEY}'); location.reload() }} }} catch {{}}");
+        for (label, webview) in self.handle.webviews() {
+            if label.starts_with("paperclip-")
+                && let Err(e) = webview.eval(&script)
+            {
+                tracing::warn!("resetting Paperclip's colour scheme in {label}: {e}");
+            }
+        }
+    }
+
     pub fn apply_color_scheme(&self) {
         let theme = match self.settings.lock().unwrap().color_scheme.as_str() {
             "dark" => Some(tauri::Theme::Dark),
@@ -806,6 +820,8 @@ impl Client {
             .background_color(tauri::window::Color(10, 10, 10, 255))
             .data_directory(self.paths.webview_data.join(&connection.partition))
             .zoom_hotkeys_enabled(true)
+            // Before Paperclip reads it, so the colour scheme from the gear holds for Paperclip as well.
+            .initialization_script(format!("try {{ localStorage.removeItem('{PAPERCLIP_THEME_KEY}') }} catch {{}}"))
             .on_navigation(move |target| {
                 if is_navigation_allowed(target.as_str(), &navigation_origin) {
                     return true;

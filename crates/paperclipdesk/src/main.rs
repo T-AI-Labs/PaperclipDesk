@@ -189,7 +189,11 @@ async fn get_settings(client: Shared<'_>) -> Result<Settings, String> {
 #[tauri::command]
 async fn update_settings(client: Shared<'_>, settings: Settings) -> Result<Settings, String> {
     settings::save(&settings::file_path(&client.paths.user_data), &settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
+    let scheme_changed = client.settings.lock().unwrap().color_scheme != settings.color_scheme;
     *client.settings.lock().unwrap() = settings.clone();
+    if scheme_changed {
+        client.reset_paperclip_theme();
+    }
     // The menu bar is in the app's language too.
     i18n::set(&settings.language);
     client.apply_color_scheme();
