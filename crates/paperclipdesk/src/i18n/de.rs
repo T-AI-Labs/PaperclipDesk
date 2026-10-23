@@ -94,7 +94,7 @@ pub const MESSAGES: [&str; 123] = [
     "Lizenzen Dritter",
     "Lokal",
     "{} (Remote: {})",
-    "Alle Verbindungen …",
+    "Remote-Verbindungen verwalten …",
     "Remotes bearbeiten …",
     "Projekt auf GitHub",
     "Problem melden …",

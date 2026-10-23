@@ -125,7 +125,7 @@ pub fn build(client: &Client) -> Vec<Menu> {
     [(company_label.as_str(), company), (i18n::t("Neu"), new), (i18n::t("Gehe zu"), go), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
 }
 
-/// The places to connect to, the open ones ticked: an entry opens its connection or brings it to the front. Choosing and editing below.
+/// The places to connect to, the open ones ticked: an entry opens its connection or brings it to the front. Editing and managing below.
 pub fn connection_entries(client: &Client) -> Vec<Entry> {
     let recent = client.store.lock().unwrap().recent_remote_profiles(RECENT_CONNECTIONS);
     let open = client.open_profile_ids();
@@ -136,7 +136,7 @@ pub fn connection_entries(client: &Client) -> Vec<Entry> {
         connection.push(check(format!("{RECENT_PREFIX}{}", profile.id), i18n::f("{} (Remote: {})", &[&profile.name, &host]), connected_to(&profile.id)));
     }
     connection.extend(client.open_unsaved_connections().into_iter().map(|(key, name)| check(format!("{OPEN_PREFIX}{key}"), name, true)));
-    connection.extend([Entry::Separator, item("connection.chooser", i18n::t("Alle Verbindungen …")), item(SHELL_CONNECTIONS, i18n::t("Remotes bearbeiten …"))]);
+    connection.extend([Entry::Separator, item(SHELL_CONNECTIONS, i18n::t("Remotes bearbeiten …")), item("connection.chooser", i18n::t("Remote-Verbindungen verwalten …"))]);
     connection
 }
 

@@ -93,7 +93,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Licenze di terze parti",
     "Locale",
     "{} (remoto: {})",
-    "Tutte le connessioni …",
+    "Gestisci connessioni remote …",
     "Modifica connessioni remote …",
     "Progetto su GitHub",
     "Segnala un problema …",

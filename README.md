@@ -56,7 +56,7 @@ PaperclipDesk adds a menu for the company in front: switch between companies, op
 
 1. Download the latest installer from the [Releases page](https://github.com/T-AI-Labs/PaperclipDesk/releases/latest) and run it.
 2. Start **PaperclipDesk** from the Start menu.
-3. Choose **Local** to run Paperclip on this PC, or **Remote** to connect to an existing one.
+3. Choose **Local** in the connection button at the right of the menu bar to run Paperclip on this PC, or add a remote on the start page to connect to an existing one.
 
 PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads the Paperclip server, about 530 MB. After that the app updates itself.
 
@@ -71,11 +71,11 @@ PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads t
 
 Before it connects, PaperclipDesk checks a remote: that it answers, that it really is a Paperclip, and that its sign-in is ready. A remote over plain `http://` is only opened after you confirmed that you accept an unencrypted connection.
 
-<p align="center"><img src="assets/connection-page.png" alt="The connection page with a card for the local server, one for a saved remote and one to add a remote" width="100%"></p>
+<p align="center"><img src="assets/connection-page.png" alt="The page for remote connections with a card for a saved remote and one to add a remote" width="100%"></p>
 
-The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Opening another connection keeps the ones you have open.
+The page for remote connections shows each saved remote as a card, with its state and a button to connect, and a card to add a remote. Opening another connection keeps the ones you have open.
 
-The **connection button** at the right of the menu bar names the connection in front. Its menu lists **Local** and your recent remotes with a tick at the open ones: an entry opens its connection or brings it to the front. **All connections …** shows the connection page, **Edit remotes …** opens a panel where you edit, duplicate or delete your remotes, add a new one, and choose under **Open at start** which connections open when the app starts. With none chosen, the app starts on the connection page.
+The **connection button** at the right of the menu bar names the connection in front. Its menu lists **Local** and your recent remotes with a tick at the open ones: an entry opens its connection or brings it to the front; **Local** starts the local server. **Edit remotes …** opens a panel where you edit, duplicate or delete your remotes, add a new one, and choose under **Open at start** which connections open when the app starts. **Manage remote connections …** at the bottom shows the page for remote connections; with no connection chosen to open at start, the app starts on that page.
 
 ## The menu bar
 
