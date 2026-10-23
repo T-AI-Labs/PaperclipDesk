@@ -266,4 +266,10 @@ export const en: Catalogue = [
   '{keys} belonged to “{action}” and is here now.',
   'Company',
   'Shortcuts work while the PaperclipDesk window has the focus.',
+  'Sort',
+  'Popularity',
+  'Recently updated',
+  'Stars of the source repository on GitHub',
+  'Source updated {date}',
+  'Stars and dates from GitHub, as of {date}.',
 ]

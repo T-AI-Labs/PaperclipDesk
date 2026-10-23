@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, CircleAlert, KeyRound, LoaderCircle, Search } from 'lucide-react'
+import { ArrowLeft, CircleAlert, KeyRound, LoaderCircle, Search, Star } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -7,18 +7,48 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { errorMessage, importCompanyTemplate } from '@/lib/client'
 import { cn } from '@/lib/utils'
-import { t } from '@/i18n'
-import { TEMPLATES, TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from './catalog'
+import { type Message, t } from '@/i18n'
+import { CATALOG_DATE, TEMPLATES, TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from './catalog'
 
 function Counts({ template }: { template: Template }) {
   return <span>{template.skills === 1 ? t('{agents} Agenten · 1 Skill', { agents: template.agents }) : t('{agents} Agenten · {skills} Skills', { agents: template.agents, skills: template.skills })}</span>
 }
 
+type Order = 'stars' | 'updated' | 'name'
+
+const ORDERS: { id: Order; label: Message }[] = [
+  { id: 'stars', label: 'Beliebtheit' },
+  { id: 'updated', label: 'Zuletzt aktualisiert' },
+  { id: 'name', label: 'Name' },
+]
+
+const COMPARE: Record<Order, (a: Template, b: Template) => number> = {
+  stars: (a, b) => b.stars - a.stars,
+  updated: (a, b) => b.sourceUpdated.localeCompare(a.sourceUpdated) || b.stars - a.stars,
+  name: (a, b) => a.name.localeCompare(b.name),
+}
+
+// The page's language, which the app sets, formats numbers and dates the way its readers expect.
+const stars = (count: number) => new Intl.NumberFormat(document.documentElement.lang, { notation: 'compact', maximumFractionDigits: 1 }).format(count)
+const day = (date: string) => new Intl.DateTimeFormat(document.documentElement.lang, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(date))
+
+function Popularity({ template }: { template: Template }) {
+  return (
+    <>
+      <span className="flex items-center gap-1" title={t('Sterne des Quell-Repos auf GitHub')}>
+        <Star aria-hidden className="size-3" /> {stars(template.stars)}
+      </span>
+      <span>{t('Quelle aktualisiert {date}', { date: day(template.sourceUpdated) })}</span>
+    </>
+  )
+}
+
 function Catalog({ onPick }: { onPick: (template: Template) => void }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<TemplateCategory | null>(null)
+  const [order, setOrder] = useState<Order>('stars')
   const needle = query.trim().toLocaleLowerCase()
-  const shown = TEMPLATES.filter((template) => (category === null || template.category === category) && (needle === '' || `${template.name} ${template.description}`.toLocaleLowerCase().includes(needle)))
+  const shown = TEMPLATES.filter((template) => (category === null || template.category === category) && (needle === '' || `${template.name} ${template.description}`.toLocaleLowerCase().includes(needle))).sort(COMPARE[order])
   const chip = (active: boolean) => cn('rounded-full border px-2.5 py-0.5 text-xs', active ? 'border-transparent bg-primary text-primary-foreground' : 'hover:bg-accent')
 
   return (
@@ -44,6 +74,14 @@ function Catalog({ onPick }: { onPick: (template: Template) => void }) {
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{t('Sortieren')}</span>
+          {ORDERS.map(({ id, label }) => (
+            <button key={id} type="button" className={chip(order === id)} onClick={() => setOrder(id)}>
+              {t(label)}
+            </button>
+          ))}
+        </div>
       </div>
 
       <ul className="-mx-4 flex flex-col divide-y border-y">
@@ -54,6 +92,7 @@ function Catalog({ onPick }: { onPick: (template: Template) => void }) {
               <span className="line-clamp-2 text-xs text-muted-foreground">{template.description}</span>
               <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                 <Counts template={template} />
+                <Popularity template={template} />
                 {template.inputs.some((input) => input.required) && <span className="text-amber-700 dark:text-amber-400">{t('Braucht Zugangsdaten')}</span>}
               </span>
             </button>
@@ -61,7 +100,9 @@ function Catalog({ onPick }: { onPick: (template: Template) => void }) {
         ))}
         {shown.length === 0 && <li className="px-4 py-3 text-sm text-muted-foreground">{t('Keine Treffer')}</li>}
       </ul>
-      <p className="text-xs text-muted-foreground">{t('Aus dem Katalog github.com/paperclipai/companies, MIT-Lizenz.')}</p>
+      <p className="text-xs text-muted-foreground">
+        {t('Aus dem Katalog github.com/paperclipai/companies, MIT-Lizenz.')} {t('Sterne und Daten von GitHub, Stand {date}.', { date: day(CATALOG_DATE) })}
+      </p>
     </>
   )
 }
@@ -94,8 +135,9 @@ function Details({ template, onBack, onDone }: { template: Template; onBack: () 
       <div className="flex flex-col gap-1">
         <h3 className="font-heading text-base font-medium">{template.name}</h3>
         <p className="text-sm text-muted-foreground">{template.description}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
           <Counts template={template} />
+          <Popularity template={template} />
         </p>
       </div>
 

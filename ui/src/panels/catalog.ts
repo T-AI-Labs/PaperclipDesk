@@ -19,8 +19,16 @@ export interface Template {
   skills: number
   category: TemplateCategory
   /// The environment values its agents read; a required one must be given for the import to succeed.
-  inputs: { key: string; required: boolean }[]
+  inputs: { key: string; required: boolean }[]  /// The GitHub repository the template was generated from, as owner/name.
+  source: string
+  /// The source repository's stars on GitHub, the measure of how popular the template is.
+  stars: number
+  /// When the source repository was last pushed to, as YYYY-MM-DD.
+  sourceUpdated: string
 }
+
+/// When the stars and dates of the templates were read from GitHub.
+export const CATALOG_DATE = '2026-10-23'
 
 /// As of the catalog's commit 514503b; a new template arrives with an app update.
 export const TEMPLATES: Template[] = [
@@ -32,6 +40,9 @@ export const TEMPLATES: Template[] = [
     skills: 27,
     category: 'software',
     inputs: [{ key: 'GH_TOKEN', required: false }],
+    source: 'garrytan/gstack',
+    stars: 137363,
+    sourceUpdated: '2026-10-23',
   },
   {
     id: 'superpowers',
@@ -41,6 +52,9 @@ export const TEMPLATES: Template[] = [
     skills: 14,
     category: 'software',
     inputs: [{ key: 'GH_TOKEN', required: false }],
+    source: 'obra/superpowers',
+    stars: 304072,
+    sourceUpdated: '2026-10-23',
   },
   {
     id: 'agentsys-engineering',
@@ -50,6 +64,9 @@ export const TEMPLATES: Template[] = [
     skills: 14,
     category: 'software',
     inputs: [{ key: 'GH_TOKEN', required: false }],
+    source: 'agent-sh/agentsys',
+    stars: 1007,
+    sourceUpdated: '2026-10-20',
   },
   {
     id: 'fullstack-forge',
@@ -59,6 +76,9 @@ export const TEMPLATES: Template[] = [
     skills: 66,
     category: 'software',
     inputs: [],
+    source: 'Jeffallan/claude-skills',
+    stars: 12021,
+    sourceUpdated: '2026-10-21',
   },
   {
     id: 'clawteam-engineering',
@@ -68,6 +88,9 @@ export const TEMPLATES: Template[] = [
     skills: 1,
     category: 'software',
     inputs: [],
+    source: 'HKUDS/ClawTeam',
+    stars: 5540,
+    sourceUpdated: '2026-05-09',
   },
   {
     id: 'redoak-review',
@@ -77,6 +100,9 @@ export const TEMPLATES: Template[] = [
     skills: 6,
     category: 'software',
     inputs: [{ key: 'GH_TOKEN', required: false }],
+    source: 'OneRedOak/claude-code-workflows',
+    stars: 3910,
+    sourceUpdated: '2026-10-09',
   },
   {
     id: 'trail-of-bits-security',
@@ -86,6 +112,9 @@ export const TEMPLATES: Template[] = [
     skills: 35,
     category: 'security',
     inputs: [],
+    source: 'trailofbits/skills',
+    stars: 7749,
+    sourceUpdated: '2026-10-23',
   },
   {
     id: 'kdense-science-lab',
@@ -95,6 +124,9 @@ export const TEMPLATES: Template[] = [
     skills: 177,
     category: 'research',
     inputs: [],
+    source: 'K-Dense-AI/scientific-agent-skills',
+    stars: 54122,
+    sourceUpdated: '2026-10-19',
   },
   {
     id: 'clawteam-research-lab',
@@ -104,6 +136,9 @@ export const TEMPLATES: Template[] = [
     skills: 1,
     category: 'research',
     inputs: [],
+    source: 'HKUDS/ClawTeam',
+    stars: 5540,
+    sourceUpdated: '2026-05-09',
   },
   {
     id: 'aeon-intelligence',
@@ -113,6 +148,9 @@ export const TEMPLATES: Template[] = [
     skills: 32,
     category: 'research',
     inputs: [{ key: 'GH_TOKEN', required: true }, { key: 'ALCHEMY_API_KEY', required: false }],
+    source: 'aeonfun/aeon',
+    stars: 783,
+    sourceUpdated: '2026-10-22',
   },
   {
     id: 'taches-creative',
@@ -122,6 +160,9 @@ export const TEMPLATES: Template[] = [
     skills: 35,
     category: 'creative',
     inputs: [],
+    source: 'glittercowboy/taches-cc-resources',
+    stars: 1986,
+    sourceUpdated: '2026-04-01',
   },
   {
     id: 'minimax-studio',
@@ -131,6 +172,9 @@ export const TEMPLATES: Template[] = [
     skills: 10,
     category: 'creative',
     inputs: [{ key: 'MINIMAX_API_KEY', required: false }],
+    source: 'MiniMax-AI/skills',
+    stars: 13728,
+    sourceUpdated: '2026-04-18',
   },
   {
     id: 'donchitos-game-studio',
@@ -140,6 +184,9 @@ export const TEMPLATES: Template[] = [
     skills: 37,
     category: 'creative',
     inputs: [{ key: 'GH_TOKEN', required: false }],
+    source: 'Donchitos/Claude-Code-Game-Studios',
+    stars: 27267,
+    sourceUpdated: '2026-10-19',
   },
   {
     id: 'product-compass-consulting',
@@ -149,6 +196,9 @@ export const TEMPLATES: Template[] = [
     skills: 65,
     category: 'business',
     inputs: [],
+    source: 'phuryn/pm-skills',
+    stars: 27325,
+    sourceUpdated: '2026-10-16',
   },
   {
     id: 'clawteam-capital',
@@ -158,6 +208,9 @@ export const TEMPLATES: Template[] = [
     skills: 1,
     category: 'business',
     inputs: [],
+    source: 'HKUDS/ClawTeam',
+    stars: 5540,
+    sourceUpdated: '2026-05-09',
   },
   {
     id: 'agency-agents',
@@ -167,5 +220,8 @@ export const TEMPLATES: Template[] = [
     skills: 0,
     category: 'business',
     inputs: [{ key: 'GH_TOKEN', required: false }],
+    source: 'msitarzewski/agency-agents',
+    stars: 163446,
+    sourceUpdated: '2026-10-19',
   },
 ]

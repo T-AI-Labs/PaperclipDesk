@@ -265,6 +265,12 @@ export const de = [
   '{keys} gehörte zu „{action}“ und ist jetzt hier.',
   'Firma',
   'Kürzel wirken, solange das Fenster von PaperclipDesk den Fokus hat.',
+  'Sortieren',
+  'Beliebtheit',
+  'Zuletzt aktualisiert',
+  'Sterne des Quell-Repos auf GitHub',
+  'Quelle aktualisiert {date}',
+  'Sterne und Daten von GitHub, Stand {date}.',
 ] as const
 
 export type Message = (typeof de)[number]

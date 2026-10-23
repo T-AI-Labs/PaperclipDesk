@@ -266,4 +266,10 @@ export const pt: Catalogue = [
   '{keys} pertencia a “{action}” e agora está aqui.',
   'Empresa',
   'Os atalhos funcionam enquanto a janela do PaperclipDesk está em foco.',
+  'Ordenar',
+  'Popularidade',
+  'Atualizadas recentemente',
+  'Estrelas do repositório de origem no GitHub',
+  'Origem atualizada {date}',
+  'Estrelas e datas do GitHub, em {date}.',
 ]

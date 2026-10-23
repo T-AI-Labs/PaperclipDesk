@@ -266,4 +266,10 @@ export const es: Catalogue = [
   '{keys} pertenecía a «{action}» y ahora está aquí.',
   'Empresa',
   'Los atajos funcionan mientras la ventana de PaperclipDesk tiene el foco.',
+  'Ordenar',
+  'Popularidad',
+  'Actualizadas recientemente',
+  'Estrellas del repositorio de origen en GitHub',
+  'Origen actualizado {date}',
+  'Estrellas y fechas de GitHub, a {date}.',
 ]

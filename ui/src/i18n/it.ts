@@ -266,4 +266,10 @@ export const it: Catalogue = [
   '{keys} apparteneva a «{action}» e ora è qui.',
   'Azienda',
   'Le scorciatoie funzionano finché la finestra di PaperclipDesk ha il focus.',
+  'Ordina',
+  'Popolarità',
+  'Aggiornate di recente',
+  'Stelle del repository di origine su GitHub',
+  'Origine aggiornata {date}',
+  'Stelle e date da GitHub, al {date}.',
 ]

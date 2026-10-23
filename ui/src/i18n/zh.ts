@@ -266,4 +266,10 @@ export const zh: Catalogue = [
   '{keys} 原属于“{action}”，现已移到这里。',
   '公司',
   '快捷键仅在 PaperclipDesk 窗口获得焦点时有效。',
+  '排序',
+  '热门程度',
+  '最近更新',
+  'GitHub 上源仓库的星标数',
+  '源仓库更新于 {date}',
+  '星标数和日期来自 GitHub，截至 {date}。',
 ]
