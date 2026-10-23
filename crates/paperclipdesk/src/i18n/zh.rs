@@ -126,4 +126,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "GitHub 目前不允许更多搜索，请稍后再试。",
     "GitHub 没有响应：{}",
     "在 GitHub 上搜索需要令牌。",
+    "组建公司 …",
 ];

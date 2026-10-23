@@ -126,4 +126,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "GitHub n’autorise plus de recherches pour le moment ; réessayez plus tard.",
     "GitHub ne répond pas : {}",
     "La recherche sur GitHub nécessite un jeton.",
+    "Composer une entreprise …",
 ];

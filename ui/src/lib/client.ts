@@ -243,8 +243,11 @@ export const resetLocalServer = (keepConfig: boolean, backup: boolean) => call<s
 /// Both resolve to null when the user cancelled the file dialog.
 export const exportSettings = () => call<string | null>('export_settings')
 export const importSettings = () => call<Settings | null>('import_settings')
-/// A folder of Paperclip's catalog, or the URL of a package the GitHub search found.
-export type TemplateSource = { catalog: string } | { github: string }
+/// A file of a company package by its path there; a binary one comes encoded.
+export type PackageFile = string | { encoding: 'base64'; data: string; contentType?: string | null }
+
+/// A folder of Paperclip's catalog, the URL of a package the GitHub search found, or the files of a package put together in the app.
+export type TemplateSource = { catalog: string } | { github: string } | { inline: Record<string, PackageFile> }
 
 export interface TemplateAgent {
   slug: string
@@ -294,6 +297,8 @@ export interface FoundTemplate {
 /// Imports a template as a new company in the Paperclip in front and switches to it.
 export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>) => call<void>('import_company_template', { source, name, secrets })
 export const previewCompanyTemplate = (source: TemplateSource) => call<TemplatePreview>('preview_company_template', { source })
+/// Every file of a template, as the Paperclip in front reads it.
+export const companyTemplateFiles = (source: TemplateSource) => call<Record<string, PackageFile>>('company_template_files', { source })
 /// Needs a token stored with `setGithubToken`; an empty query finds what GitHub lists first.
 export const searchTemplates = (query: string) => call<FoundTemplate[]>('search_templates', { query })
 export const githubTokenStored = () => call<boolean>('github_token_stored')

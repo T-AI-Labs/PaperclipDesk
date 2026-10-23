@@ -17,6 +17,7 @@ const COMPANY_PREFIX: &str = "company.";
 const SHELL_UPDATES: &str = "shell.updates";
 const SHELL_CONNECTIONS: &str = "shell.connections";
 const SHELL_TEMPLATES: &str = "shell.templates";
+const SHELL_WIZARD: &str = "shell.wizard";
 pub const RECENT_CONNECTIONS: usize = 5;
 const ZOOM_STEP: f64 = 0.1;
 const DOCS_URL: &str = "https://docs.paperclip.ing/";
@@ -118,6 +119,7 @@ pub fn build(client: &Client) -> Vec<Menu> {
         Entry::Separator,
         action("paperclip.new_company".into(), i18n::t("Neue Firma …")),
         action(SHELL_TEMPLATES.into(), i18n::t("Firma aus Vorlage …")),
+        action(SHELL_WIZARD.into(), i18n::t("Firma zusammenstellen …")),
     ]);
     let company_label = current.map_or_else(|| i18n::t("Firma").to_owned(), |company| company.name.clone());
 

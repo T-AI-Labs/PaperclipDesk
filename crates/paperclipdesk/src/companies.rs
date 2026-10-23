@@ -94,21 +94,25 @@ pub fn reopen(webview: &Webview, company: &Company) {
     let _ = webview.eval(format!("location.assign({})", serde_json::Value::from(format!("/{}/dashboard", company.issue_prefix))));
 }
 
-/// Where a template comes from: a folder of Paperclip's catalog, or a package the GitHub search found.
+/// Where a template comes from: a folder of Paperclip's catalog, a package the GitHub search found, or the files of a
+/// package the wizard put together.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateSource {
     Catalog(String),
     Github(String),
+    Inline(serde_json::Map<String, serde_json::Value>),
 }
 
 impl TemplateSource {
-    /// The URL Paperclip fetches the package from; it only ever points to GitHub.
-    fn url(&self) -> Result<String, String> {
-        match self {
-            Self::Catalog(template) => template_url(template),
-            Self::Github(url) => github_package_url(url),
-        }
+    /// The source as Paperclip's import takes it; a URL only ever points to GitHub.
+    fn body(&self) -> Result<serde_json::Value, String> {
+        Ok(match self {
+            Self::Catalog(template) => serde_json::json!({ "type": "github", "url": template_url(template)? }),
+            Self::Github(url) => serde_json::json!({ "type": "github", "url": github_package_url(url)? }),
+            // Paperclip refuses a package that arrives with fewer files than it says it has.
+            Self::Inline(files) => serde_json::json!({ "type": "inline", "files": files, "expectedFileCount": files.len() }),
+        })
     }
 }
 
@@ -131,7 +135,9 @@ fn github_package_url(url: &str) -> Result<String, String> {
 }
 
 /// Asks Paperclip what a template brings without importing it, trimmed to what the panel shows; the files stay in the page.
-const PREVIEW: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const manifest = answer.manifest ?? {}; return JSON.stringify({ preview: { name: manifest.company?.name ?? null, description: manifest.company?.description ?? null, agents: (manifest.agents ?? []).map(agent => ({ slug: agent.slug, name: agent.name, title: agent.title ?? null, reportsTo: agent.reportsToSlug ?? null, skills: agent.skills ?? [] })), skills: (manifest.skills ?? []).map(skill => ({ slug: skill.slug, name: skill.name, description: skill.description ?? null })), inputs: (answer.envInputs ?? []).map(input => ({ key: input.key, required: input.requirement === 'required' })), warnings: answer.warnings ?? [], errors: answer.errors ?? [] } }); }";
+const PREVIEW: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const manifest = answer.manifest ?? {}; return JSON.stringify({ preview: { name: manifest.company?.name ?? null, description: manifest.company?.description ?? null, agents: (manifest.agents ?? []).map(agent => ({ slug: agent.slug, name: agent.name, title: agent.title ?? null, reportsTo: agent.reportsToSlug ?? null, skills: agent.skills ?? [] })), skills: (manifest.skills ?? []).map(skill => ({ slug: skill.slug, name: skill.name, description: /^[>|][-+]?$/.test(skill.description ?? '') ? null : (skill.description ?? null) })), inputs: (answer.envInputs ?? []).map(input => ({ key: input.key, required: input.requirement === 'required' })), warnings: answer.warnings ?? [], errors: answer.errors ?? [] } }); }";
+/// Every file of a template as Paperclip read it, for the wizard to take agents and skills from.
+const FILES: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); return JSON.stringify({ files: answer.files ?? {} }); }";
 /// Paperclip reads the whole package from GitHub for a preview.
 const PREVIEW_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -171,21 +177,31 @@ struct PreviewInput {
     required: bool,
 }
 
-pub fn preview(webview: &Webview, source: &TemplateSource) -> Result<Preview, String> {
-    let body = serde_json::json!({ "source": { "type": "github", "url": source.url()? }, "target": { "mode": "new_company" } });
-    let answer = evaluate(webview, &format!("({PREVIEW})({body})"), PREVIEW_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
+/// Runs a preview script in the page and hands back the part of its answer named `part`, or Paperclip's error.
+fn previewed(webview: &Webview, script: &str, source: &TemplateSource, part: &str) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({ "source": source.body()?, "target": { "mode": "new_company" } });
+    let answer = evaluate(webview, &format!("({script})({body})"), PREVIEW_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
     let mut answer: serde_json::Value = serde_json::from_str(&answer).map_err(|e| e.to_string())?;
     if let Some(error) = answer["error"].as_str() {
         return Err(error.to_owned());
     }
-    serde_json::from_value(answer["preview"].take()).map_err(|e| e.to_string())
+    Ok(answer[part].take())
+}
+
+pub fn preview(webview: &Webview, source: &TemplateSource) -> Result<Preview, String> {
+    serde_json::from_value(previewed(webview, PREVIEW, source, "preview")?).map_err(|e| e.to_string())
+}
+
+/// The files of a template by their path in the package; a binary one comes as `{ encoding, data, contentType }`.
+pub fn files(webview: &Webview, source: &TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    serde_json::from_value(previewed(webview, FILES, source, "files")?).map_err(|e| e.to_string())
 }
 
 /// Imports a template as a new company and returns its id. `secrets` fills the template's environment inputs;
 /// Paperclip stores them as secrets, the app keeps nothing of them.
 pub fn import(webview: &Webview, source: &TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<String, String> {
     let body = serde_json::json!({
-        "source": { "type": "github", "url": source.url()? },
+        "source": source.body()?,
         "target": { "mode": "new_company", "newCompanyName": name.map(str::trim).filter(|name| !name.is_empty()) },
         "secretValues": secrets,
     });

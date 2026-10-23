@@ -767,6 +767,12 @@ impl Client {
         companies::preview(&webview, source)
     }
 
+    /// The files of a template, read by the Paperclip in front, for the wizard to take agents and skills from.
+    pub fn template_files(&self, source: &companies::TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
+        companies::files(&webview, source)
+    }
+
     /// Switches Paperclip to one of the companies the menu lists.
     pub fn switch_company(&self, id: &str) {
         let Some(company) = self.known_companies().and_then(|known| known.companies?.into_iter().find(|company| company.id == id)) else { return };

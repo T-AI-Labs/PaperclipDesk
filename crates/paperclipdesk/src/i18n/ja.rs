@@ -126,4 +126,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "GitHub は現在これ以上の検索を許可していません。しばらくしてから再試行してください。",
     "GitHub が応答しません: {}",
     "GitHub で検索するにはトークンが必要です。",
+    "会社を組み立てる …",
 ];

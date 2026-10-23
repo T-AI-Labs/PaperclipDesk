@@ -27,8 +27,9 @@ import Updates from './panels/Updates'
 
 // The catalog and its snapshot are large and only needed once the panel opens.
 const Templates = lazy(() => import('./panels/Templates'))
+const Wizard = lazy(() => import('./panels/Wizard'))
 
-const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', shortcuts: 'Tastenkürzel' }
+const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', wizard: 'Firma zusammenstellen', shortcuts: 'Tastenkürzel' }
 
 type Loaded = { snapshot: Snapshot; settings: Settings } | { error: string }
 
@@ -198,7 +199,7 @@ export default function App() {
       )}
 
       <Sheet open={panel !== null} onOpenChange={(isOpen) => !isOpen && closePanel()}>
-        <SheetContent aria-describedby={undefined} className="gap-0 data-[side=right]:w-[min(36rem,100vw)] data-[side=right]:sm:max-w-none">
+        <SheetContent aria-describedby={undefined} className={cn('gap-0 data-[side=right]:sm:max-w-none', panel === 'wizard' ? 'data-[side=right]:w-[min(72rem,100vw)]' : 'data-[side=right]:w-[min(36rem,100vw)]')}>
           <SheetHeader className="border-b">
             <SheetTitle>{panel && t(PANEL_TITLES[panel])}</SheetTitle>
           </SheetHeader>
@@ -206,9 +207,9 @@ export default function App() {
             {panel === 'server' && <Server />}
             {panel === 'remotes' && <Remotes snapshot={snapshot} onChanged={setSnapshot} />}
             {panel === 'updates' && <Updates {...props} updater={updater} />}
-            {panel === 'templates' && (
+            {(panel === 'templates' || panel === 'wizard') && (
               <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
-                <Templates onDone={closePanel} />
+                {panel === 'templates' ? <Templates onDone={closePanel} /> : <Wizard onDone={closePanel} />}
               </Suspense>
             )}
             {panel === 'shortcuts' && <Shortcuts snapshot={snapshot} {...props} />}

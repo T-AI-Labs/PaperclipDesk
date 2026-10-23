@@ -5,6 +5,7 @@ export const SHELL_PANELS: Record<string, Panel> = {
   'shell.updates': 'updates',
   'shell.connections': 'remotes',
   'shell.templates': 'templates',
+  'shell.wizard': 'wizard',
   'shell.server': 'server',
   'shell.shortcuts': 'shortcuts',
 }

@@ -16,6 +16,7 @@
     "allow-record-shortcut",
     "allow-import-company-template",
     "allow-preview-company-template",
+    "allow-company-template-files",
     "allow-search-templates",
     "allow-github-token-stored",
     "allow-set-github-token",

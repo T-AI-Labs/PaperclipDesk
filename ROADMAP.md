@@ -5,7 +5,10 @@ wizards; the items below are ordered by that focus, not by size.
 
 ## Company wizard
 
-A wizard that builds a new company step by step instead of importing one template as a whole.
+A wizard that builds a new company step by step instead of importing one template as a whole. Done: name, purpose and
+goals, agents from any catalog template or of the user's own, whom each reports to with a live org chart, skills per
+agent, and a check by Paperclip before the company is created from an inline package. Left from the ideas below:
+drag and drop in the org chart, teams, packages found on GitHub as a source, and example projects and tasks.
 
 - Start empty or from a template, then add agents from any template of the catalog, remove some, rename them.
 - Arrange the hierarchy by drag and drop as an org chart; the templates carry it already (`reportsTo` in each agent's

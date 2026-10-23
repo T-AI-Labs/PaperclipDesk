@@ -22,7 +22,7 @@ import { ACCENTS, type ColorScheme, THEMES, type ThemePreset } from '@/lib/theme
 import { cn } from '@/lib/utils'
 import { LANGUAGES, t } from '@/i18n'
 
-export type Panel = 'server' | 'remotes' | 'updates' | 'templates' | 'shortcuts'
+export type Panel = 'server' | 'remotes' | 'updates' | 'templates' | 'wizard' | 'shortcuts'
 
 interface Props extends PageProps {
   zoomPercent: number

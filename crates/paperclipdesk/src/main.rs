@@ -116,6 +116,12 @@ async fn preview_company_template(client: Shared<'_>, source: companies::Templat
     tauri::async_runtime::spawn_blocking(move || client.preview_template(&source)).await.map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn company_template_files(client: Shared<'_>, source: companies::TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.template_files(&source)).await.map_err(|e| e.to_string())?
+}
+
 /// Searches GitHub for company packages beyond the catalog, with the token the user stored.
 #[tauri::command]
 async fn search_templates(client: Shared<'_>, query: String) -> Result<Vec<github::Found>, String> {
@@ -475,6 +481,7 @@ fn main() -> anyhow::Result<()> {
             record_shortcut,
             import_company_template,
             preview_company_template,
+            company_template_files,
             search_templates,
             github_token_stored,
             set_github_token,
