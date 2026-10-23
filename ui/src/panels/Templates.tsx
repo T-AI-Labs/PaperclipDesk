@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { errorMessage, importCompanyTemplate, openProjectLink } from '@/lib/client'
+import { type ProjectLink, errorMessage, importCompanyTemplate, openProjectLink } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 import { CATALOG_DATE, PROVIDERS, PROVIDERS_DATE, type Provider, TEMPLATES, TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from './catalog'
@@ -47,6 +47,8 @@ function Popularity({ template }: { template: Template }) {
 type Source = 'paperclip' | Provider['id']
 type Cost = 'free' | 'paid'
 
+const open = (link: ProjectLink) => void openProjectLink(link).catch((e: unknown) => toast.error(errorMessage(e)))
+
 function ProviderCard({ provider }: { provider: Provider }) {
   return (
     <li className="flex flex-col gap-1 px-4 py-3">
@@ -57,7 +59,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
       <span className="text-xs text-muted-foreground">{t(provider.description, { count: provider.templates })}</span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         {!provider.importable && <span className="text-amber-700 dark:text-amber-400">{t('Nicht in dieses Paperclip importierbar')}</span>}
-        <Button variant="outline" size="sm" className="ml-auto" onClick={() => void openProjectLink(provider.id).catch((e: unknown) => toast.error(errorMessage(e)))}>
+        <Button variant="outline" size="sm" className="ml-auto" onClick={() => open(provider.id)}>
           <ExternalLink /> {t('Auf der Website ansehen')}
         </Button>
       </span>
@@ -93,7 +95,8 @@ function Catalog({ onPick }: { onPick: (template: Template) => void }) {
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{t('Kategorie')}</span>
           <button type="button" className={chip(category === null)} onClick={() => setCategory(null)}>
             {t('Alle')} {TEMPLATES.length}
           </button>
@@ -194,6 +197,14 @@ function Details({ template, onBack, onDone }: { template: Template; onBack: () 
         <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
           <Counts template={template} />
           <Popularity template={template} />
+        </p>
+        <p className="flex flex-wrap gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={() => open({ template: template.id })}>
+            <ExternalLink /> {t('Vorlage auf GitHub')}
+          </Button>
+          <Button variant="outline" size="sm" title={template.source} onClick={() => open({ template_source: template.source })}>
+            <ExternalLink /> {t('Quell-Repo auf GitHub')}
+          </Button>
         </p>
       </div>
 

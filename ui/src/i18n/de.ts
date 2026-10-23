@@ -283,6 +283,9 @@ export const de = [
   'Hosting-Dienst mit {count} Vorlagen, die nur auf seinen Servern laufen, für 29 $ im Monat.',
   'Nicht in dieses Paperclip importierbar',
   'Stand {date}. Die App lädt von diesen Seiten nichts; der Link öffnet den Browser.',
+  'Kategorie',
+  'Vorlage auf GitHub',
+  'Quell-Repo auf GitHub',
 ] as const
 
 export type Message = (typeof de)[number]

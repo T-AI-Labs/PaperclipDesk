@@ -284,4 +284,7 @@ export const en: Catalogue = [
   'Hosting service with {count} templates that run only on its servers, for $29 a month.',
   'Cannot be imported into this Paperclip',
   'As of {date}. The app loads nothing from these sites; the link opens the browser.',
+  'Category',
+  'Template on GitHub',
+  'Source repository on GitHub',
 ]

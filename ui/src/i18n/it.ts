@@ -284,4 +284,7 @@ export const it: Catalogue = [
   'Servizio di hosting con {count} modelli che girano solo sui suoi server, a 29 $ al mese.',
   'Non importabile in questo Paperclip',
   'Al {date}. L’app non scarica nulla da questi siti; il link apre il browser.',
+  'Categoria',
+  'Modello su GitHub',
+  'Repository di origine su GitHub',
 ]

@@ -97,17 +97,22 @@ pub fn reopen(webview: &Webview, company: &Company) {
 /// Imports a template of the catalog as a new company and returns its id. `secrets` fills the template's environment inputs;
 /// Paperclip stores them as secrets, the app keeps nothing of them.
 pub fn import(webview: &Webview, template: &str, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<String, String> {
-    // The folder goes into a URL; the catalog names its folders in lowercase letters, digits and dashes.
-    if template.is_empty() || !template.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
-        return Err(i18n::t("Diese Vorlage gibt es nicht.").to_owned());
-    }
     let body = serde_json::json!({
-        "source": { "type": "github", "url": format!("{TEMPLATES}/{template}") },
+        "source": { "type": "github", "url": template_url(template)? },
         "target": { "mode": "new_company", "newCompanyName": name.map(str::trim).filter(|name| !name.is_empty()) },
         "secretValues": secrets,
     });
     let answer = evaluate(webview, &format!("({IMPORT})({body})"), IMPORT_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
     imported(&answer)
+}
+
+/// The template's folder in the catalog on GitHub.
+pub fn template_url(template: &str) -> Result<String, String> {
+    // The folder goes into a URL; the catalog names its folders in lowercase letters, digits and dashes.
+    if template.is_empty() || !template.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        return Err(i18n::t("Diese Vorlage gibt es nicht.").to_owned());
+    }
+    Ok(format!("{TEMPLATES}/{template}"))
 }
 
 fn imported(answer: &str) -> Result<String, String> {

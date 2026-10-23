@@ -229,7 +229,7 @@ export const updateSettings = (settings: Settings) => call<Settings>('update_set
 export const getLog = (file: string | null, lines: number) => call<LogTail>('get_log', { file, lines })
 export const clearLog = (file: string) => call<void>('clear_log', { file })
 export const openDataFolder = () => call<void>('open_data_folder')
-export type ProjectLink = 'repository' | 'report_issue' | 'clipmart' | 'paperclip_cloud' | 'use_paperclip'
+export type ProjectLink = 'repository' | 'report_issue' | 'clipmart' | 'paperclip_cloud' | 'use_paperclip' | { template: string } | { template_source: string }
 export const openProjectLink = (link: ProjectLink) => call<void>('open_project_link', { link })
 export const showPage = (page: LauncherPage) => call<void>('show_page', { page })
 export const getAbout = () => call<About>('get_about')

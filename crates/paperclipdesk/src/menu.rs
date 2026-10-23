@@ -6,6 +6,7 @@ use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind, MessageDialogResult};
 
 use crate::client::{Client, LauncherPage, LauncherView};
+use crate::companies;
 use crate::connection::types::LOCAL_PROFILE_ID;
 
 const RECENT_PREFIX: &str = "connection.recent.";
@@ -23,8 +24,8 @@ const REPOSITORY_URL: &str = "https://github.com/T-AI-Labs/PaperclipDesk";
 /// Written by `npm run licenses` and shipped as a resource next to the app.
 const LICENSES_FILE: &str = "THIRD_PARTY_LICENSES.txt";
 
-/// The project's own pages and the template sites the shell points to. They are fixed here, so the window never hands the app a URL to open.
-#[derive(Deserialize, Clone, Copy)]
+/// The project's own pages and the template sites the shell points to. They are built here, so the window never hands the app a URL to open.
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectLink {
     Repository,
@@ -32,6 +33,19 @@ pub enum ProjectLink {
     Clipmart,
     PaperclipCloud,
     UsePaperclip,
+    /// A template's folder in Paperclip's catalog.
+    Template(String),
+    /// The GitHub repository a template was generated from, as owner/name.
+    TemplateSource(String),
+}
+
+/// A GitHub repository as owner/name, with nothing in it that leaves the repository's page.
+fn github_repository(repository: &str) -> Result<String, String> {
+    let part = |part: &str| !part.is_empty() && !part.starts_with('.') && part.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
+    match repository.split_once('/') {
+        Some((owner, name)) if part(owner) && part(name) => Ok(format!("https://github.com/{owner}/{name}")),
+        _ => Err(i18n::t("Diese Vorlage gibt es nicht.").to_owned()),
+    }
 }
 
 /// Opens the page in the browser; a new issue starts with the versions it is about.
@@ -45,6 +59,8 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
         ProjectLink::Clipmart => "https://www.clipmart.ai/".to_owned(),
         ProjectLink::PaperclipCloud => "https://paperclipcloud.com/companies".to_owned(),
         ProjectLink::UsePaperclip => "https://usepaperclip.app/".to_owned(),
+        ProjectLink::Template(template) => companies::template_url(&template)?,
+        ProjectLink::TemplateSource(repository) => github_repository(&repository)?,
     };
     tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
@@ -253,5 +269,19 @@ fn show_about(client: &Client) {
     };
     if let Err(e) = opened {
         tracing::warn!("opening from the About box: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::github_repository;
+
+    #[test]
+    fn a_template_source_stays_on_its_repository() {
+        assert_eq!(github_repository("garrytan/gstack").as_deref(), Ok("https://github.com/garrytan/gstack"));
+        assert_eq!(github_repository("HKUDS/ClawTeam").as_deref(), Ok("https://github.com/HKUDS/ClawTeam"));
+        for wrong in ["", "gstack", "a/b/c", "../x", "a/..", "a/b?c", "a/b#c", "a b/c", "@evil.com/x"] {
+            assert!(github_repository(wrong).is_err(), "{wrong}");
+        }
     }
 }
