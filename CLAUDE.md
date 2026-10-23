@@ -3,6 +3,13 @@
 A Windows desktop client for [Paperclip](https://docs.paperclip.ing/). It starts the Paperclip server on this machine
 or connects to a remote one, and shows Paperclip's own web UI in a native window.
 
+## The goal
+
+PaperclipDesk exists to **create AI companies quickly and to run them professionally**. A feature belongs here when it
+serves one of the two: setting a company up (templates, the wizard, the assistant) or running it day to day
+(connections, the server, oversight, automation). An integration of another tool passes the same test, and Paperclip
+stays the one place where companies, agents and tasks live; other tools connect to it instead of keeping a second copy.
+
 ## The core approach
 
 **One window, a shell webview and one webview per open connection.** The Rust host lays them out by hand:
