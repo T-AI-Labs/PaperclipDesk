@@ -23,12 +23,15 @@ const REPOSITORY_URL: &str = "https://github.com/T-AI-Labs/PaperclipDesk";
 /// Written by `npm run licenses` and shipped as a resource next to the app.
 const LICENSES_FILE: &str = "THIRD_PARTY_LICENSES.txt";
 
-/// The project's own pages. They are fixed here, so the window never hands the app a URL to open.
+/// The project's own pages and the template sites the shell points to. They are fixed here, so the window never hands the app a URL to open.
 #[derive(Deserialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectLink {
     Repository,
     ReportIssue,
+    Clipmart,
+    PaperclipCloud,
+    UsePaperclip,
 }
 
 /// Opens the page in the browser; a new issue starts with the versions it is about.
@@ -39,6 +42,9 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
             let versions = format!("\n\n---\nPaperclipDesk {}, Paperclip server {}", env!("CARGO_PKG_VERSION"), client.local_server_version().as_deref().unwrap_or("–"));
             tauri::Url::parse_with_params(&format!("{REPOSITORY_URL}/issues/new"), [("body", versions)]).map_err(|e| e.to_string())?.into()
         }
+        ProjectLink::Clipmart => "https://www.clipmart.ai/".to_owned(),
+        ProjectLink::PaperclipCloud => "https://paperclipcloud.com/companies".to_owned(),
+        ProjectLink::UsePaperclip => "https://usepaperclip.app/".to_owned(),
     };
     tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
 }

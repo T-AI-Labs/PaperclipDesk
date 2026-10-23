@@ -85,7 +85,7 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 
 | Menu | Entries |
 | --- | --- |
-| *The company in front* | Your companies with a tick at the one in front, **Company settings**, **Import company …**, **Export company …**, **New company …** and **Company from template …**, which creates a company from a ready-made template of Paperclip's catalog |
+| *The company in front* | Your companies with a tick at the one in front, **Company settings**, **Import company …**, **Export company …**, **New company …** and **Company from template …**, which creates a company from a ready-made template of Paperclip's catalog. Its panel sorts them by popularity (the stars of the project each one was made from), recent update or name, and points to Clipmart, PaperclipCloud and usepaperclip.app, filtered by provider and by cost |
 | **New** | **New issue …**, **New agent …**, **Search …** |
 | **Go to** | **Dashboard**, **Inbox**, **Issues**, **Agents**, **Approvals**, **Costs** |
 | **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
@@ -99,7 +99,7 @@ The gear opens the settings as a menu, with a search field on top.
 | Section | What you find there |
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
-| **Appearance** | The colour scheme (system, light or dark), an accent colour and 32 designs |
+| **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs |
 | **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
 

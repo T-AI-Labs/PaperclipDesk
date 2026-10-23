@@ -271,6 +271,18 @@ export const de = [
   'Sterne des Quell-Repos auf GitHub',
   'Quelle aktualisiert {date}',
   'Sterne und Daten von GitHub, Stand {date}.',
+  'Anbieter',
+  'Kosten',
+  'Kostenlos',
+  'Kostenpflichtig',
+  'Paperclip-Katalog',
+  'Weitere Anbieter',
+  'Auf der Website ansehen',
+  'Community-Katalog mit {count} Vorlagen verschiedener Autoren. Download als ZIP, Import mit „npx companies.sh“. Die genannten Betriebskosten und Umsätze sind Schätzungen der Seite.',
+  'Hosting-Anbieter mit {count} Vorlagen, die nur auf seinen Servern laufen. Tarife nach Zahl der Firmen; Preise nennt er erst bei der Registrierung.',
+  'Hosting-Dienst mit {count} Vorlagen, die nur auf seinen Servern laufen, für 29 $ im Monat.',
+  'Nicht in dieses Paperclip importierbar',
+  'Stand {date}. Die App lädt von diesen Seiten nichts; der Link öffnet den Browser.',
 ] as const
 
 export type Message = (typeof de)[number]

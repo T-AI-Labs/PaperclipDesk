@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { ArrowLeft, CircleAlert, KeyRound, LoaderCircle, Search, Star } from 'lucide-react'
+import { toast } from 'sonner'
+import { ArrowLeft, CircleAlert, ExternalLink, KeyRound, LoaderCircle, Search, Star } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { errorMessage, importCompanyTemplate } from '@/lib/client'
+import { errorMessage, importCompanyTemplate, openProjectLink } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
-import { CATALOG_DATE, TEMPLATES, TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from './catalog'
+import { CATALOG_DATE, PROVIDERS, PROVIDERS_DATE, type Provider, TEMPLATES, TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from './catalog'
 
 function Counts({ template }: { template: Template }) {
   return <span>{template.skills === 1 ? t('{agents} Agenten · 1 Skill', { agents: template.agents }) : t('{agents} Agenten · {skills} Skills', { agents: template.agents, skills: template.skills })}</span>
@@ -43,12 +44,40 @@ function Popularity({ template }: { template: Template }) {
   )
 }
 
+type Source = 'paperclip' | Provider['id']
+type Cost = 'free' | 'paid'
+
+function ProviderCard({ provider }: { provider: Provider }) {
+  return (
+    <li className="flex flex-col gap-1 px-4 py-3">
+      <span className="flex items-center gap-2 text-sm font-medium">
+        {provider.name}
+        <span className="rounded-full border px-1.5 text-[11px] font-normal text-muted-foreground">{provider.paid ? t('Kostenpflichtig') : t('Kostenlos')}</span>
+      </span>
+      <span className="text-xs text-muted-foreground">{t(provider.description, { count: provider.templates })}</span>
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {!provider.importable && <span className="text-amber-700 dark:text-amber-400">{t('Nicht in dieses Paperclip importierbar')}</span>}
+        <Button variant="outline" size="sm" className="ml-auto" onClick={() => void openProjectLink(provider.id).catch((e: unknown) => toast.error(errorMessage(e)))}>
+          <ExternalLink /> {t('Auf der Website ansehen')}
+        </Button>
+      </span>
+    </li>
+  )
+}
+
 function Catalog({ onPick }: { onPick: (template: Template) => void }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<TemplateCategory | null>(null)
   const [order, setOrder] = useState<Order>('stars')
+  const [source, setSource] = useState<Source | null>(null)
+  const [cost, setCost] = useState<Cost | null>(null)
   const needle = query.trim().toLocaleLowerCase()
-  const shown = TEMPLATES.filter((template) => (category === null || template.category === category) && (needle === '' || `${template.name} ${template.description}`.toLocaleLowerCase().includes(needle))).sort(COMPARE[order])
+  const matches = (text: string) => needle === '' || text.toLocaleLowerCase().includes(needle)
+  // Paperclip's catalog is free; categories only sort its own templates, the providers have none.
+  const catalogShown = (source === null || source === 'paperclip') && cost !== 'paid'
+  const shown = catalogShown ? TEMPLATES.filter((template) => (category === null || template.category === category) && matches(`${template.name} ${template.description}`)).sort(COMPARE[order]) : []
+  const providers = PROVIDERS.filter((provider) => category === null && (source === null || source === provider.id) && (cost === null || (cost === 'paid') === provider.paid) && matches(`${provider.name} ${t(provider.description, { count: provider.templates })}`))
+  const sources: { id: Source; label: string; count: number }[] = [{ id: 'paperclip', label: t('Paperclip-Katalog'), count: TEMPLATES.length }, ...PROVIDERS.map((provider) => ({ id: provider.id, label: provider.name, count: provider.templates }))]
   const chip = (active: boolean) => cn('rounded-full border px-2.5 py-0.5 text-xs', active ? 'border-transparent bg-primary text-primary-foreground' : 'hover:bg-accent')
 
   return (
@@ -71,6 +100,25 @@ function Catalog({ onPick }: { onPick: (template: Template) => void }) {
           {TEMPLATE_CATEGORIES.map(({ id, label }) => (
             <button key={id} type="button" className={chip(category === id)} onClick={() => setCategory(id)}>
               {t(label)} {TEMPLATES.filter((template) => template.category === id).length}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{t('Anbieter')}</span>
+          <button type="button" className={chip(source === null)} onClick={() => setSource(null)}>
+            {t('Alle')}
+          </button>
+          {sources.map(({ id, label, count }) => (
+            <button key={id} type="button" className={chip(source === id)} onClick={() => setSource(id)}>
+              {label} {count}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{t('Kosten')}</span>
+          {([null, 'free', 'paid'] as const).map((id) => (
+            <button key={id ?? 'all'} type="button" className={chip(cost === id)} onClick={() => setCost(id)}>
+              {id === null ? t('Alle') : id === 'free' ? t('Kostenlos') : t('Kostenpflichtig')}
             </button>
           ))}
         </div>
@@ -98,7 +146,15 @@ function Catalog({ onPick }: { onPick: (template: Template) => void }) {
             </button>
           </li>
         ))}
-        {shown.length === 0 && <li className="px-4 py-3 text-sm text-muted-foreground">{t('Keine Treffer')}</li>}
+        {shown.length === 0 && providers.length === 0 && <li className="px-4 py-3 text-sm text-muted-foreground">{t('Keine Treffer')}</li>}
+        {providers.length > 0 && (
+          <li className="bg-muted/40 px-4 py-1.5 text-xs font-medium text-muted-foreground">
+            {t('Weitere Anbieter')} · {t('Stand {date}. Die App lädt von diesen Seiten nichts; der Link öffnet den Browser.', { date: day(PROVIDERS_DATE) })}
+          </li>
+        )}
+        {providers.map((provider) => (
+          <ProviderCard key={provider.id} provider={provider} />
+        ))}
       </ul>
       <p className="text-xs text-muted-foreground">
         {t('Aus dem Katalog github.com/paperclipai/companies, MIT-Lizenz.')} {t('Sterne und Daten von GitHub, Stand {date}.', { date: day(CATALOG_DATE) })}
