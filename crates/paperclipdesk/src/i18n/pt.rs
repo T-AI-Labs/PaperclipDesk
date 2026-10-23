@@ -122,4 +122,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Este modelo não existe.",
     "O Paperclip não respondeu a tempo.",
     "Nenhuma conexão do Paperclip está aberta.",
+    "O GitHub recusou o token.",
+    "O GitHub não permite mais pesquisas agora; tente novamente mais tarde.",
+    "O GitHub não responde: {}",
+    "Pesquisar no GitHub precisa de um token.",
 ];

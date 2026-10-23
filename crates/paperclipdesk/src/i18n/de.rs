@@ -1,5 +1,5 @@
 /// The texts as they stand in the code. Every other language lists its translations in this order.
-pub const MESSAGES: [&str; 123] = [
+pub const MESSAGES: [&str; 127] = [
     "Paperclip-Server wird heruntergeladen … {} von {} MB",
     "Paperclip-Server wird heruntergeladen … {} MB",
     "Paperclip-Server wird entpackt …",
@@ -123,4 +123,8 @@ pub const MESSAGES: [&str; 123] = [
     "Diese Vorlage gibt es nicht.",
     "Paperclip hat nicht rechtzeitig geantwortet.",
     "Keine Paperclip-Verbindung ist offen.",
+    "GitHub hat das Token abgelehnt.",
+    "GitHub lässt gerade keine weiteren Suchen zu; bitte später erneut versuchen.",
+    "GitHub antwortet nicht: {}",
+    "Für die Suche auf GitHub braucht es ein Token.",
 ];

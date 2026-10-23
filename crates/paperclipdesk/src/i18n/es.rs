@@ -122,4 +122,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Esta plantilla no existe.",
     "Paperclip no respondió a tiempo.",
     "No hay ninguna conexión de Paperclip abierta.",
+    "GitHub rechazó el token.",
+    "GitHub no permite más búsquedas por ahora; inténtalo de nuevo más tarde.",
+    "GitHub no responde: {}",
+    "Para buscar en GitHub hace falta un token.",
 ];

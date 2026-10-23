@@ -122,4 +122,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "このテンプレートは存在しません。",
     "Paperclip が時間内に応答しませんでした。",
     "開いている Paperclip 接続がありません。",
+    "GitHub がトークンを拒否しました。",
+    "GitHub は現在これ以上の検索を許可していません。しばらくしてから再試行してください。",
+    "GitHub が応答しません: {}",
+    "GitHub で検索するにはトークンが必要です。",
 ];

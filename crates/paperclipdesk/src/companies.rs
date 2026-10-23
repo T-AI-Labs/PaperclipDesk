@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::webview::Webview;
 use webview2_com::{CallDevToolsProtocolMethodCompletedHandler, HistoryChangedEventHandler};
 use windows::core::{HSTRING, w};
@@ -94,11 +94,98 @@ pub fn reopen(webview: &Webview, company: &Company) {
     let _ = webview.eval(format!("location.assign({})", serde_json::Value::from(format!("/{}/dashboard", company.issue_prefix))));
 }
 
-/// Imports a template of the catalog as a new company and returns its id. `secrets` fills the template's environment inputs;
+/// Where a template comes from: a folder of Paperclip's catalog, or a package the GitHub search found.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateSource {
+    Catalog(String),
+    Github(String),
+}
+
+impl TemplateSource {
+    /// The URL Paperclip fetches the package from; it only ever points to GitHub.
+    fn url(&self) -> Result<String, String> {
+        match self {
+            Self::Catalog(template) => template_url(template),
+            Self::Github(url) => github_package_url(url),
+        }
+    }
+}
+
+/// A package URL as the search builds it, `https://github.com/owner/name?ref=branch&path=folder`, checked part by part.
+fn github_package_url(url: &str) -> Result<String, String> {
+    let wrong = || i18n::t("Diese Vorlage gibt es nicht.").to_owned();
+    let parsed = tauri::Url::parse(url).map_err(|_| wrong())?;
+    let plain = |part: &str| !part.is_empty() && !part.starts_with('.') && part.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
+    let segments = parsed.path_segments().map(|segments| segments.collect::<Vec<_>>()).unwrap_or_default();
+    let query_ok = parsed.query_pairs().all(|(key, value)| match key.as_ref() {
+        "ref" => value.split('/').all(plain),
+        "path" => value.is_empty() || value.split('/').all(plain),
+        _ => false,
+    });
+    let well_formed = parsed.scheme() == "https" && parsed.host_str() == Some("github.com") && parsed.port().is_none() && parsed.username().is_empty() && parsed.password().is_none() && parsed.fragment().is_none();
+    if !well_formed || segments.len() != 2 || !segments.iter().all(|segment| plain(segment)) || !query_ok || !parsed.query_pairs().any(|(key, _)| key == "ref") {
+        return Err(wrong());
+    }
+    Ok(parsed.into())
+}
+
+/// Asks Paperclip what a template brings without importing it, trimmed to what the panel shows; the files stay in the page.
+const PREVIEW: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const manifest = answer.manifest ?? {}; return JSON.stringify({ preview: { name: manifest.company?.name ?? null, description: manifest.company?.description ?? null, agents: (manifest.agents ?? []).map(agent => ({ slug: agent.slug, name: agent.name, title: agent.title ?? null, reportsTo: agent.reportsToSlug ?? null, skills: agent.skills ?? [] })), skills: (manifest.skills ?? []).map(skill => ({ slug: skill.slug, name: skill.name, description: skill.description ?? null })), inputs: (answer.envInputs ?? []).map(input => ({ key: input.key, required: input.requirement === 'required' })), warnings: answer.warnings ?? [], errors: answer.errors ?? [] } }); }";
+/// Paperclip reads the whole package from GitHub for a preview.
+const PREVIEW_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// What a template brings, as Paperclip reads it.
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Preview {
+    name: Option<String>,
+    description: Option<String>,
+    agents: Vec<PreviewAgent>,
+    skills: Vec<PreviewSkill>,
+    inputs: Vec<PreviewInput>,
+    warnings: Vec<String>,
+    errors: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PreviewAgent {
+    slug: String,
+    name: String,
+    title: Option<String>,
+    reports_to: Option<String>,
+    skills: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct PreviewSkill {
+    slug: String,
+    name: String,
+    description: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct PreviewInput {
+    key: String,
+    required: bool,
+}
+
+pub fn preview(webview: &Webview, source: &TemplateSource) -> Result<Preview, String> {
+    let body = serde_json::json!({ "source": { "type": "github", "url": source.url()? }, "target": { "mode": "new_company" } });
+    let answer = evaluate(webview, &format!("({PREVIEW})({body})"), PREVIEW_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
+    let mut answer: serde_json::Value = serde_json::from_str(&answer).map_err(|e| e.to_string())?;
+    if let Some(error) = answer["error"].as_str() {
+        return Err(error.to_owned());
+    }
+    serde_json::from_value(answer["preview"].take()).map_err(|e| e.to_string())
+}
+
+/// Imports a template as a new company and returns its id. `secrets` fills the template's environment inputs;
 /// Paperclip stores them as secrets, the app keeps nothing of them.
-pub fn import(webview: &Webview, template: &str, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<String, String> {
+pub fn import(webview: &Webview, source: &TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<String, String> {
     let body = serde_json::json!({
-        "source": { "type": "github", "url": template_url(template)? },
+        "source": { "type": "github", "url": source.url()? },
         "target": { "mode": "new_company", "newCompanyName": name.map(str::trim).filter(|name| !name.is_empty()) },
         "secretValues": secrets,
     });
@@ -168,6 +255,26 @@ mod tests {
     fn an_import_answers_with_the_new_company_or_paperclips_error() {
         assert_eq!(imported(r#"{"companyId":"c-1"}"#), Ok("c-1".to_owned()));
         assert_eq!(imported(r#"{"error":"Required environment values are missing: GH_TOKEN"}"#), Err("Required environment values are missing: GH_TOKEN".to_owned()));
+    }
+
+    #[test]
+    fn a_found_package_stays_on_github() {
+        let good = "https://github.com/acme/agents?ref=main&path=packages%2Fstudio";
+        assert_eq!(github_package_url(good).as_deref(), Ok(good));
+        assert!(github_package_url("https://github.com/acme/agents?ref=feature%2Fx&path=").is_ok());
+        for wrong in [
+            "https://github.com/acme/agents",
+            "http://github.com/acme/agents?ref=main",
+            "https://gist.github.com/acme/agents?ref=main",
+            "https://github.com:8443/acme/agents?ref=main",
+            "https://user@github.com/acme/agents?ref=main",
+            "https://github.com/acme/agents/tree/main?ref=main",
+            "https://github.com/acme/agents?ref=main&path=..%2Fx",
+            "https://github.com/acme/agents?ref=main&companyPath=x",
+            "https://github.com/acme/agents?ref=main#x",
+        ] {
+            assert!(github_package_url(wrong).is_err(), "{wrong}");
+        }
     }
 
     #[test]

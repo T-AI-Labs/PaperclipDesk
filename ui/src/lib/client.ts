@@ -229,7 +229,7 @@ export const updateSettings = (settings: Settings) => call<Settings>('update_set
 export const getLog = (file: string | null, lines: number) => call<LogTail>('get_log', { file, lines })
 export const clearLog = (file: string) => call<void>('clear_log', { file })
 export const openDataFolder = () => call<void>('open_data_folder')
-export type ProjectLink = 'repository' | 'report_issue' | 'clipmart' | 'paperclip_cloud' | 'use_paperclip' | { template: string } | { template_source: string }
+export type ProjectLink = 'repository' | 'report_issue' | 'clipmart' | 'paperclip_cloud' | 'use_paperclip' | 'github_tokens' | { template: string } | { template_source: string }
 export const openProjectLink = (link: ProjectLink) => call<void>('open_project_link', { link })
 export const showPage = (page: LauncherPage) => call<void>('show_page', { page })
 export const getAbout = () => call<About>('get_about')
@@ -243,8 +243,62 @@ export const resetLocalServer = (keepConfig: boolean, backup: boolean) => call<s
 /// Both resolve to null when the user cancelled the file dialog.
 export const exportSettings = () => call<string | null>('export_settings')
 export const importSettings = () => call<Settings | null>('import_settings')
-/// Imports a template of Paperclip's catalog as a new company in the Paperclip in front and switches to it.
-export const importCompanyTemplate = (template: string, name: string, secrets: Record<string, string>) => call<void>('import_company_template', { template, name, secrets })
+/// A folder of Paperclip's catalog, or the URL of a package the GitHub search found.
+export type TemplateSource = { catalog: string } | { github: string }
+
+export interface TemplateAgent {
+  slug: string
+  name: string
+  title: string | null
+  /// The slug of the agent this one reports to; null at the top.
+  reportsTo: string | null
+  skills: string[]
+}
+
+export interface TemplateSkill {
+  slug: string
+  name: string
+  description: string | null
+}
+
+export interface TemplateInput {
+  key: string
+  required: boolean
+}
+
+/// What a template brings, as Paperclip reads it before an import.
+export interface TemplatePreview {
+  name: string | null
+  description: string | null
+  agents: TemplateAgent[]
+  skills: TemplateSkill[]
+  inputs: TemplateInput[]
+  warnings: string[]
+  errors: string[]
+}
+
+/// A company package on GitHub outside Paperclip's catalog.
+export interface FoundTemplate {
+  repository: string
+  folder: string
+  url: string
+  name: string
+  description: string
+  stars: number
+  updated: string
+  agents: number
+  skills: number
+  teams: number
+}
+
+/// Imports a template as a new company in the Paperclip in front and switches to it.
+export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>) => call<void>('import_company_template', { source, name, secrets })
+export const previewCompanyTemplate = (source: TemplateSource) => call<TemplatePreview>('preview_company_template', { source })
+/// Needs a token stored with `setGithubToken`; an empty query finds what GitHub lists first.
+export const searchTemplates = (query: string) => call<FoundTemplate[]>('search_templates', { query })
+export const githubTokenStored = () => call<boolean>('github_token_stored')
+/// An empty token removes the stored one.
+export const setGithubToken = (token: string) => call<void>('set_github_token', { token })
 
 export function onLauncherState(handler: (snapshot: Snapshot) => void): () => void {
   const unlisten = listen<Snapshot>('launcher:state', (event) => handler(event.payload))

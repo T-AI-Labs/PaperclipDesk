@@ -747,10 +747,10 @@ impl Client {
         self.companies.lock().unwrap().clone().filter(|known| known.view == view)
     }
 
-    /// Imports a template of Paperclip's catalog as a new company and switches to it once Paperclip has made it.
-    pub fn import_template(&self, template: &str, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<(), String> {
+    /// Imports a template as a new company and switches to it once Paperclip has made it.
+    pub fn import_template(&self, source: &companies::TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<(), String> {
         let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
-        let id = companies::import(&webview, template, name, secrets)?;
+        let id = companies::import(&webview, source, name, secrets)?;
         let known = companies::read(&webview);
         let company = known.companies.iter().flatten().find(|company| company.id == id).cloned();
         *self.companies.lock().unwrap() = Some(known);
@@ -759,6 +759,12 @@ impl Client {
             self.mark_current_company(company.issue_prefix);
         }
         Ok(())
+    }
+
+    /// What a template brings, read by the Paperclip in front.
+    pub fn preview_template(&self, source: &companies::TemplateSource) -> Result<companies::Preview, String> {
+        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
+        companies::preview(&webview, source)
     }
 
     /// Switches Paperclip to one of the companies the menu lists.

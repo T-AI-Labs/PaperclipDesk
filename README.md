@@ -85,7 +85,7 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 
 | Menu | Entries |
 | --- | --- |
-| *The company in front* | Your companies with a tick at the one in front, **Company settings**, **Import company …**, **Export company …**, **New company …** and **Company from template …**, which creates a company from a ready-made template of Paperclip's catalog. Its panel sorts them by popularity (the stars of the project each one was made from), recent update or name, and points to Clipmart, PaperclipCloud and usepaperclip.app, filtered by provider and by cost |
+| *The company in front* | Your companies with a tick at the one in front, **Company settings**, **Import company …**, **Export company …**, **New company …** and **Company from template …**, which creates a company from a ready-made template of Paperclip's catalog. Its panel searches the templates down to their agents and skills, sorts them by popularity (the stars of the project each one was made from), recent update, name, number of agents or skills, filters them by size and contents, and shows each one's hierarchy as an org chart with its teams and skills before the import. With a GitHub token it also searches GitHub for company packages outside the catalog, and it points to Clipmart, PaperclipCloud and usepaperclip.app |
 | **New** | **New issue …**, **New agent …**, **Search …** |
 | **Go to** | **Dashboard**, **Inbox**, **Issues**, **Agents**, **Approvals**, **Costs** |
 | **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |

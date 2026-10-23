@@ -13,17 +13,22 @@ A wizard that builds a new company step by step instead of importing one templat
 - Pick the skills per agent; an agent from another template brings its skills along.
 - Ask for the required secrets of the chosen agents at the end, as the template panel does today.
 - The result is a company package in the `companies.sh` format, built locally and imported through Paperclip like a
-  template, so nothing of Paperclip is reimplemented.
+  template, so nothing of Paperclip is reimplemented. Paperclip's import takes an `inline` source with the package's
+  files, and its preview (`POST /api/companies/import/preview`) returns the manifest and every file of a template, so
+  agents of several templates can be put together from what Paperclip read.
 - The free templates have no projects or tasks; an optional step could create a first project and a few example tasks
   through Paperclip's REST API.
+- Compare with the Paperclip plugin `Yesterday-AI/paperclip-plugin-company-wizard` (MIT), which builds companies from
+  presets, modules and roles inside Paperclip, with an AI mode.
 
 ## Template catalog
 
-- Search GitHub for further templates (repositories with a `COMPANY.md` and `.paperclip.yaml`) next to the fixed catalog.
-  GitHub's code search needs a token; without one only the fixed catalog and the providers are shown.
-- Sort and filter by what a template contains: agents, skills, teams, depth of the hierarchy, required secrets, stars,
-  last update, licence.
-- Show the hierarchy of a template before the import.
+The catalog snapshot with agents, hierarchy, teams and skills, the content search, sorting and filters, the org chart and
+the GitHub search are done. Left:
+
+- Filter by licence.
+- Hierarchy depth and required secrets of a GitHub result are known only once it is opened; reading them for the
+  whole list would need a preview per result.
 
 ## AI assistant for the wizards
 

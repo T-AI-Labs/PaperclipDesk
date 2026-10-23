@@ -122,4 +122,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Ce modèle n’existe pas.",
     "Paperclip n’a pas répondu à temps.",
     "Aucune connexion Paperclip n’est ouverte.",
+    "GitHub a refusé le jeton.",
+    "GitHub n’autorise plus de recherches pour le moment ; réessayez plus tard.",
+    "GitHub ne répond pas : {}",
+    "La recherche sur GitHub nécessite un jeton.",
 ];

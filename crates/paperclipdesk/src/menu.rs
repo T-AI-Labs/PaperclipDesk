@@ -33,6 +33,8 @@ pub enum ProjectLink {
     Clipmart,
     PaperclipCloud,
     UsePaperclip,
+    /// Where the user makes a token for the template search.
+    GithubTokens,
     /// A template's folder in Paperclip's catalog.
     Template(String),
     /// The GitHub repository a template was generated from, as owner/name.
@@ -59,6 +61,7 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
         ProjectLink::Clipmart => "https://www.clipmart.ai/".to_owned(),
         ProjectLink::PaperclipCloud => "https://paperclipcloud.com/companies".to_owned(),
         ProjectLink::UsePaperclip => "https://usepaperclip.app/".to_owned(),
+        ProjectLink::GithubTokens => "https://github.com/settings/personal-access-tokens/new".to_owned(),
         ProjectLink::Template(template) => companies::template_url(&template)?,
         ProjectLink::TemplateSource(repository) => github_repository(&repository)?,
     };

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, CircleAlert, Download, RefreshCw, ScrollText } from 'lucide-react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { ArrowLeft, CircleAlert, Download, LoaderCircle, RefreshCw, ScrollText } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { IconTile } from '@/components/icon-tile'
@@ -23,8 +23,10 @@ import Logs from './pages/Logs'
 import Remotes from './panels/Remotes'
 import Server from './panels/Server'
 import Shortcuts from './panels/Shortcuts'
-import Templates from './panels/Templates'
 import Updates from './panels/Updates'
+
+// The catalog and its snapshot are large and only needed once the panel opens.
+const Templates = lazy(() => import('./panels/Templates'))
 
 const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', shortcuts: 'Tastenkürzel' }
 
@@ -204,7 +206,11 @@ export default function App() {
             {panel === 'server' && <Server />}
             {panel === 'remotes' && <Remotes snapshot={snapshot} onChanged={setSnapshot} />}
             {panel === 'updates' && <Updates {...props} updater={updater} />}
-            {panel === 'templates' && <Templates onDone={closePanel} />}
+            {panel === 'templates' && (
+              <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
+                <Templates onDone={closePanel} />
+              </Suspense>
+            )}
             {panel === 'shortcuts' && <Shortcuts snapshot={snapshot} {...props} />}
           </div>
         </SheetContent>

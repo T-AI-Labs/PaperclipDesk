@@ -52,6 +52,7 @@ npm run bundle-server       # bundle the staged server into one file again; prep
 npm run prepare-server-ui   # build Paperclip's web UI into the staged server
 npm run pack-server         # pack the staged server into the archive a release build downloads
 npm run licenses            # rewrite THIRD_PARTY_LICENSES.txt; needs cargo-license
+npm run catalog             # read Paperclip's template catalog into ui/src/panels/templates.json; needs a GitHub token or gh
 ```
 
 `prepare-server` and `prepare-server-ui` are needed once before the first `npm run dev`, and again after the pinned
@@ -67,7 +68,9 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `crates/paperclipdesk/src/client.rs` | The state of the window, the layout of the webviews, starting and stopping connections |
 | `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
 | `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it, `SettingsMenu.tsx` is the gear |
-| `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there |
+| `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there; template preview and import |
+| `crates/paperclipdesk/src/github.rs` | The search for company packages on GitHub and its token in the Windows credential store |
+| `ui/src/panels/Templates.tsx`, `templates.json` | The template panel and the catalog snapshot `npm run catalog` writes |
 | `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
@@ -92,7 +95,8 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 6. **User data is never deleted silently.** A reset asks first and offers a backup.
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
    opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
-8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates and the server package.
+8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package and,
+   with the user's token, the template search.
 
 ## The Paperclip server version
 

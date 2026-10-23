@@ -3,6 +3,7 @@
 mod client;
 mod companies;
 mod connection;
+mod github;
 mod i18n;
 mod instance;
 mod logs;
@@ -104,9 +105,39 @@ async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn import_company_template(client: Shared<'_>, template: String, name: Option<String>, secrets: HashMap<String, String>) -> Result<(), String> {
+async fn import_company_template(client: Shared<'_>, source: companies::TemplateSource, name: Option<String>, secrets: HashMap<String, String>) -> Result<(), String> {
     let client = Arc::clone(&client);
-    tauri::async_runtime::spawn_blocking(move || client.import_template(&template, name.as_deref(), &secrets)).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || client.import_template(&source, name.as_deref(), &secrets)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn preview_company_template(client: Shared<'_>, source: companies::TemplateSource) -> Result<companies::Preview, String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.preview_template(&source)).await.map_err(|e| e.to_string())?
+}
+
+/// Searches GitHub for company packages beyond the catalog, with the token the user stored.
+#[tauri::command]
+async fn search_templates(client: Shared<'_>, query: String) -> Result<Vec<github::Found>, String> {
+    let token = github::token::read(&client.paths.user_data).ok_or_else(|| i18n::t("Für die Suche auf GitHub braucht es ein Token.").to_owned())?;
+    tauri::async_runtime::spawn_blocking(move || github::search(&token, &query)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn github_token_stored(client: Shared<'_>) -> Result<bool, String> {
+    Ok(github::has_token(&client.paths.user_data))
+}
+
+/// Stores the token for GitHub's search in the Windows credential store, or removes it when `token` is empty.
+#[tauri::command]
+async fn set_github_token(client: Shared<'_>, token: String) -> Result<(), String> {
+    match token.trim() {
+        "" => {
+            github::token::delete(&client.paths.user_data);
+            Ok(())
+        }
+        token => github::token::write(&client.paths.user_data, token),
+    }
 }
 
 #[tauri::command]
@@ -443,6 +474,10 @@ fn main() -> anyhow::Result<()> {
             set_menu_open,
             record_shortcut,
             import_company_template,
+            preview_company_template,
+            search_templates,
+            github_token_stored,
+            set_github_token,
             save_remote_profile,
             duplicate_profile,
             delete_profile,

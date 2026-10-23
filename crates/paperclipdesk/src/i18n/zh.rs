@@ -122,4 +122,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "此模板不存在。",
     "Paperclip 未能及时响应。",
     "没有打开的 Paperclip 连接。",
+    "GitHub 拒绝了该令牌。",
+    "GitHub 目前不允许更多搜索，请稍后再试。",
+    "GitHub 没有响应：{}",
+    "在 GitHub 上搜索需要令牌。",
 ];
