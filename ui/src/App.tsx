@@ -151,7 +151,7 @@ export default function App() {
       {(!onPaperclip || panel !== null) && <Toaster theme={settings.color_scheme} position="top-right" offset={{ top: 40, right: 8 }} visibleToasts={3} duration={5000} />}
       {!onPaperclip && <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />}
 
-      {(!onPaperclip || snapshot.menuBarShown) && (
+      {snapshot.menuBarShown && (
         <MenuBar
           menus={snapshot.menu}
           connectionMenu={snapshot.connectionMenu}

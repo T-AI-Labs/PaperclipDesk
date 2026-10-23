@@ -111,7 +111,7 @@ The gear opens the settings as a menu, with a search field on top.
 
 ### The menu bar and keyboard shortcuts
 
-**Show menu bar** in the gear hides the bar above Paperclip, so Paperclip gets the whole window; **F10** brings it back. In full screen (**F11**) the bar hides by itself and F10 shows it there until you leave full screen. The app's own pages always keep the bar.
+**Show menu bar** in the gear hides the bar, so Paperclip or the app's own page gets the whole window; **F10** brings it back. In full screen (**F11**) the bar hides by itself and F10 shows it there until you leave full screen.
 
 **Gear → Keyboard shortcuts …** lists every action of the menus with its key. Search by name or key, click the keyboard button of an action and press the new keys; a key that belonged to another action moves over. Keys need Ctrl or Alt, except F keys, and Ctrl+A, C, V, X, Y and Z stay with text editing. Shortcuts work while the PaperclipDesk window has the focus, also inside Paperclip.
 

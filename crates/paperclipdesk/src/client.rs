@@ -160,7 +160,7 @@ pub struct Snapshot {
     /// What the connection chip at the right of the menu bar offers.
     connection_menu: Vec<crate::menu::Entry>,
     zoom_percent: u32,
-    /// Whether the menu bar lies above Paperclip right now: as the setting says, or as F10 and the like asked for in full screen.
+    /// Whether the menu bar is shown right now: as the setting says, or as F10 and the like asked for in full screen.
     menu_bar_shown: bool,
     state: ConnectionState,
     profiles: Vec<ConnectionProfile>,
@@ -512,7 +512,7 @@ impl Client {
         let shown = paperclip.as_ref().filter(|_| on_paperclip).map_or_else(|| LAUNCHER_LABEL.to_owned(), |webview| webview.label().to_owned());
         // An open menu needs room below the bar: the shell then lies over Paperclip, see-through wherever it draws nothing.
         let menu_open = on_paperclip && self.menu_open.load(Ordering::SeqCst);
-        let bar_shown = !on_paperclip || self.menu_bar_shown();
+        let bar_shown = self.menu_bar_shown();
         let layout = (shown, size.width, size.height, menu_open, bar_shown);
         let mut applied = self.layout.lock().unwrap();
         if applied.as_ref() == Some(&layout) {
@@ -594,7 +594,7 @@ impl Client {
         true
     }
 
-    /// Whether the menu bar lies above Paperclip: in full screen only when asked for there, otherwise as the setting says.
+    /// Whether the menu bar is shown: in full screen only when asked for there, otherwise as the setting says.
     fn menu_bar_shown(&self) -> bool {
         if self.window().and_then(|window| window.is_fullscreen().ok()).unwrap_or(false) {
             return self.bar_in_full_screen.load(Ordering::SeqCst);
@@ -613,7 +613,7 @@ impl Client {
         self.send_state();
     }
 
-    /// Hides the menu bar above Paperclip or shows it again. The setting outlives the app; in full screen the bar only shows until full screen ends.
+    /// Hides the menu bar or shows it again. The setting outlives the app; in full screen the bar only shows until full screen ends.
     fn toggle_menu_bar(&self) {
         if self.window().and_then(|window| window.is_fullscreen().ok()).unwrap_or(false) {
             self.bar_in_full_screen.fetch_xor(true, Ordering::SeqCst);
