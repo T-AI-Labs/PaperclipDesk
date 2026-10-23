@@ -35,10 +35,11 @@ the GitHub search are done. Left:
 
 ## AI assistant for the wizards
 
-- An assistant that asks questions and proposes agents, hierarchy and skills for the company the user describes.
-- The provider is chosen in the settings. First the user's Claude subscription (through the signed-in Claude Code
-  CLI), later API keys and other providers.
-- Strictly opt-in: it adds a party the app talks to, so hard rule 8 in `CLAUDE.md` changes with it.
+Done for the company wizard: off by default, the user's Claude subscription through Claude Code when turned on; it asks
+up to three questions and proposes name, goals, agents, hierarchy and skills from the catalog. Left:
+
+- API keys and other providers next to Claude Code.
+- The assistant in later wizards, e.g. the export to a remote, and refining a draft the user already changed.
 
 ## Several companies side by side
 

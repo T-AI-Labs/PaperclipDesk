@@ -127,4 +127,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "GitHub が応答しません: {}",
     "GitHub で検索するにはトークンが必要です。",
     "会社を組み立てる …",
+    "Claude Code が応答しません: {}",
+    "Claude Code が時間内に応答しませんでした。",
+    "AI アシスタントは設定でオフになっています。",
+    "Claude Code が見つかりません。インストールして Claude のサブスクリプションでサインインしてください。",
 ];

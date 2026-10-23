@@ -144,6 +144,8 @@ export interface Settings {
   shortcuts: Record<string, string>
   /// A language code, or 'System' for the language Windows runs in.
   language: string
+  /// Which AI helps in the wizards; 'claude_code' asks Claude through the user's Claude Code and subscription.
+  assistant: 'off' | 'claude_code'
 }
 
 /// What the settings menu and its panels get from the shell.
@@ -299,6 +301,10 @@ export const importCompanyTemplate = (source: TemplateSource, name: string, secr
 export const previewCompanyTemplate = (source: TemplateSource) => call<TemplatePreview>('preview_company_template', { source })
 /// Every file of a template, as the Paperclip in front reads it.
 export const companyTemplateFiles = (source: TemplateSource) => call<Record<string, PackageFile>>('company_template_files', { source })
+/// Whether Claude Code is installed, which the assistant needs.
+export const assistantAvailable = () => call<boolean>('assistant_available')
+/// Asks the assistant the user turned on and resolves to its answer text.
+export const askAssistant = (prompt: string) => call<string>('ask_assistant', { prompt })
 /// Needs a token stored with `setGithubToken`; an empty query finds what GitHub lists first.
 export const searchTemplates = (query: string) => call<FoundTemplate[]>('search_templates', { query })
 export const githubTokenStored = () => call<boolean>('github_token_stored')

@@ -18,17 +18,19 @@ pub struct Settings {
     pub check_updates_on_start: bool,
     /// Shows the welcome page at every start; without it, only a start with nothing chosen to open shows it.
     pub show_welcome: bool,
-    /// Whether the menu bar lies above Paperclip; the app's own pages always show it.
+    /// Whether the menu bar shows, above Paperclip and above the app's own pages.
     pub show_menu_bar: bool,
     /// The key of each action that has one, e.g. "view.fullscreen" → "F11".
     pub shortcuts: BTreeMap<String, String>,
     /// A language code, or "System" for the language Windows runs in.
     pub language: String,
+    /// Which AI helps in the wizards: "off", or "claude_code" for the user's Claude subscription through Claude Code.
+    pub assistant: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, shortcuts: crate::shortcuts::defaults(), language: "System".into() }
+        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, shortcuts: crate::shortcuts::defaults(), language: "System".into(), assistant: "off".into() }
     }
 }
 

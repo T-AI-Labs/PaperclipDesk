@@ -69,9 +69,10 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
 | `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it, `SettingsMenu.tsx` is the gear |
 | `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there; template preview and import |
+| `crates/paperclipdesk/src/assistant.rs` | The AI assistant: the user's Claude Code CLI, run without tools, settings or project |
 | `crates/paperclipdesk/src/github.rs` | The search for company packages on GitHub and its token in the Windows credential store |
 | `ui/src/panels/Templates.tsx`, `templates.json` | The template panel and the catalog snapshot `npm run catalog` writes |
-| `ui/src/panels/Wizard.tsx`, `wizard/` | The company wizard; `wizard/compose.ts` puts the draft together as a company package |
+| `ui/src/panels/Wizard.tsx`, `wizard/` | The company wizard; `wizard/compose.ts` puts the draft together as a company package, `wizard/assistant.ts` writes the assistant's prompt and reads its proposal |
 | `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
@@ -97,7 +98,8 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
    opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
 8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package and,
-   with the user's token, the template search.
+   with the user's token, the template search. Only when the user turns the AI assistant on does it ask Claude, through
+   the user's own Claude Code CLI, and then only with what the user wrote in the wizard and the template catalog.
 
 ## The Paperclip server version
 

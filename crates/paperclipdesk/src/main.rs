@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod assistant;
 mod client;
 mod companies;
 mod connection;
@@ -120,6 +121,22 @@ async fn preview_company_template(client: Shared<'_>, source: companies::Templat
 async fn company_template_files(client: Shared<'_>, source: companies::TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
     let client = Arc::clone(&client);
     tauri::async_runtime::spawn_blocking(move || client.template_files(&source)).await.map_err(|e| e.to_string())?
+}
+
+/// Whether Claude Code is installed, so the assistant can be turned on.
+#[tauri::command]
+async fn assistant_available() -> Result<bool, String> {
+    Ok(assistant::find().is_some())
+}
+
+/// Asks the assistant the user turned on; the wizard writes the prompt and reads the JSON in the answer.
+#[tauri::command]
+async fn ask_assistant(client: Shared<'_>, prompt: String) -> Result<String, String> {
+    if client.settings.lock().unwrap().assistant != assistant::CLAUDE_CODE {
+        return Err(i18n::t("Der KI-Assistent ist in den Einstellungen ausgeschaltet.").to_owned());
+    }
+    let claude = assistant::find().ok_or_else(|| i18n::t("Claude Code wurde nicht gefunden. Installiere es und melde dich mit deinem Claude-Abo an.").to_owned())?;
+    tauri::async_runtime::spawn_blocking(move || assistant::ask(&claude, &prompt)).await.map_err(|e| e.to_string())?
 }
 
 /// Searches GitHub for company packages beyond the catalog, with the token the user stored.
@@ -482,6 +499,8 @@ fn main() -> anyhow::Result<()> {
             import_company_template,
             preview_company_template,
             company_template_files,
+            assistant_available,
+            ask_assistant,
             search_templates,
             github_token_stored,
             set_github_token,

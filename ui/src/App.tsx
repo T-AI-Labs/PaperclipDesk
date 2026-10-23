@@ -209,7 +209,7 @@ export default function App() {
             {panel === 'updates' && <Updates {...props} updater={updater} />}
             {(panel === 'templates' || panel === 'wizard') && (
               <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
-                {panel === 'templates' ? <Templates onDone={closePanel} /> : <Wizard onDone={closePanel} />}
+                {panel === 'templates' ? <Templates onDone={closePanel} /> : <Wizard assistant={settings.assistant === 'claude_code'} onDone={closePanel} />}
               </Suspense>
             )}
             {panel === 'shortcuts' && <Shortcuts snapshot={snapshot} {...props} />}

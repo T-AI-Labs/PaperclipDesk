@@ -127,4 +127,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "GitHub does not answer: {}",
     "Searching GitHub needs a token.",
     "Build a company …",
+    "Claude Code does not answer: {}",
+    "Claude Code did not answer in time.",
+    "The AI assistant is turned off in the settings.",
+    "Claude Code was not found. Install it and sign in with your Claude subscription.",
 ];

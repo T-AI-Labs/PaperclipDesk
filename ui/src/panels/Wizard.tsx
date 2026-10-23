@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 import { TEMPLATES } from './catalog'
+import AssistantBox from './wizard/AssistantBox'
 import { type Draft, EMPTY_DRAFT, addTemplate } from './wizard/compose'
 import CreateStep from './wizard/CreateStep'
 import SkillsStep from './wizard/SkillsStep'
@@ -27,7 +28,7 @@ const BY_STARS = [...TEMPLATES].sort((a, b) => b.stars - a.stars)
 const TEXTAREA = 'w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30'
 
 /// Name, purpose and goals, and the templates whose agents the company starts with.
-function BasicsStep({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
+function BasicsStep({ draft, assistant, onChange, onProposal }: { draft: Draft; assistant: boolean; onChange: (draft: Draft) => void; onProposal: (draft: Draft) => void }) {
   const [template, setTemplate] = useState(BY_STARS[0]?.id ?? '')
   const picked = TEMPLATES.find((known) => known.id === template)
 
@@ -41,6 +42,7 @@ function BasicsStep({ draft, onChange }: { draft: Draft; onChange: (draft: Draft
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
+      <AssistantBox enabled={assistant} draft={draft} onApply={onProposal} />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="wizard-name">{t('Name der neuen Firma')}</Label>
         <Input id="wizard-name" value={draft.name} onChange={(event) => onChange({ ...draft, name: event.target.value })} placeholder={t('z. B. Northwind Labs')} />
@@ -80,7 +82,7 @@ function BasicsStep({ draft, onChange }: { draft: Draft; onChange: (draft: Draft
 }
 
 /// Builds a new company step by step from agents of any template, and creates it in the Paperclip in front.
-export default function Wizard({ onDone }: { onDone: () => void }) {
+export default function Wizard({ assistant, onDone }: { assistant: boolean; onDone: () => void }) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [step, setStep] = useState<Step>('basics')
   const index = STEPS.findIndex(({ id }) => id === step)
@@ -99,7 +101,17 @@ export default function Wizard({ onDone }: { onDone: () => void }) {
         ))}
       </ol>
 
-      {step === 'basics' && <BasicsStep draft={draft} onChange={setDraft} />}
+      {step === 'basics' && (
+        <BasicsStep
+          draft={draft}
+          assistant={assistant}
+          onChange={setDraft}
+          onProposal={(proposed) => {
+            setDraft(proposed)
+            setStep('team')
+          }}
+        />
+      )}
       {step === 'team' && <TeamStep draft={draft} onChange={setDraft} />}
       {step === 'skills' && <SkillsStep draft={draft} onChange={setDraft} />}
       {step === 'create' && <CreateStep draft={draft} onDone={onDone} />}

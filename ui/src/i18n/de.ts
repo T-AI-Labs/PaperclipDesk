@@ -360,6 +360,23 @@ export const de = [
   'eigener Agent',
   'Organigramm',
   'Erscheint, sobald Agenten da sind.',
+  'Ein KI-Assistent kann die Firma aus einer Beschreibung vorschlagen. Einschalten im Zahnrad unter App → KI-Assistent.',
+  'Die Antwort des Assistenten war unverständlich. Bitte noch einmal versuchen.',
+  'KI-Assistent',
+  'Beschreibe die Firma: wofür, wie groß, worauf es ankommt …',
+  'Beschreibung für den Assistenten',
+  'Antworten senden',
+  'Neuer Vorschlag',
+  'Vorschlag holen',
+  'Claude denkt nach, das dauert bis zu einer Minute …',
+  'Vorschlag: {name}, {count} Agenten',
+  'Übernehmen und anpassen',
+  'Verwerfen',
+  'Ersetzt die {count} Agenten im Entwurf.',
+  'Aus',
+  'Claude-Abo über Claude Code',
+  'Claude Code ist nicht installiert.',
+  'Hilft in den Assistenten mit Fragen und Vorschlägen. Die App gibt Claude nur deine Beschreibung, deine Antworten und den Vorlagenkatalog; es zählt gegen dein Abo.',
 ] as const
 
 export type Message = (typeof de)[number]

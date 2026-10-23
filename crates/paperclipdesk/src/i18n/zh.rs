@@ -127,4 +127,8 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "GitHub 没有响应：{}",
     "在 GitHub 上搜索需要令牌。",
     "组建公司 …",
+    "Claude Code 没有响应：{}",
+    "Claude Code 未能及时响应。",
+    "AI 助手已在设置中关闭。",
+    "未找到 Claude Code。请安装并使用你的 Claude 订阅登录。",
 ];

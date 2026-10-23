@@ -21,6 +21,8 @@ fn main() {
         "import_company_template",
         "preview_company_template",
         "company_template_files",
+        "assistant_available",
+        "ask_assistant",
         "search_templates",
         "github_token_stored",
         "set_github_token",
