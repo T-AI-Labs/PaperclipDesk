@@ -12,6 +12,7 @@
     "prepare-server-ui": "node scripts/build-ui.mjs",
     "pack-server": "node scripts/pack-server.mjs",
     "licenses": "node scripts/create-licenses.mjs",
+    "catalog": "node scripts/update-catalog.mjs",
     "build": "cd crates/paperclipdesk && npx --prefix ../../ui tauri build --no-bundle",
     "dist": "cd crates/paperclipdesk && npx --prefix ../../ui tauri build",
     "check": "cargo clippy -p paperclipdesk --all-targets -- -D warnings && cargo test -p paperclipdesk && npm --prefix ui run build && npm --prefix ui run lint",
