@@ -8,23 +8,25 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
-import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, holdOverlay, launcherState, onLauncherState, showPage, updateSettings } from '@/lib/client'
+import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, holdOverlay, launcherState, onLauncherState, onSettings, onShortcut, showPage, updateSettings } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { useApplyColorScheme } from '@/lib/theme'
 import { type Message, setLanguage, t } from '@/i18n'
 import { useUpdater } from '@/lib/updater'
 import LoadingPanel from '@/LoadingPanel'
 import MenuBar from '@/shell/MenuBar'
+import { SHELL_PANELS } from '@/shell/panels'
 import type { Panel } from '@/shell/SettingsMenu'
 
 import Connect from './pages/Connect'
 import Logs from './pages/Logs'
 import Remotes from './panels/Remotes'
 import Server from './panels/Server'
+import Shortcuts from './panels/Shortcuts'
 import Templates from './panels/Templates'
 import Updates from './panels/Updates'
 
-const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage' }
+const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', shortcuts: 'Tastenkürzel' }
 
 type Loaded = { snapshot: Snapshot; settings: Settings } | { error: string }
 
@@ -68,6 +70,8 @@ export default function App() {
     })
   }, [load])
 
+  useEffect(() => onSettings(setSettings), [])
+
   const page = pending ?? snapshot?.page
   // Above Paperclip this webview shows the menu bar only; whatever else it covers stays see-through.
   const onPaperclip = page === 'paperclip'
@@ -98,6 +102,15 @@ export default function App() {
     setPanel(null)
     void holdOverlay('panel', false)
   }
+
+  useEffect(
+    () =>
+      onShortcut((action) => {
+        const next = SHELL_PANELS[action]
+        if (next) openPanel(next)
+      }),
+    [],
+  )
 
   if (snapshot === null || settings === null || page === undefined) {
     if (loadError === null) return <LoadingPanel detail={t('Oberfläche wird geladen')} />
@@ -138,15 +151,17 @@ export default function App() {
       {(!onPaperclip || panel !== null) && <Toaster theme={settings.color_scheme} position="top-right" offset={{ top: 40, right: 8 }} visibleToasts={3} duration={5000} />}
       {!onPaperclip && <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />}
 
-      <MenuBar
-        menus={snapshot.menu}
-        connectionMenu={snapshot.connectionMenu}
-        connectionName={snapshot.currentConnectionName}
-        zoomPercent={snapshot.zoomPercent}
-        connected={snapshot.hasCurrentConnection}
-        onPanel={openPanel}
-        {...props}
-      />
+      {(!onPaperclip || snapshot.menuBarShown) && (
+        <MenuBar
+          menus={snapshot.menu}
+          connectionMenu={snapshot.connectionMenu}
+          connectionName={snapshot.currentConnectionName}
+          zoomPercent={snapshot.zoomPercent}
+          connected={snapshot.hasCurrentConnection}
+          onPanel={openPanel}
+          {...props}
+        />
+      )}
 
       {!onPaperclip && (
         <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
@@ -190,6 +205,7 @@ export default function App() {
             {panel === 'remotes' && <Remotes snapshot={snapshot} onChanged={setSnapshot} />}
             {panel === 'updates' && <Updates {...props} updater={updater} />}
             {panel === 'templates' && <Templates onDone={closePanel} />}
+            {panel === 'shortcuts' && <Shortcuts snapshot={snapshot} {...props} />}
           </div>
         </SheetContent>
       </Sheet>

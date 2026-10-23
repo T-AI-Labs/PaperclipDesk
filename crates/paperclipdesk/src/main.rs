@@ -11,6 +11,7 @@ mod paths;
 mod server;
 mod server_package;
 mod settings;
+mod shortcuts;
 mod updater;
 
 use std::collections::HashMap;
@@ -109,6 +110,12 @@ async fn import_company_template(client: Shared<'_>, template: String, name: Opt
 }
 
 #[tauri::command]
+async fn record_shortcut(client: Shared<'_>, recording: bool) -> Result<(), String> {
+    client.record_shortcut(recording);
+    Ok(())
+}
+
+#[tauri::command]
 async fn set_menu_open(client: Shared<'_>, open: bool) -> Result<(), String> {
     client.set_menu_open(open);
     Ok(())
@@ -186,6 +193,7 @@ async fn update_settings(client: Shared<'_>, settings: Settings) -> Result<Setti
     // The menu bar is in the app's language too.
     i18n::set(&settings.language);
     client.apply_color_scheme();
+    client.relayout();
     client.send_state();
     Ok(settings)
 }
@@ -429,6 +437,7 @@ fn main() -> anyhow::Result<()> {
             close_connection,
             menu_action,
             set_menu_open,
+            record_shortcut,
             import_company_template,
             save_remote_profile,
             duplicate_profile,

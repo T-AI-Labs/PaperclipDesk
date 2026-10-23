@@ -98,16 +98,22 @@ The gear opens the settings as a menu, with a search field on top.
 
 | Section | What you find there |
 | --- | --- |
-| **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen** |
+| **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
 | **Appearance** | The colour scheme (system, light or dark), an accent colour and 32 designs |
 | **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, and **Back up settings** to export or import them |
-| | **Local server …** opens the panel for the local server; **Quit** ends the app |
+| | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
 
 **Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, restarts or reinstalls it, has an editor for its `config.json` and `.env`, and resets it.
 
 <p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the server version, the configuration editor and the reset" width="100%"></p>
+
+### The menu bar and keyboard shortcuts
+
+**Show menu bar** in the gear hides the bar above Paperclip, so Paperclip gets the whole window; **F10** brings it back. In full screen (**F11**) the bar hides by itself and F10 shows it there until you leave full screen. The app's own pages always keep the bar.
+
+**Gear → Keyboard shortcuts …** lists every action of the menus with its key. Search by name or key, click the keyboard button of an action and press the new keys; a key that belonged to another action moves over. Keys need Ctrl or Alt, except F keys, and Ctrl+A, C, V, X, Y and Z stay with text editing. Shortcuts work while the PaperclipDesk window has the focus, also inside Paperclip.
 
 ### Resetting the local server
 

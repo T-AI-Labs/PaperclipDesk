@@ -13,6 +13,7 @@
     "allow-close-connection",
     "allow-menu-action",
     "allow-set-menu-open",
+    "allow-record-shortcut",
     "allow-import-company-template",
     "allow-save-remote-profile",
     "allow-duplicate-profile",

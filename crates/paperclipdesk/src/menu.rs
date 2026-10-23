@@ -177,6 +177,7 @@ pub fn handle(client: &Arc<Client>, id: &str) {
         "view.zoom_reset" => client.change_zoom(None),
         "view.zoom_in" => client.change_zoom(Some(ZOOM_STEP)),
         "view.zoom_out" => client.change_zoom(Some(-ZOOM_STEP)),
+        "view.fullscreen" => client.toggle_full_screen(),
         "help.logs" => client.show_page(LauncherPage::Logs),
         "help.data_folder" => {
             if let Err(e) = tauri_plugin_opener::open_path(&client.paths.user_data, None::<&str>) {
@@ -203,11 +204,10 @@ pub fn handle(client: &Arc<Client>, id: &str) {
                 client.boot_saved_profile(profile_id);
             } else if let Some(key) = other.strip_prefix(OPEN_PREFIX) {
                 client.activate_connection(key);
-            } else if let Some(window) = client.window() {
+            } else if client.window().is_some() {
                 let webview = client.active_webview();
                 let done = match other {
                     "view.reload" => webview.map_or(Ok(()), |webview| webview.reload()),
-                    "view.fullscreen" => window.is_fullscreen().and_then(|fullscreen| window.set_fullscreen(!fullscreen)),
                     "view.devtools" => {
                         if let Some(webview) = webview {
                             if webview.is_devtools_open() { webview.close_devtools() } else { webview.open_devtools() }

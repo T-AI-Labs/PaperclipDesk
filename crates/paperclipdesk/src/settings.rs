@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -17,13 +18,17 @@ pub struct Settings {
     pub check_updates_on_start: bool,
     /// Shows the welcome page at every start; without it, only a start with nothing chosen to open shows it.
     pub show_welcome: bool,
+    /// Whether the menu bar lies above Paperclip; the app's own pages always show it.
+    pub show_menu_bar: bool,
+    /// The key of each action that has one, e.g. "view.fullscreen" → "F11".
+    pub shortcuts: BTreeMap<String, String>,
     /// A language code, or "System" for the language Windows runs in.
     pub language: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, language: "System".into() }
+        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, shortcuts: crate::shortcuts::defaults(), language: "System".into() }
     }
 }
 

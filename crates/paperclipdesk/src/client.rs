@@ -23,12 +23,19 @@ use crate::paths::DataPaths;
 use crate::server::{self, ServerLayout};
 use crate::server_package;
 use crate::settings::{self, Settings};
+use crate::shortcuts;
 
 /// The window of the app; it holds the shell and, once connected, Paperclip as webviews, one shown at a time.
 pub const WINDOW_LABEL: &str = "main";
 /// The webview with the menu bar, the app's own pages and its settings.
 pub const LAUNCHER_LABEL: &str = "shell";
 pub const STATE_EVENT: &str = "launcher:state";
+/// The settings after the host changed them itself, e.g. a shortcut that hid the menu bar.
+const SETTINGS_EVENT: &str = "launcher:settings";
+/// A shortcut for an action the shell carries out, such as opening one of its panels.
+const SHORTCUT_EVENT: &str = "launcher:shortcut";
+/// The keys pressed while the user assigns a shortcut.
+const RECORDED_EVENT: &str = "launcher:shortcut-recorded";
 const PAGE_LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const SERVER_OUTPUT_LINES: usize = 200;
@@ -46,6 +53,9 @@ const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigu
 const DEV_SERVER_WAIT: Duration = Duration::from_secs(60);
 #[cfg(dev)]
 const LOADING_PAGE: &str = "data:text/html;charset=utf-8,<!doctype html><html lang=de><head><meta charset=utf-8><title>PaperclipDesk</title><style>body{margin:0;height:100vh;display:grid;place-items:center;font-family:'Segoe UI Variable','Segoe UI',sans-serif;background:rgb(255,255,255);color:rgb(10,10,10)}.logo{width:56px;height:56px;border-radius:16px;background:rgb(23,23,23);display:grid;place-items:center;margin:0 auto 16px}.logo span{width:22px;height:22px;border-radius:50px;border:3px solid rgb(250,250,250);border-top-color:transparent;animation:spin .9s linear infinite}p{margin:0;text-align:center}.title{font-size:18px;font-weight:600}.detail{font-size:14px;color:rgb(115,115,115);margin-top:4px}@keyframes spin{to{transform:rotate(360deg)}}@media (prefers-color-scheme:dark){body{background:rgb(10,10,10);color:rgb(250,250,250)}.logo{background:rgb(229,229,229)}.logo span{border-color:rgb(23,23,23);border-top-color:transparent}.detail{color:rgb(161,161,161)}}</style></head><body><div><div class=logo><span></span></div><p class=title>PaperclipDesk startet …</p><p class=detail>Warte auf den Entwicklungsserver</p></div></body></html>";
+
+/// What the webviews were last laid out for: the one in front, the window's size, whether a menu is open and whether the bar is shown.
+type Layout = (String, u32, u32, bool, bool);
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "kebab-case")]
@@ -148,6 +158,8 @@ pub struct Snapshot {
     /// What the connection chip at the right of the menu bar offers.
     connection_menu: Vec<crate::menu::Entry>,
     zoom_percent: u32,
+    /// Whether the menu bar lies above Paperclip right now: as the setting says, or as F10 and the like asked for in full screen.
+    menu_bar_shown: bool,
     state: ConnectionState,
     profiles: Vec<ConnectionProfile>,
     local_server_version: Option<String>,
@@ -206,7 +218,11 @@ pub struct Client {
     /// Whether a menu of the shell's menu bar is open and needs room below the bar.
     menu_open: AtomicBool,
     shell_hwnd: AtomicIsize,
-    layout: Mutex<Option<(String, u32, u32, bool)>>,
+    layout: Mutex<Option<Layout>>,
+    /// While the user assigns a shortcut, keys go to the shell instead of starting actions.
+    recording_shortcut: AtomicBool,
+    /// Full screen hides the menu bar; this shows it there until full screen ends.
+    bar_in_full_screen: AtomicBool,
     companies: Mutex<Option<companies::Known>>,
     /// Bumped whenever the app itself moves Paperclip to another company, so a list read before that does not undo it.
     companies_generation: AtomicU64,
@@ -236,6 +252,8 @@ impl Client {
             menu_open: AtomicBool::new(false),
             shell_hwnd: AtomicIsize::new(0),
             layout: Mutex::default(),
+            recording_shortcut: AtomicBool::new(false),
+            bar_in_full_screen: AtomicBool::new(false),
             companies: Mutex::default(),
             companies_generation: AtomicU64::new(0),
         })
@@ -312,6 +330,7 @@ impl Client {
             menu,
             connection_menu,
             zoom_percent: self.zoom_percent(),
+            menu_bar_shown: self.menu_bar_shown(),
             state: store.state().clone(),
             profiles: store.list_profiles(),
             local_server_version: self.local_server_version(),
@@ -479,20 +498,21 @@ impl Client {
         let shown = paperclip.as_ref().filter(|_| on_paperclip).map_or_else(|| LAUNCHER_LABEL.to_owned(), |webview| webview.label().to_owned());
         // An open menu needs room below the bar: the shell then lies over Paperclip, see-through wherever it draws nothing.
         let menu_open = on_paperclip && self.menu_open.load(Ordering::SeqCst);
-        let layout = (shown, size.width, size.height, menu_open);
+        let bar_shown = !on_paperclip || self.menu_bar_shown();
+        let layout = (shown, size.width, size.height, menu_open, bar_shown);
         let mut applied = self.layout.lock().unwrap();
         if applied.as_ref() == Some(&layout) {
             return;
         }
         // Showing and resizing a webview that already sits right makes it flicker.
-        let only_menu = applied.as_ref().is_some_and(|applied| (&applied.0, applied.1, applied.2) == (&layout.0, layout.1, layout.2));
-        let bar = if on_paperclip { ((MENU_BAR_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height) } else { 0 };
+        let only_menu = applied.as_ref().is_some_and(|applied| (&applied.0, applied.1, applied.2, applied.4) == (&layout.0, layout.1, layout.2, layout.4));
+        let bar = if on_paperclip && bar_shown { ((MENU_BAR_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height) } else { 0 };
         let shell_height = if on_paperclip && !menu_open { bar } else { size.height };
         for (webview, top, height) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_height), (paperclip.filter(|_| !only_menu), bar, if on_paperclip { size.height - bar } else { 0 })] {
             let Some(webview) = webview else { continue };
             if height > 0 {
-                let _ = webview.set_position(tauri::PhysicalPosition::new(0, top));
-                let _ = webview.set_size(tauri::PhysicalSize::new(size.width, height));
+                // Position and size in one go: set apart, the size can get lost when the position changes as well.
+                let _ = webview.set_bounds(tauri::Rect { position: tauri::PhysicalPosition::new(0, top).into(), size: tauri::PhysicalSize::new(size.width, height).into() });
                 let _ = webview.show();
             } else {
                 let _ = webview.hide();
@@ -528,6 +548,78 @@ impl Client {
         {
             let _ = paperclip.set_focus();
         }
+    }
+
+    /// The shell assigns a shortcut and wants the next keys instead of their actions.
+    pub fn record_shortcut(&self, recording: bool) {
+        self.recording_shortcut.store(recording, Ordering::SeqCst);
+    }
+
+    /// A key went down in one of the webviews; true when it is the app's, so the page does not see it. Runs on the main thread.
+    pub fn pressed(self: &Arc<Self>, keys: &str, repeated: bool) -> bool {
+        if self.recording_shortcut.load(Ordering::SeqCst) {
+            if !repeated && let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, RECORDED_EVENT, keys) {
+                tracing::warn!("sending the recorded keys: {e}");
+            }
+            return true;
+        }
+        let Some(action) = shortcuts::action_for(&self.settings.lock().unwrap().shortcuts, keys).map(str::to_owned) else { return false };
+        if repeated {
+            return true;
+        }
+        if action == shortcuts::TOGGLE_MENU_BAR {
+            let client = Arc::clone(self);
+            std::thread::spawn(move || client.toggle_menu_bar());
+        } else if action.starts_with("shell.") {
+            if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SHORTCUT_EVENT, &action) {
+                tracing::warn!("sending a shortcut to the shell: {e}");
+            }
+        } else {
+            crate::menu::handle(self, &action);
+        }
+        true
+    }
+
+    /// Whether the menu bar lies above Paperclip: in full screen only when asked for there, otherwise as the setting says.
+    fn menu_bar_shown(&self) -> bool {
+        if self.window().and_then(|window| window.is_fullscreen().ok()).unwrap_or(false) {
+            return self.bar_in_full_screen.load(Ordering::SeqCst);
+        }
+        self.settings.lock().unwrap().show_menu_bar
+    }
+
+    /// Enters or leaves full screen; either way the menu bar goes back to what the setting says.
+    pub fn toggle_full_screen(&self) {
+        let Some(window) = self.window() else { return };
+        self.bar_in_full_screen.store(false, Ordering::SeqCst);
+        if let Err(e) = window.is_fullscreen().and_then(|fullscreen| window.set_fullscreen(!fullscreen)) {
+            tracing::warn!("switching full screen: {e}");
+        }
+        self.relayout();
+        self.send_state();
+    }
+
+    /// Hides the menu bar above Paperclip or shows it again. The setting outlives the app; in full screen the bar only shows until full screen ends.
+    fn toggle_menu_bar(&self) {
+        if self.window().and_then(|window| window.is_fullscreen().ok()).unwrap_or(false) {
+            self.bar_in_full_screen.fetch_xor(true, Ordering::SeqCst);
+            self.relayout();
+            self.send_state();
+            return;
+        }
+        let settings = {
+            let mut settings = self.settings.lock().unwrap();
+            settings.show_menu_bar = !settings.show_menu_bar;
+            settings.clone()
+        };
+        if let Err(e) = settings::save(&settings::file_path(&self.paths.user_data), &settings) {
+            tracing::warn!("saving the settings: {e}");
+        }
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SETTINGS_EVENT, &settings) {
+            tracing::warn!("sending the settings: {e}");
+        }
+        self.relayout();
+        self.send_state();
     }
 
     /// Opens the app's own window on one of its pages.
@@ -581,6 +673,9 @@ impl Client {
         // Its own browser profile under the app's data, so a run with moved data shares nothing with an installed one.
         let profile = self.paths.webview_data.join("launcher");
         add_shell(&window, config.url.clone(), profile)?;
+        if let Some(shell) = self.handle.get_webview(LAUNCHER_LABEL) {
+            shortcuts::watch(&shell, self.handle.clone());
+        }
         self.shell_hwnd.store(webview_hwnd(&window), Ordering::SeqCst);
         self.apply_color_scheme();
         self.relayout();
@@ -733,6 +828,7 @@ impl Client {
         let webview = window.add_child(builder, LogicalPosition::new(0.0, 0.0), LogicalSize::new(size.width.max(1.0), size.height.max(1.0)))?;
         let handle = self.handle.clone();
         companies::watch_routes(&webview, move || handle.state::<Arc<Client>>().follow_route(&label));
+        shortcuts::watch(&webview, self.handle.clone());
         webview.hide()?;
         Ok((webview, load_finished))
     }

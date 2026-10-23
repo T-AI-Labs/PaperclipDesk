@@ -102,6 +102,8 @@ export interface Snapshot {
   /// What the connection chip at the right of the menu bar offers.
   connectionMenu: MenuEntry[]
   zoomPercent: number
+  /// Whether the menu bar lies above Paperclip right now; full screen hides it unless the user asked for it there.
+  menuBarShown: boolean
   state: ConnectionState
   profiles: ConnectionProfile[]
   localServerVersion: string | null
@@ -136,6 +138,10 @@ export interface Settings {
   check_updates_on_start: boolean
   /// Shows the welcome page at every start; without it, only a start with nothing chosen to open shows it.
   show_welcome: boolean
+  /// Whether the menu bar lies above Paperclip; the app's own pages always show it.
+  show_menu_bar: boolean
+  /// The key of each action that has one, e.g. 'view.fullscreen' → 'F11'.
+  shortcuts: Record<string, string>
   /// A language code, or 'System' for the language Windows runs in.
   language: string
 }
@@ -196,6 +202,8 @@ export const closeConnection = (key: string) => call<void>('close_connection', {
 export const menuAction = (id: string) => call<void>('menu_action', { id })
 /// While a menu is open above Paperclip, the host lets this webview cover the window.
 export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
+/// While on, the keys pressed in the window come back through `onShortcutRecorded` instead of starting actions.
+export const recordShortcut = (recording: boolean) => call<void>('record_shortcut', { recording })
 
 const overlayHolders = new Set<string>()
 
@@ -239,6 +247,24 @@ export const importCompanyTemplate = (template: string, name: string, secrets: R
 
 export function onLauncherState(handler: (snapshot: Snapshot) => void): () => void {
   const unlisten = listen<Snapshot>('launcher:state', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// The settings after the host changed them itself, e.g. when a shortcut hid the menu bar.
+export function onSettings(handler: (settings: Settings) => void): () => void {
+  const unlisten = listen<Settings>('launcher:settings', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// A shortcut for an action of the shell, e.g. one that opens a panel.
+export function onShortcut(handler: (action: string) => void): () => void {
+  const unlisten = listen<string>('launcher:shortcut', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// The keys pressed while `recordShortcut` is on, spelled like "Ctrl+Shift+K".
+export function onShortcutRecorded(handler: (keys: string) => void): () => void {
+  const unlisten = listen<string>('launcher:shortcut-recorded', (event) => handler(event.payload))
   return () => void unlisten.then((stop) => stop())
 }
 

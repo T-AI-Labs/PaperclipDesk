@@ -3,14 +3,13 @@ import { ChevronDown } from 'lucide-react'
 
 import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLabel, MenubarMenu, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
 import { type Menu, type MenuEntry, type PageProps, holdOverlay, menuAction, setMenuOpen } from '@/lib/client'
-import SettingsMenu, { type Panel } from '@/shell/SettingsMenu'
+import { SHELL_PANELS } from '@/shell/panels'
+import SettingsMenu, { type Panel, ShortcutHint } from '@/shell/SettingsMenu'
 import { t } from '@/i18n'
 
 // Above Paperclip the webview is no taller than the bar until the host has made room for a menu.
 const BAR_HEIGHT = 32
 const CONNECTION_MENU = 'connection'
-/// Entries that open a panel of the shell; the host names them, the shell handles them.
-const SHELL_PANELS: Record<string, Panel> = { 'shell.updates': 'updates', 'shell.connections': 'remotes', 'shell.templates': 'templates' }
 
 const TRIGGER = 'rounded-md px-2.5 py-1 text-xs font-normal hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent'
 
@@ -23,7 +22,7 @@ async function makeRoom() {
   })
 }
 
-function Entries({ entries, onPanel }: { entries: MenuEntry[]; onPanel: (panel: Panel) => void }) {
+function Entries({ entries, shortcuts, onPanel }: { entries: MenuEntry[]; shortcuts: Record<string, string>; onPanel: (panel: Panel) => void }) {
   const inset = entries.some((entry) => entry.kind === 'item' && entry.checked !== null)
   return entries.map((entry, index) => {
     if (entry.kind === 'separator') return <MenubarSeparator key={index} />
@@ -39,10 +38,12 @@ function Entries({ entries, onPanel }: { entries: MenuEntry[]; onPanel: (panel: 
     return entry.checked === null ? (
       <MenubarItem key={entry.id} inset={inset || undefined} disabled={!entry.enabled} onSelect={pick} className="text-xs">
         {entry.label}
+        <ShortcutHint id={entry.id} shortcuts={shortcuts} />
       </MenubarItem>
     ) : (
       <MenubarCheckboxItem key={entry.id} checked={entry.checked} disabled={!entry.enabled} onSelect={pick} className="text-xs">
         {entry.label}
+        <ShortcutHint id={entry.id} shortcuts={shortcuts} />
       </MenubarCheckboxItem>
     )
   })
@@ -87,7 +88,7 @@ export default function MenuBar({
         <MenubarMenu key={index} value={`menu-${index}`}>
           <MenubarTrigger className={index === 0 ? `${TRIGGER} font-medium` : TRIGGER}>{menu.label}</MenubarTrigger>
           <MenubarContent sideOffset={5} alignOffset={0}>
-            <Entries entries={menu.entries} onPanel={onPanel} />
+            <Entries entries={menu.entries} shortcuts={settings.settings.shortcuts} onPanel={onPanel} />
           </MenubarContent>
         </MenubarMenu>
       ))}
@@ -100,7 +101,7 @@ export default function MenuBar({
           <ChevronDown aria-hidden className="size-3 opacity-60" />
         </MenubarTrigger>
         <MenubarContent align="end" sideOffset={5} alignOffset={0}>
-          <Entries entries={connectionMenu} onPanel={onPanel} />
+          <Entries entries={connectionMenu} shortcuts={settings.settings.shortcuts} onPanel={onPanel} />
         </MenubarContent>
       </MenubarMenu>
 

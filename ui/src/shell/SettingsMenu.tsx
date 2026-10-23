@@ -11,6 +11,7 @@ import {
   MenubarRadioGroup,
   MenubarRadioItem,
   MenubarSeparator,
+  MenubarShortcut,
   MenubarSub,
   MenubarSubContent,
   MenubarSubTrigger,
@@ -21,7 +22,7 @@ import { ACCENTS, type ColorScheme, THEMES, type ThemePreset } from '@/lib/theme
 import { cn } from '@/lib/utils'
 import { LANGUAGES, t } from '@/i18n'
 
-export type Panel = 'server' | 'remotes' | 'updates' | 'templates'
+export type Panel = 'server' | 'remotes' | 'updates' | 'templates' | 'shortcuts'
 
 interface Props extends PageProps {
   zoomPercent: number
@@ -44,6 +45,11 @@ const SCHEMES: { value: ColorScheme; label: 'System' | 'Hell' | 'Dunkel' }[] = [
 const failed = (e: unknown) => toast.error(errorMessage(e))
 // A control inside a row must not close the menu, nor hand its click to the row.
 const keepOpen = (event: Event) => event.preventDefault()
+
+/// The key of an entry's action at the right of the entry, if it has one.
+export function ShortcutHint({ id, shortcuts }: { id: string; shortcuts: Record<string, string> }) {
+  return shortcuts[id] ? <MenubarShortcut>{shortcuts[id]}</MenubarShortcut> : null
+}
 
 function Segment({ active, disabled, onClick, label, children }: { active?: boolean; disabled?: boolean; onClick: () => void; label: string; children: ReactNode }) {
   return (
@@ -102,7 +108,24 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
           ),
         },
         { words: [t('Neu laden')], node: <MenubarItem inset key="reload" onSelect={command('view.reload')}>{t('Neu laden')}</MenubarItem> },
-        { words: [t('Vollbild')], node: <MenubarItem inset key="fullscreen" onSelect={command('view.fullscreen')}>{t('Vollbild')}</MenubarItem> },
+        {
+          words: [t('Vollbild')],
+          node: (
+            <MenubarItem inset key="fullscreen" onSelect={command('view.fullscreen')}>
+              {t('Vollbild')}
+              <ShortcutHint id="view.fullscreen" shortcuts={settings.shortcuts} />
+            </MenubarItem>
+          ),
+        },
+        {
+          words: [t('Menüleiste anzeigen')],
+          node: (
+            <MenubarCheckboxItem key="menu-bar" checked={settings.show_menu_bar} disabled={saving} onCheckedChange={(checked) => set({ show_menu_bar: checked })}>
+              {t('Menüleiste anzeigen')}
+              <ShortcutHint id="view.menu_bar" shortcuts={settings.shortcuts} />
+            </MenubarCheckboxItem>
+          ),
+        },
       ],
     },
     {
@@ -234,6 +257,7 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
       title: '',
       rows: [
         { words: [t('Lokaler Server …'), t('Paperclip-Server')], node: <MenubarItem inset key="server" onSelect={() => onPanel('server')}>{t('Lokaler Server …')}</MenubarItem> },
+        { words: [t('Tastenkürzel …'), t('Tastenkürzel')], node: <MenubarItem inset key="shortcuts" onSelect={() => onPanel('shortcuts')}>{t('Tastenkürzel …')}</MenubarItem> },
         { words: [t('Beenden')], node: <MenubarItem inset key="quit" variant="destructive" onSelect={command('app.quit')}>{t('Beenden')}</MenubarItem> },
       ],
     },

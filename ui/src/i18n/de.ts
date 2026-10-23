@@ -250,6 +250,21 @@ export const de = [
   'Diese Seite bei jedem Start zeigen',
   'Die gewählte Verbindung künftig automatisch starten',
   'Willkommensseite bei jedem Start',
+  'Menüleiste anzeigen',
+  'Menüleiste ein- oder ausblenden',
+  'Tastenkürzel …',
+  'Tastenkürzel',
+  'Tastenkürzel suchen …',
+  'Taste drücken … (Esc bricht ab)',
+  'Kürzel zuweisen',
+  'Kürzel entfernen',
+  'Standard wiederherstellen',
+  'Nicht belegt',
+  'Braucht Strg oder Alt, außer bei F-Tasten.',
+  'Für Bearbeiten reserviert.',
+  '{keys} gehörte zu „{action}“ und ist jetzt hier.',
+  'Firma',
+  'Kürzel wirken, solange das Fenster von PaperclipDesk den Fokus hat.',
 ] as const
 
 export type Message = (typeof de)[number]

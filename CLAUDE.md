@@ -68,6 +68,7 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
 | `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it, `SettingsMenu.tsx` is the gear |
 | `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there |
+| `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
 | `crates/paperclipdesk/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |
@@ -161,4 +162,6 @@ public key is in `crates/paperclipdesk/tauri.conf.json`. The app version comes f
 
 ## Known rough edges
 
-- Menu entries have no keyboard shortcuts yet: it is untested whether they fire while a webview has the focus.
+- Keyboard shortcuts are caught with WebView2's `AcceleratorKeyPressed` in every webview (`shortcuts.rs`), so they work
+  wherever the focus is inside the window. Keys posted as window messages never reach that event; testing a shortcut
+  needs real input.
