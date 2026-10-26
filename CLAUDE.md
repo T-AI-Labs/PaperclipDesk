@@ -23,7 +23,7 @@ stays the one place where companies, agents and tasks live; other tools connect 
 
 Several remotes can be open at once, next to the one local server. One connection is in front; the others stay open
 with their webviews hidden; the connection chip at the right of the menu bar switches between them. The shell draws the
-menu bar: Paperclip's menus at the left, the first named after the company in front, the connection and the gear at the
+menu bar: Paperclip's menus at the left, the first of them the company menu, the connection, the bell and the gear at the
 right. While Paperclip is the main view, the shell is only that bar and the connection in front fills the window below
 it; while a menu or a panel is open, the shell lies over Paperclip, see-through wherever it draws nothing. For the app's own pages the shell fills the
 window. The host owns all state, the entries of the menu bar included. It sends the shell a snapshot whenever something
@@ -58,8 +58,9 @@ npm run prepare-server      # stage the pinned Paperclip server and Node.js unde
 npm run bundle-server       # bundle the staged server into one file again; prepare-server does it too
 npm run prepare-server-ui   # build Paperclip's web UI into the staged server
 npm run pack-server         # pack the staged server into the archive a release build downloads
+npm run server-catalog      # sign and publish the list of server packages the app may install; needs gh and SERVER_CATALOG_SIGNING_KEY
 npm run licenses            # rewrite THIRD_PARTY_LICENSES.txt; needs cargo-license
-npm run catalog             # read Paperclip's template catalog into ui/src/panels/templates.json; needs a GitHub token or gh
+npm run catalog             # read Paperclip's template catalog into ui/src/panels/templates.json and Clipmart's free templates into clipmart.json, the collections of agents and skills into collections.json and the icons of all of them into icons.json; needs a GitHub token or gh
 ```
 
 `prepare-server` and `prepare-server-ui` are needed once before the first `npm run dev`, and again after the pinned
@@ -78,10 +79,12 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there; template preview and import |
 | `crates/paperclipdesk/src/assistant.rs` | The AI assistant: the user's Claude Code CLI, run without tools, settings or project |
 | `crates/paperclipdesk/src/github.rs` | The search for company packages on GitHub and its token in the Windows credential store |
-| `ui/src/panels/Templates.tsx`, `templates.json` | The template panel and the catalog snapshot `npm run catalog` writes |
+| `ui/src/panels/Templates.tsx`, `templates.json`, `clipmart.ts`, `clipmart.json`, `collections.ts`, `collections.json`, `icons.json` | The template page and the snapshots `npm run catalog` writes: Paperclip's catalog, Clipmart's templates, collections of single agents and skills on GitHub, and the icons of their sources; `clipmart.ts` builds the package of a Clipmart template the way its download does, so the app never loads anything from clipmart.ai; `collections.ts` fetches the files of a collection's agents and skills for the wizard, pinned to the snapshot's commit and SHA-256, and reads a `live` collection from its default branch once per run, so it always offers the newest agents there, and a repository with skills the GitHub search found when it is picked; `collection-agent.ts` turns an agent file into its entry for both the snapshot and the live read; it and the wizard fill the window and run before a connection, `NeedsPaperclip.tsx` starts the local server once they need it |
+| `ui/src/components/data-table.tsx` | The table with search, filters and sorting the template page and the wizard use |
+| `ui/src/shell/NotificationBell.tsx`, `ui/src/lib/notifications.ts` | The bell: Paperclip's inbox of the company in front, and every toast the app showed; import `toast` from `notifications.ts`, not from sonner |
 | `ui/src/panels/Wizard.tsx`, `wizard/` | The company wizard; `wizard/compose.ts` puts the draft together as a company package, `wizard/assistant.ts` writes the assistant's prompt and reads its proposal |
 | `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
-| `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process and the download of its package |
+| `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process, the download of its package and the signed list of newer versions |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
 | `crates/paperclipdesk/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |
 | `ui/src/App.tsx` | Which page or panel is shown; pages are in `ui/src/pages`, the settings panels in `ui/src/panels` |
@@ -98,21 +101,39 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
    then fails at run time.
 3. **The Paperclip webview stays on its origin.** Navigation elsewhere and new windows open in the system browser.
 4. **Nothing is downloaded without a checksum.** A release build fetches the server package for its pinned version and
-   checks it against the SHA-256 compiled into the app.
+   checks it against the SHA-256 compiled into the app; a newer version the user picks it checks against the SHA-256 in
+   `server-versions.json`, a list it accepts only with a signature of the key in `server-catalog.pub`. A collection's files are checked against the snapshot's SHA-256,
+   or for a `live` collection and a repository with skills the search found against the Git blob SHA its branch named
+   when the app read it.
 5. **The local server must not outlive the app**, and neither may its PostgreSQL. A worker left behind holds the
    database's shared memory and the next start fails; `kill_stale_postgres` ends what belongs to this app's own server.
 6. **User data is never deleted silently.** A reset asks first and offers a backup.
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
    opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
-8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package and,
-   with the user's token, the template search. Only when the user turns the AI assistant on does it ask Claude, through
+8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package, the list of newer
+   server versions while the server settings are open, and,
+   with the user's token or that of their GitHub CLI, the template search, the search for repositories with a `SKILL.md`,
+   and the avatars of what it found; a found repository with skills it reads from its default branch once the user picks it. When the wizard creates a company
+   with agents or skills of a collection, it fetches their files from raw.githubusercontent.com, at the snapshot's commit and checked
+   against the snapshot's SHA-256. A `live` collection it reads from api.github.com once per run when the template page or the
+   wizard opens: the head of its default branch, and the agent files changed since the snapshot. Only when the user turns the AI assistant on does it ask Claude, through
    the user's own Claude Code CLI, and then only with what the user wrote in the wizard and the template catalog.
 
 ## The Paperclip server version
 
 `package.json` pins it under `paperclip.server`. A build from this repository uses the server staged under `build/`. A
-release build has no server inside: it downloads the package for its pinned version on the first local start. A newer
-server therefore arrives with a new app version.
+release build has no server inside: it downloads the package for its pinned version on the first local start.
+
+A newer server the user can install from the server settings, from the list `npm run server-catalog` publishes in the
+release `server-catalog`: `server-versions.json` with each packaged version and its SHA-256, and `.sig` with its
+signature, which the app checks with the public key in `crates/paperclipdesk/server-catalog.pub`. That key is not the
+updater's: the list is signed next to packages built from Paperclip's code, and a key stolen there must not sign app
+updates. The private key is the secret `SERVER_CATALOG_SIGNING_KEY` of the environment `server-catalog`, and its
+local copy `~/.tauri/paperclipdesk-server-catalog.key` has no password. The app offers only
+versions newer than the one it runs, because the new server migrates the database for good, and copies the data first
+if the user keeps the backup switched on. The choice is `server_version` in `client-settings.json`, set only by the
+upgrade itself; an app update whose pinned version is newer runs that one instead. `PAPERCLIP_SERVER_VERSION` makes
+`prepare-server`, `prepare-server-ui` and `pack-server` build another version than the pinned one.
 
 `prepare-server` also bundles the server into `dist/index.bundle.mjs`, which starts several seconds sooner than its
 thousands of modules; the app starts it when it is there and `dist/index.js` otherwise. A package that was published
@@ -173,6 +194,14 @@ the NSIS installer, writes `latest.json` for the updater, tags `v<version>` and 
 It needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the matching
 public key is in `crates/paperclipdesk/tauri.conf.json`. The app version comes from the same file, and
 `release-notes/v<version>.md` must exist.
+
+The `Server Packages` workflow runs every day and on manual dispatch, with a version or without one for Paperclip's
+latest release; the daily check runs on Linux and only a missing package starts a build. Its jobs keep Paperclip's code
+away from secrets: `build` runs Paperclip's install scripts on Windows without any secret or write token and hands the
+package on as an artifact, `publish` creates the `server-v<version>` release from it, and `sign` writes and signs the
+list of server versions. `sign` runs in the environment `server-catalog`, which holds `SERVER_CATALOG_SIGNING_KEY`
+and waits for a reviewer, so no version reaches the users before someone approved it. A manual dispatch for a version
+that is packaged already signs the list again.
 
 ## Known rough edges
 

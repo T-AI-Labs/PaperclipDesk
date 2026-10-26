@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { Snapshot } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 import { TEMPLATES } from './catalog'
@@ -82,7 +83,7 @@ function BasicsStep({ draft, assistant, onChange, onProposal }: { draft: Draft; 
 }
 
 /// Builds a new company step by step from agents of any template, and creates it in the Paperclip in front.
-export default function Wizard({ assistant, onDone }: { assistant: boolean; onDone: () => void }) {
+export default function Wizard({ snapshot, assistant, onDone }: { snapshot: Snapshot; assistant: boolean; onDone: () => void }) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [step, setStep] = useState<Step>('basics')
   const index = STEPS.findIndex(({ id }) => id === step)
@@ -90,8 +91,8 @@ export default function Wizard({ assistant, onDone }: { assistant: boolean; onDo
   const next = STEPS[index + 1]
 
   return (
-    <div className="flex flex-col gap-4">
-      <ol className="flex flex-wrap items-center gap-1.5">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <ol className="flex shrink-0 flex-wrap items-center gap-1.5">
         {STEPS.map(({ id, label }, position) => (
           <li key={id}>
             <button type="button" disabled={!reachable(id)} onClick={() => setStep(id)} className={cn('rounded-full border px-3 py-1 text-xs disabled:opacity-40', id === step ? 'border-transparent bg-primary text-primary-foreground' : 'hover:bg-accent')}>
@@ -101,6 +102,7 @@ export default function Wizard({ assistant, onDone }: { assistant: boolean; onDo
         ))}
       </ol>
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {step === 'basics' && (
         <BasicsStep
           draft={draft}
@@ -114,9 +116,10 @@ export default function Wizard({ assistant, onDone }: { assistant: boolean; onDo
       )}
       {step === 'team' && <TeamStep draft={draft} onChange={setDraft} />}
       {step === 'skills' && <SkillsStep draft={draft} onChange={setDraft} />}
-      {step === 'create' && <CreateStep draft={draft} onDone={onDone} />}
+      {step === 'create' && <CreateStep draft={draft} snapshot={snapshot} onDone={onDone} />}
+      </div>
 
-      <div className="flex items-center gap-2 border-t pt-3">
+      <div className="flex shrink-0 items-center gap-2 border-t pt-3">
         {index > 0 && (
           <Button variant="ghost" size="sm" onClick={() => setStep(STEPS[index - 1].id)}>
             <ArrowLeft /> {t('Zurück')}

@@ -1,5 +1,5 @@
 import { Power } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notifications'
 
 import RemoteConnections from '@/connect/RemoteConnections'
 import RemoteForm from '@/connect/RemoteForm'

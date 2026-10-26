@@ -8,6 +8,10 @@ fn main() {
     if let Ok(sha256) = std::env::var("PAPERCLIP_SERVER_SHA256") {
         println!("cargo:rustc-env=PAPERCLIP_SERVER_SHA256={sha256}");
     }
+    // The list of newer server versions has a signing key of its own: one stolen from that workflow cannot sign app updates.
+    let catalog_key = std::fs::read_to_string("server-catalog.pub").expect("server-catalog.pub");
+    println!("cargo:rustc-env=PAPERCLIPDESK_SERVER_CATALOG_PUBKEY={}", catalog_key.trim());
+    println!("cargo:rerun-if-changed=server-catalog.pub");
 
     // Declaring the commands makes them deny-by-default; capabilities/default.json allows them explicitly.
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
@@ -21,10 +25,17 @@ fn main() {
         "import_company_template",
         "preview_company_template",
         "company_template_files",
+        "github_files",
+        "github_branch",
+        "company_attention",
+        "adapter_options",
+        "read_company_package",
+        "open_paperclip_path",
         "assistant_available",
         "ask_assistant",
         "search_templates",
-        "github_token_stored",
+        "search_skills",
+        "github_access",
         "set_github_token",
         "save_remote_profile",
         "duplicate_profile",
@@ -46,6 +57,8 @@ fn main() {
         "server_info",
         "restart_local_server",
         "reinstall_server",
+        "server_versions",
+        "upgrade_server",
         "read_server_config",
         "write_server_config",
         "reset_local_server",

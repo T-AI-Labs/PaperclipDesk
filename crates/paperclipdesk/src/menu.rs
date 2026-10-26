@@ -6,7 +6,7 @@ use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind, MessageDialogResult};
 
 use crate::client::{Client, LauncherPage, LauncherView};
-use crate::companies;
+use crate::{companies, github};
 use crate::connection::types::LOCAL_PROFILE_ID;
 
 const RECENT_PREFIX: &str = "connection.recent.";
@@ -31,15 +31,18 @@ const LICENSES_FILE: &str = "THIRD_PARTY_LICENSES.txt";
 pub enum ProjectLink {
     Repository,
     ReportIssue,
-    Clipmart,
-    PaperclipCloud,
-    UsePaperclip,
+    /// A template's page on clipmart.ai, by its slug.
+    ClipmartTemplate(String),
     /// Where the user makes a token for the template search.
     GithubTokens,
     /// A template's folder in Paperclip's catalog.
     Template(String),
     /// The GitHub repository a template was generated from, as owner/name.
     TemplateSource(String),
+    /// GitHub's own search for company packages, with the words of the template search.
+    GithubSearch(String),
+    /// What changed in a version of the Paperclip server, before the user installs it.
+    ServerRelease(String),
 }
 
 /// A GitHub repository as owner/name, with nothing in it that leaves the repository's page.
@@ -59,12 +62,14 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
             let versions = format!("\n\n---\nPaperclipDesk {}, Paperclip server {}", env!("CARGO_PKG_VERSION"), client.local_server_version().as_deref().unwrap_or("–"));
             tauri::Url::parse_with_params(&format!("{REPOSITORY_URL}/issues/new"), [("body", versions)]).map_err(|e| e.to_string())?.into()
         }
-        ProjectLink::Clipmart => "https://www.clipmart.ai/".to_owned(),
-        ProjectLink::PaperclipCloud => "https://paperclipcloud.com/companies".to_owned(),
-        ProjectLink::UsePaperclip => "https://usepaperclip.app/".to_owned(),
+        ProjectLink::ClipmartTemplate(slug) if !slug.is_empty() && slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') => format!("https://www.clipmart.ai/templates/{slug}"),
+        ProjectLink::ClipmartTemplate(_) => return Err(i18n::t("Diese Vorlage gibt es nicht.").to_owned()),
         ProjectLink::GithubTokens => "https://github.com/settings/personal-access-tokens/new".to_owned(),
         ProjectLink::Template(template) => companies::template_url(&template)?,
         ProjectLink::TemplateSource(repository) => github_repository(&repository)?,
+        ProjectLink::GithubSearch(words) => github::search_page(&words),
+        ProjectLink::ServerRelease(version) if crate::server_package::is_version(&version) => format!("https://github.com/paperclipai/paperclip/releases/tag/v{version}"),
+        ProjectLink::ServerRelease(version) => return Err(i18n::f("Die Server-Version {} ist nicht verfügbar.", &[&version])),
     };
     tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
@@ -104,24 +109,21 @@ pub fn build(client: &Client) -> Vec<Menu> {
     let action = |id: String, label: &str| Entry::Item { id, label: label.to_owned(), enabled: connected, checked: None };
     let page = |path: &str, label: &str| action(format!("{PAGE_PREFIX}{path}"), label);
 
-    // The company the page is on names the menu. Without the list, Paperclip's own overview of the companies does the switching.
     let known = client.known_companies();
     let current = known.as_ref().and_then(|known| known.current_company());
     let mut company = match known.as_ref().and_then(|known| known.companies.as_ref()).filter(|companies| !companies.is_empty()) {
-        Some(companies) => companies.iter().map(|company| check(format!("{COMPANY_PREFIX}{}", company.id), company.name.clone(), Some(company) == current)).collect(),
-        None => vec![page("companies", i18n::t("Firma wechseln …"))],
+        Some(companies) => companies.iter().map(|company| check(format!("{COMPANY_PREFIX}{}", company.id), company.name.clone(), Some(company) == current)).chain([Entry::Separator]).collect(),
+        None => vec![],
     };
+    // Paperclip's overview of the companies is the only place that deletes one; without the list it also does the switching.
     company.extend([
-        Entry::Separator,
+        page("companies", i18n::t("Firmen verwalten …")),
         page("company/settings", i18n::t("Firmeneinstellungen")),
-        page("company/import", i18n::t("Firma importieren …")),
-        page("company/export", i18n::t("Firma exportieren …")),
         Entry::Separator,
-        action("paperclip.new_company".into(), i18n::t("Neue Firma …")),
-        action(SHELL_TEMPLATES.into(), i18n::t("Firma aus Vorlage …")),
-        action(SHELL_WIZARD.into(), i18n::t("Firma zusammenstellen …")),
+        // Both work before a connection is open: the catalog is in the app, and the shell starts the local server once it needs one.
+        item(SHELL_WIZARD, i18n::t("Neue Firma …")),
+        item(SHELL_TEMPLATES, i18n::t("Firma aus Vorlage …")),
     ]);
-    let company_label = current.map_or_else(|| i18n::t("Firma").to_owned(), |company| company.name.clone());
 
     let new = vec![action("paperclip.new_issue".into(), i18n::t("Neue Aufgabe …")), page("agents/new", i18n::t("Neuer Agent …")), Entry::Separator, action("paperclip.search".into(), i18n::t("Suchen …"))];
 
@@ -130,6 +132,10 @@ pub fn build(client: &Client) -> Vec<Menu> {
         page("dashboard", i18n::t("Dashboard")),
         page("inbox", i18n::t("Posteingang")),
         page("issues", i18n::t("Aufgaben")),
+        // Paperclip links its goals only behind an experimental setting, and these two of its pipelines nowhere.
+        page("goals", i18n::t("Ziele")),
+        page("review-queue", i18n::t("Review-Warteschlange")),
+        page("learnings", i18n::t("Erkenntnisse")),
         label(i18n::t("Team")),
         page("agents", i18n::t("Agenten")),
         page("approvals", i18n::t("Genehmigungen")),
@@ -149,7 +155,7 @@ pub fn build(client: &Client) -> Vec<Menu> {
         item("help.about", i18n::t("Über PaperclipDesk")),
     ];
 
-    [(company_label.as_str(), company), (i18n::t("Neu"), new), (i18n::t("Gehe zu"), go), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
+    [(i18n::t("Firma"), company), (i18n::t("Neu"), new), (i18n::t("Gehe zu"), go), (i18n::t("Hilfe"), help)].into_iter().map(|(label, entries)| Menu { label: label.to_owned(), entries }).collect()
 }
 
 /// The places to connect to, the open ones ticked: an entry opens its connection or brings it to the front. Editing and managing below.
@@ -198,7 +204,6 @@ pub fn handle(client: &Arc<Client>, id: &str) {
         "app.quit" => client.handle().exit(0),
         "paperclip.new_issue" => client.open_command_palette(Some("Create new task")),
         "paperclip.search" => client.open_command_palette(None),
-        "paperclip.new_company" => client.new_company(),
         "connection.chooser" => client.show_launcher(LauncherView::Chooser, None, None),
         "connection.local" => client.boot_local(false),
         "view.zoom_reset" => client.change_zoom(None),

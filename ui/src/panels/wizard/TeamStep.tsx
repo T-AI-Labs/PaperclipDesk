@@ -1,51 +1,74 @@
-import { useState } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Check, Plus, Trash2 } from 'lucide-react'
 
+import DataTable from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { type TemplateAgent } from '@/lib/client'
 import { t } from '@/i18n'
-import { TEMPLATES } from '../catalog'
+import { TEMPLATES, TEMPLATE_CATEGORIES, type TemplateCategory } from '../catalog'
+import { type Collection, useCollections } from '../collections'
 import OrgChart from '../OrgChart'
-import { type Draft, addAgent, addOwnAgent, chartAgents, possibleBosses, removeAgent, updateAgent } from './compose'
+import { type Draft, type DraftAgent, type Origin, addAgent, addOwnAgent, chartAgents, possibleBosses, removeAgent, updateAgent } from './compose'
 
 const TOP = '__top'
-/// Matches shown at once; the search narrows the rest.
-const SHOWN = 30
 
-const POOL = TEMPLATES.flatMap((template) => template.agents.map((agent) => ({ template, agent, text: [agent.name, agent.title ?? '', template.name, ...agent.skills].join('\n').toLocaleLowerCase() })))
+interface PoolEntry {
+  key: string
+  template: Origin
+  category: TemplateCategory | null
+  agent: TemplateAgent
+  text: string
+}
 
-const templateName = (id: string) => TEMPLATES.find((template) => template.id === id)?.name ?? id
+const TEMPLATE_POOL: PoolEntry[] = TEMPLATES.flatMap((template) => template.agents.map((agent) => ({ key: `${template.id}/${agent.slug}`, template, category: template.category, agent, text: [agent.name, agent.title ?? '', template.name, ...agent.skills].join('\n').toLocaleLowerCase() })))
 
-/// The agents of every catalog template, to add one at a time.
+const pool = (collections: Collection[]): PoolEntry[] => [
+  ...TEMPLATE_POOL,
+  ...collections.flatMap((collection) => collection.agents.map((agent) => ({ key: `${collection.id}/${agent.slug}`, template: collection, category: null, agent, text: [agent.name, agent.title ?? '', agent.group, collection.name].join('\n').toLocaleLowerCase() }))),
+]
+
+/// The agents of every catalog template and collection, to add one at a time, and an agent of the user's own.
 function AgentPicker({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
-  const [query, setQuery] = useState('')
   const [own, setOwn] = useState('')
-  const needle = query.trim().toLocaleLowerCase()
-  const matches = POOL.filter((entry) => needle === '' || entry.text.includes(needle))
+  const collections = useCollections()
+  const origins: Origin[] = [...TEMPLATES, ...collections]
+  const entries = useMemo(() => pool(collections), [collections])
   // A new agent starts below the top of the company; the user moves it from there.
   const boss = draft.agents.find((agent) => agent.reportsTo === null)?.slug ?? null
+  const taken = new Set(draft.agents.flatMap((agent) => (agent.origin ? [`${agent.origin.template}/${agent.origin.slug}`] : [])))
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border p-3">
+    <section className="flex min-h-0 flex-col gap-2">
       <span className="text-sm font-medium">{t('Agent hinzufügen')}</span>
-      <div className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-ring/50">
-        <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('{count} Agenten aus dem Katalog durchsuchen …', { count: POOL.length })} aria-label={t('Agent suchen')} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
-      </div>
-      <ul className="flex max-h-64 flex-col overflow-y-auto">
-        {matches.slice(0, SHOWN).map(({ template, agent }) => (
-          <li key={`${template.id}/${agent.slug}`}>
-            <button type="button" onClick={() => onChange(addAgent(draft, template, agent, boss))} className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-accent/60">
-              <Plus aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate font-medium">{agent.name}</span>
-              {agent.title && agent.title !== agent.name && <span className="truncate text-xs text-muted-foreground">{agent.title}</span>}
-              <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{template.name}</span>
-            </button>
-          </li>
-        ))}
-        {matches.length > SHOWN && <li className="px-2 py-1 text-xs text-muted-foreground">{t('{count} weitere; die Suche grenzt ein.', { count: matches.length - SHOWN })}</li>}
-      </ul>
+      <DataTable
+        rows={entries}
+        rowKey={(entry) => entry.key}
+        text={(entry) => entry.text}
+        searchLabel={t('{count} Agenten aus Vorlagen und Sammlungen durchsuchen …', { count: entries.length })}
+        onRowClick={(entry) => onChange(addAgent(draft, entry.template, entry.agent, boss))}
+        columns={[
+          { id: 'add', header: '', className: 'w-8', cell: (entry) => (taken.has(entry.key) ? <Check aria-label={t('Im Entwurf')} className="size-4 text-primary" /> : <Plus aria-hidden className="size-4 text-muted-foreground group-hover:text-foreground" />) },
+          { id: 'name', header: t('Name'), sort: (entry) => entry.agent.name, className: 'font-medium', cell: (entry) => entry.agent.name },
+          { id: 'title', header: t('Titel'), sort: (entry) => entry.agent.title, cell: (entry) => <span className="text-muted-foreground">{entry.agent.title ?? '–'}</span> },
+          { id: 'template', header: t('Herkunft'), sort: (entry) => entry.template.name, cell: (entry) => entry.template.name },
+          { id: 'skills', header: t('Skills'), sort: (entry) => entry.agent.skills.length, descFirst: true, align: 'end', cell: (entry) => entry.agent.skills.length },
+        ]}
+        filters={[
+          { id: 'category', label: t('Kategorie'), options: TEMPLATE_CATEGORIES.map(({ id, label }) => ({ id, label: t(label), test: (entry: PoolEntry) => entry.category === id })) },
+          { id: 'template', label: t('Herkunft'), options: origins.map((template) => ({ id: template.id, label: template.name, test: (entry: PoolEntry) => entry.template.id === template.id })) },
+          {
+            id: 'draft',
+            label: t('Entwurf'),
+            options: [
+              { id: 'out', label: t('Noch nicht im Entwurf'), test: (entry) => !taken.has(entry.key) },
+              { id: 'in', label: t('Im Entwurf'), test: (entry) => taken.has(entry.key) },
+            ],
+          },
+        ]}
+        className="max-h-[50vh]"
+      />
       <form
         className="flex items-center gap-2"
         onSubmit={(event) => {
@@ -60,50 +83,86 @@ function AgentPicker({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
           <Plus /> {t('Anlegen')}
         </Button>
       </form>
-    </div>
+    </section>
   )
 }
 
 /// Who is in the company and whom each one reports to, with the org chart beside it.
 export default function TeamStep({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
+  const collections = useCollections()
+  const templateName = (id: string) => [...TEMPLATES, ...collections].find((template) => template.id === id)?.name ?? id
+  const names = new Map(draft.agents.map((agent) => [agent.slug, agent.name || agent.slug]))
+  const boss = (agent: DraftAgent) => (agent.reportsTo ? (names.get(agent.reportsTo) ?? null) : null)
+  const origin = (agent: DraftAgent) => (agent.origin ? templateName(agent.origin.template) : t('eigener Agent'))
+  const origins = [...new Set(draft.agents.map(origin))].sort((a, b) => a.localeCompare(b))
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
-      <div className="flex min-w-0 flex-col gap-3">
-        {draft.agents.length === 0 && <p className="text-sm text-muted-foreground">{t('Noch keine Agenten. Füge unten welche hinzu oder übernimm im ersten Schritt eine Vorlage.')}</p>}
-        <ul className="flex flex-col divide-y rounded-md border">
-          {draft.agents.map((agent) => (
-            <li key={agent.slug} className="flex flex-col gap-1.5 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Input value={agent.name} aria-label={t('Name')} onChange={(event) => onChange(updateAgent(draft, agent.slug, { name: event.target.value }))} className="h-7 font-medium" />
-                <Input value={agent.title} aria-label={t('Titel')} placeholder={t('Titel')} onChange={(event) => onChange(updateAgent(draft, agent.slug, { title: event.target.value }))} className="h-7" />
-                <Button size="icon-sm" variant="ghost" aria-label={t('Entfernen')} title={t('Entfernen')} onClick={() => onChange(removeAgent(draft, agent.slug))}>
-                  <Trash2 />
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>{t('Berichtet an')}</span>
-                <Select value={agent.reportsTo ?? TOP} onValueChange={(value) => onChange(updateAgent(draft, agent.slug, { reportsTo: value === TOP ? null : value }))}>
-                  <SelectTrigger size="sm" className="h-7 w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={TOP}>{t('Niemandem (Spitze)')}</SelectItem>
-                    {possibleBosses(draft, agent.slug).map((boss) => (
-                      <SelectItem key={boss.slug} value={boss.slug}>
-                        {boss.name || boss.slug}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span>{agent.skills.length === 1 ? t('1 Skill') : t('{count} Skills', { count: agent.skills.length })}</span>
-                <span className="ml-auto">{agent.origin ? t('aus {template}', { template: templateName(agent.origin.template) }) : t('eigener Agent')}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+      <div className="flex min-w-0 flex-col gap-6">
+        <section className="flex flex-col gap-2">
+          <span className="text-sm font-medium">{t('Team im Entwurf · {count}', { count: draft.agents.length })}</span>
+          {draft.agents.length === 0 ? (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{t('Noch keine Agenten. Füge unten welche hinzu oder übernimm im ersten Schritt eine Vorlage.')}</p>
+          ) : (
+            <DataTable
+              rows={draft.agents}
+              rowKey={(agent) => agent.slug}
+              text={(agent) => [agent.name, agent.title, boss(agent) ?? '', origin(agent)].join('\n').toLocaleLowerCase()}
+              searchLabel={t('Im Team suchen …')}
+              columns={[
+                { id: 'name', header: t('Name'), sort: (agent) => agent.name, cell: (agent) => <Input value={agent.name} aria-label={t('Name')} onChange={(event) => onChange(updateAgent(draft, agent.slug, { name: event.target.value }))} className="h-7 min-w-36 font-medium" /> },
+                { id: 'title', header: t('Titel'), sort: (agent) => agent.title, cell: (agent) => <Input value={agent.title} aria-label={t('Titel')} placeholder={t('Titel')} onChange={(event) => onChange(updateAgent(draft, agent.slug, { title: event.target.value }))} className="h-7 min-w-36" /> },
+                {
+                  id: 'boss',
+                  header: t('Berichtet an'),
+                  sort: boss,
+                  cell: (agent) => (
+                    <Select value={agent.reportsTo ?? TOP} onValueChange={(value) => onChange(updateAgent(draft, agent.slug, { reportsTo: value === TOP ? null : value }))}>
+                      <SelectTrigger size="sm" className="h-7 w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={TOP}>{t('Niemandem (Spitze)')}</SelectItem>
+                        {possibleBosses(draft, agent.slug).map((known) => (
+                          <SelectItem key={known.slug} value={known.slug}>
+                            {known.name || known.slug}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ),
+                },
+                { id: 'skills', header: t('Skills'), sort: (agent) => agent.skills.length, descFirst: true, align: 'end', cell: (agent) => agent.skills.length },
+                { id: 'origin', header: t('Herkunft'), sort: origin, className: 'whitespace-nowrap text-xs text-muted-foreground', cell: origin },
+                {
+                  id: 'remove',
+                  header: '',
+                  className: 'w-10',
+                  cell: (agent) => (
+                    <Button size="icon-sm" variant="ghost" aria-label={t('Entfernen')} title={t('Entfernen')} onClick={() => onChange(removeAgent(draft, agent.slug))}>
+                      <Trash2 />
+                    </Button>
+                  ),
+                },
+              ]}
+              filters={[
+                { id: 'origin', label: t('Herkunft'), options: origins.map((name) => ({ id: name, label: name, test: (agent: DraftAgent) => origin(agent) === name })) },
+                {
+                  id: 'level',
+                  label: t('Berichtet an'),
+                  options: [
+                    { id: 'top', label: t('Spitze'), test: (agent) => agent.reportsTo === null },
+                    { id: 'below', label: t('Mit Vorgesetztem'), test: (agent) => agent.reportsTo !== null },
+                  ],
+                },
+              ]}
+              className="max-h-[50vh]"
+            />
+          )}
+        </section>
         <AgentPicker draft={draft} onChange={onChange} />
       </div>
-      <div className="min-w-0 rounded-md border p-3">
+      <div className="min-w-0 self-start rounded-md border p-3 xl:sticky xl:top-0">
         <span className="mb-2 block text-sm font-medium">{t('Organigramm')}</span>
         {draft.agents.length > 0 ? <OrgChart agents={chartAgents(draft)} open={3} /> : <p className="text-xs text-muted-foreground">{t('Erscheint, sobald Agenten da sind.')}</p>}
       </div>

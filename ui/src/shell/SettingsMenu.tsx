@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Check, Minus, Plus, Search, Settings as Gear } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notifications'
 
 import {
   MenubarCheckboxItem,
@@ -129,6 +129,14 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
             <MenubarCheckboxItem key="menu-bar" checked={settings.show_menu_bar} disabled={saving} onCheckedChange={(checked) => set({ show_menu_bar: checked })}>
               {t('Menüleiste anzeigen')}
               <ShortcutHint id="view.menu_bar" shortcuts={settings.shortcuts} />
+            </MenubarCheckboxItem>
+          ),
+        },
+        {
+          words: [t('Adressleiste anzeigen')],
+          node: (
+            <MenubarCheckboxItem key="address-bar" checked={settings.show_address_bar} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ show_address_bar: checked })}>
+              {t('Adressleiste anzeigen')}
             </MenubarCheckboxItem>
           ),
         },

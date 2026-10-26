@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Keyboard, RotateCcw, Search, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notifications'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,8 +34,7 @@ function actions(snapshot: Snapshot): Action[] {
       list.push({ id: entry.id, label: entry.label, group })
     }
   }
-  // The first menu is named after the company in front, which is no name for a group.
-  snapshot.menu.forEach((menu, index) => fromMenu(menu.entries, index === 0 ? t('Firma') : menu.label))
+  snapshot.menu.forEach((menu) => fromMenu(menu.entries, menu.label))
   fromMenu(snapshot.connectionMenu, t('Verbindung'))
   const app = t('App')
   list.push({ id: 'shell.server', label: t('Lokaler Server …'), group: app }, { id: 'shell.shortcuts', label: t('Tastenkürzel …'), group: app }, { id: 'app.quit', label: t('Beenden'), group: app })

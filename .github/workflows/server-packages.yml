@@ -1,0 +1,137 @@
+name: 'Server Packages'
+
+# Packages new Paperclip server versions and publishes the signed list the app offers in its server settings.
+# Building runs Paperclip's install scripts, so that job holds no secret and no write token; publishing and signing run
+# on fresh machines without Paperclip's code, and signing waits for a reviewer of the environment "server-catalog".
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Paperclip server version to package, e.g. 2026.1023.0; empty takes the latest release'
+        required: false
+  schedule:
+    - cron: '0 5 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-packages
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pick.outputs.version }}
+      missing: ${{ steps.pick.outputs.missing }}
+    steps:
+      - name: Pick the version
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="$INPUT_VERSION"
+          if [ -z "$version" ]; then
+            version=$(gh release view --repo paperclipai/paperclip --json tagName --jq .tagName)
+            version="${version#v}"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::Not a server version: $version"
+            exit 1
+          fi
+          if gh release view "server-v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then missing=false; else missing=true; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+          echo "::notice::Paperclip server $version, package missing: $missing"
+
+  build:
+    needs: check
+    if: needs.check.outputs.missing == 'true'
+    runs-on: windows-latest
+    env:
+      FORCE_COLOR: 'true'
+      PAPERCLIP_SERVER_VERSION: ${{ needs.check.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Build the server package
+        run: |
+          npm ci
+          npm run prepare-server
+          npm run prepare-server-ui
+          npm run pack-server
+
+      - name: Keep the package for the publish job
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-package
+          path: |
+            build/paperclip-server-${{ env.PAPERCLIP_SERVER_VERSION }}-win-x64.zip
+            build/paperclip-server-${{ env.PAPERCLIP_SERVER_VERSION }}-win-x64.zip.sha256
+          retention-days: 3
+
+  # A release of its own per version, never "latest": the updater's endpoint follows the latest release.
+  publish:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - name: Fetch the package
+        uses: actions/download-artifact@v8
+        with:
+          name: server-package
+
+      - name: Publish the server package
+        run: |
+          archive="paperclip-server-$VERSION-win-x64.zip"
+          gh release create "server-v$VERSION" "$archive" "$archive.sha256" --repo "$GITHUB_REPOSITORY" --latest=false \
+            --title "Paperclip server $VERSION" \
+            --notes "A Paperclip server package PaperclipDesk can install from its server settings."
+
+  sign:
+    needs: [check, publish]
+    if: always() && (needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.check.outputs.missing == 'false'))
+    runs-on: ubuntu-latest
+    environment: server-catalog
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Only the app's own UI dependencies, for the Tauri CLI that signs.
+      - name: Install the signer
+        run: npm --prefix ui ci
+
+      - name: Publish the signed list of server versions
+        env:
+          SERVER_CATALOG_SIGNING_KEY: ${{ secrets.SERVER_CATALOG_SIGNING_KEY }}
+        run: npm run server-catalog

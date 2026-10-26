@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Download, Globe, Monitor, Plus } from 'lucide-react'
-import { toast } from 'sonner'
+import { Building2, Download, Globe, LayoutTemplate, Monitor, Plus } from 'lucide-react'
+import { toast } from '@/lib/notifications'
 
 import { AppMark } from '@/components/app-mark'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LOCAL_PROFILE_ID, type PageProps, type Snapshot, errorMessage, setOpenAtStart } from '@/lib/client'
+import type { Panel } from '@/shell/SettingsMenu'
 import { t } from '@/i18n'
 
 type Choice = { kind: 'local' } | { kind: 'saved'; profileId: string }
@@ -28,7 +29,8 @@ export default function Welcome({
   save,
   onStart,
   onAddRemote,
-}: PageProps & { snapshot: Snapshot; onStart: (choice: Choice) => void; onAddRemote: () => void }) {
+  onPanel,
+}: PageProps & { snapshot: Snapshot; onStart: (choice: Choice) => void; onAddRemote: () => void; onPanel: (panel: Panel) => void }) {
   const [autoStart, setAutoStart] = useState(false)
   const remotes = snapshot.profiles.filter((profile) => profile.mode === 'remote_existing')
   const missing = snapshot.localServerVersion === null
@@ -107,6 +109,21 @@ export default function Welcome({
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="flex w-full flex-col gap-3 rounded-xl border border-dashed p-4 sm:flex-row sm:items-center">
+        <div className="flex flex-1 flex-col gap-1">
+          <p className="font-heading text-sm font-semibold tracking-tight">{t('Gleich eine Firma planen')}</p>
+          <p className="text-xs text-muted-foreground">{t('Stell sie zusammen oder such dir eine Vorlage aus, noch bevor ein Server läuft. Erst zum Anlegen startet die App den lokalen Server.')}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => onPanel('wizard')}>
+            <Building2 /> {t('Neue Firma')}
+          </Button>
+          <Button variant="outline" onClick={() => onPanel('templates')}>
+            <LayoutTemplate /> {t('Firma aus Vorlage')}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col items-start gap-2">

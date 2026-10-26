@@ -102,6 +102,8 @@ export interface Snapshot {
   /// What the connection chip at the right of the menu bar offers.
   connectionMenu: MenuEntry[]
   zoomPercent: number
+  /// The path of the Paperclip page in front, with its query and fragment; only while the address bar is turned on.
+  paperclipPath: string | null
   /// Whether the menu bar lies above Paperclip right now; full screen hides it unless the user asked for it there.
   menuBarShown: boolean
   state: ConnectionState
@@ -140,10 +142,14 @@ export interface Settings {
   show_welcome: boolean
   /// Whether the menu bar lies above Paperclip; the app's own pages always show it.
   show_menu_bar: boolean
+  /// Whether the menu bar shows the path of the Paperclip page in front, as a field to go elsewhere.
+  show_address_bar: boolean
   /// The key of each action that has one, e.g. 'view.fullscreen' → 'F11'.
   shortcuts: Record<string, string>
   /// A language code, or 'System' for the language Windows runs in.
   language: string
+  /// The newer Paperclip server the user installed, or null for the one this app is tested with; only `upgradeServer` changes it.
+  server_version: string | null
   /// Which AI helps in the wizards; 'claude_code' asks Claude through the user's Claude Code and subscription.
   assistant: 'off' | 'claude_code'
 }
@@ -231,13 +237,17 @@ export const updateSettings = (settings: Settings) => call<Settings>('update_set
 export const getLog = (file: string | null, lines: number) => call<LogTail>('get_log', { file, lines })
 export const clearLog = (file: string) => call<void>('clear_log', { file })
 export const openDataFolder = () => call<void>('open_data_folder')
-export type ProjectLink = 'repository' | 'report_issue' | 'clipmart' | 'paperclip_cloud' | 'use_paperclip' | 'github_tokens' | { template: string } | { template_source: string }
+export type ProjectLink = 'repository' | 'report_issue' | 'github_tokens' | { template: string } | { clipmart_template: string } | { template_source: string } | { github_search: string } | { server_release: string }
 export const openProjectLink = (link: ProjectLink) => call<void>('open_project_link', { link })
 export const showPage = (page: LauncherPage) => call<void>('show_page', { page })
 export const getAbout = () => call<About>('get_about')
 export const getServerInfo = () => call<ServerInfo>('server_info')
 export const restartLocalServer = () => call<void>('restart_local_server')
 export const reinstallServer = () => call<void>('reinstall_server')
+/// The server versions newer than the local one, newest first, from the list the project signs.
+export const serverVersions = () => call<string[]>('server_versions')
+/// Installs a newer server and starts it; resolves to where the data was copied, or null without a backup.
+export const upgradeServer = (version: string, backup: boolean) => call<string | null>('upgrade_server', { version, backup })
 export const readServerConfig = () => call<ServerConfig>('read_server_config')
 export const writeServerConfig = (file: ConfigFile, content: string) => call<void>('write_server_config', { file, content })
 /// Resolves to where the old data was moved, or null without a backup.
@@ -258,6 +268,9 @@ export interface TemplateAgent {
   /// The slug of the agent this one reports to; null at the top.
   reportsTo: string | null
   skills: string[]
+  /// The adapter and model the package names; without an adapter Paperclip imports the agent as a command without AI.
+  adapterType?: string | null
+  model?: string | null
 }
 
 export interface TemplateSkill {
@@ -287,27 +300,92 @@ export interface FoundTemplate {
   repository: string
   folder: string
   url: string
+  slug: string
   name: string
   description: string
   stars: number
   updated: string
-  agents: number
+  agents: Pick<TemplateAgent, 'slug' | 'reportsTo'>[]
   skills: number
   teams: number
+  /// The avatar of the repository's owner on GitHub.
+  avatar: string | null
 }
 
-/// Imports a template as a new company in the Paperclip in front and switches to it.
-export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>) => call<void>('import_company_template', { source, name, secrets })
+/// An adapter of the Paperclip in front; its models are empty when Paperclip has no company yet to list them for.
+export interface AdapterOption {
+  type: string
+  models: { id: string; label: string }[]
+}
+
+/// What an agent runs with instead of what its package names; an empty config keeps the adapter's default model.
+export interface AdapterOverride {
+  adapterType: string
+  adapterConfig: Record<string, unknown>
+}
+
+/// Imports a template as a new company in the Paperclip in front and switches to it; `adapters` go by agent slug.
+export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>, adapters: Record<string, AdapterOverride>) => call<void>('import_company_template', { source, name, secrets, adapters })
+export const adapterOptions = () => call<AdapterOption[]>('adapter_options')
+/// Asks for a `.zip` or a folder with a company package; null when the user cancelled.
+export const readCompanyPackage = (archive: boolean) => call<Record<string, PackageFile> | null>('read_company_package', { archive })
 export const previewCompanyTemplate = (source: TemplateSource) => call<TemplatePreview>('preview_company_template', { source })
 /// Every file of a template, as the Paperclip in front reads it.
 export const companyTemplateFiles = (source: TemplateSource) => call<Record<string, PackageFile>>('company_template_files', { source })
+/// A file to fetch from GitHub with what it must hash to: the SHA-256 of a snapshot, or the Git blob SHA of a branch read before.
+export type GithubFile = { path: string } & ({ sha256: string } | { blob: string })
+/// Files of a repository at a commit, by path; the host refuses one whose checksum differs from the one given.
+export const githubFiles = (repository: string, commit: string, files: GithubFile[]) => call<Record<string, PackageFile>>('github_files', { repository, commit, files })
+/// The head of a repository's default branch and every file in it.
+export interface GithubBranch {
+  commit: string
+  /// YYYY-MM-DD.
+  date: string
+  files: { path: string; blob: string; size: number }[]
+}
+export const githubBranch = (repository: string) => call<GithubBranch>('github_branch', { repository })
+/// One entry of Paperclip's inbox; the texts are Paperclip's own.
+export interface AttentionItem {
+  id: string
+  kind: string | null
+  title: string
+  why: string | null
+  severity: 'critical' | 'high' | 'medium' | 'low' | null
+  at: string | null
+  /// A path of Paperclip's own, for `openPaperclipPath`.
+  href: string | null
+}
+
+export interface Attention {
+  company: string
+  total: number
+  items: AttentionItem[]
+}
+
+/// The inbox of the company in front; null while no company is open.
+export const companyAttention = () => call<Attention | null>('company_attention')
+export const openPaperclipPath = (path: string) => call<void>('open_paperclip_path', { path })
 /// Whether Claude Code is installed, which the assistant needs.
 export const assistantAvailable = () => call<boolean>('assistant_available')
 /// Asks the assistant the user turned on and resolves to its answer text.
 export const askAssistant = (prompt: string) => call<string>('ask_assistant', { prompt })
-/// Needs a token stored with `setGithubToken`; an empty query finds what GitHub lists first.
+/// Needs a token stored with `setGithubToken` or a signed-in GitHub CLI; an empty query finds what GitHub lists first.
 export const searchTemplates = (query: string) => call<FoundTemplate[]>('search_templates', { query })
-export const githubTokenStored = () => call<boolean>('github_token_stored')
+/// A repository with skills somewhere on GitHub, found by its `SKILL.md` files.
+export interface FoundSkills {
+  repository: string
+  description: string
+  stars: number
+  updated: string
+  /// The SPDX id of its licence; null when GitHub knows of none.
+  license: string | null
+  /// The `SKILL.md` files the search saw; the repository may hold more.
+  skills: number
+  avatar: string | null
+}
+export const searchSkills = (query: string) => call<FoundSkills[]>('search_skills', { query })
+/// Where the search's token comes from: stored here, the GitHub CLI's, or null without one.
+export const githubAccess = () => call<'stored' | 'cli' | null>('github_access')
 /// An empty token removes the stored one.
 export const setGithubToken = (token: string) => call<void>('set_github_token', { token })
 

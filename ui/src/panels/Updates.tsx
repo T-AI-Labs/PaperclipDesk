@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Download, LoaderCircle, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notifications'
 
 import { SwitchRow } from '@/components/setting-row'
 import { Button } from '@/components/ui/button'

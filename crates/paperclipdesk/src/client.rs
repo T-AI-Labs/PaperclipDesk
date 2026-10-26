@@ -19,6 +19,7 @@ use crate::connection::profiles::{ConnectionStore, RemoteProfileInput, connectio
 use crate::connection::types::{BootstrapStatus, ConnectionMode, ConnectionProfile, ConnectionState, FailureReason, LOCAL_PROFILE_ID, RemotePreflightResult, SessionState};
 use crate::connection::validate::normalize_remote_url;
 use crate::connection::window_policy::{LOCAL_PARTITION, is_navigation_allowed, remote_partition, should_open_externally};
+use crate::instance;
 use crate::paths::DataPaths;
 use crate::server::{self, ServerLayout};
 use crate::server_package;
@@ -47,8 +48,6 @@ const OPEN_COMPANY_PAGE: &str = "path => fetch('/api/companies').then(r => r.jso
 const COMMAND_PALETTE: &str = "action => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })); if (action) setTimeout(() => document.querySelector(`[cmdk-item][data-value^=\"${action}\"]`)?.click(), 300); }";
 /// Paperclip keeps a light or dark mode chosen in its own menu; without one it follows the colour scheme the app gives the webview.
 const PAPERCLIP_THEME_KEY: &str = "paperclip.theme";
-/// Paperclip creates a company from the button on its overview of the companies; like the palette's actions, it has an English label only.
-const NEW_COMPANY: &str = "() => setTimeout(() => [...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'New Organization')?.click(), 300)";
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -160,6 +159,8 @@ pub struct Snapshot {
     /// What the connection chip at the right of the menu bar offers.
     connection_menu: Vec<crate::menu::Entry>,
     zoom_percent: u32,
+    /// The path of the Paperclip page in front, with its query and fragment; only while the address bar is turned on.
+    paperclip_path: Option<String>,
     /// Whether the menu bar is shown right now: as the setting says, or as F10 and the like asked for in full screen.
     menu_bar_shown: bool,
     state: ConnectionState,
@@ -266,23 +267,73 @@ impl Client {
     }
 
     fn layout(&self) -> Result<ServerLayout, String> {
-        ServerLayout::find(&self.paths.server_packages())
+        ServerLayout::find(&self.paths.server_packages(), &self.server_version())
+    }
+
+    /// The server version the local start runs: the newer one the user installed, or the one this build is tested with.
+    pub fn server_version(&self) -> String {
+        server_package::wanted(self.settings.lock().unwrap().server_version.as_deref())
+    }
+
+    /// A release build fetches the version it is tested with by the checksum built into it; a newer one comes from the signed list.
+    fn can_download_server(&self) -> bool {
+        self.server_version() != server_package::VERSION || server_package::pinned_package().is_some()
     }
 
     /// The installed server's version, or the one the app would download.
     pub fn local_server_version(&self) -> Option<String> {
         match self.layout() {
             Ok(layout) => layout.version(),
-            Err(_) => server_package::can_download().then(|| server_package::VERSION.to_owned()),
+            Err(_) => self.can_download_server().then(|| self.server_version()),
         }
     }
 
-    /// Fetches the server package on the first local start; the boot view shows how far it is.
+    /// The server versions newer than the one the local start runs, newest first.
+    pub fn newer_server_versions(&self) -> Result<Vec<String>, String> {
+        let current = self.server_version();
+        let mut newer: Vec<String> = server_package::catalog()?.into_iter().map(|package| package.version).filter(|version| server_package::is_newer(version, &current)).collect();
+        newer.sort_by(|left, right| if server_package::is_newer(left, right) { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater });
+        newer.dedup();
+        Ok(newer)
+    }
+
+    /// Switches the local server to a newer version from the signed list and starts it. The new server migrates the
+    /// database for good, so `backup` copies the data first; returns where the copy went.
+    pub fn upgrade_server(self: &Arc<Self>, version: &str, backup: bool) -> Result<Option<std::path::PathBuf>, String> {
+        if !server_package::is_newer(version, &self.server_version()) {
+            return Err(i18n::t("Nur neuere Server-Versionen lassen sich installieren.").to_owned());
+        }
+        if !server_package::catalog()?.iter().any(|package| package.version == version) {
+            return Err(i18n::f("Die Server-Version {} ist nicht verfügbar.", &[&version]));
+        }
+        self.stop_local();
+        let copy = if backup { instance::backup(&instance::instance_dir(&self.paths.paperclip_home), &chrono::Local::now().format("%Y%m%d-%H%M%S").to_string())? } else { None };
+        let settings = {
+            let mut settings = self.settings.lock().unwrap();
+            settings.server_version = Some(version.to_owned());
+            settings.clone()
+        };
+        settings::save(&settings::file_path(&self.paths.user_data), &settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SETTINGS_EVENT, &settings) {
+            tracing::warn!("sending the settings: {e}");
+        }
+        let client = Arc::clone(self);
+        std::thread::spawn(move || client.boot_local(true));
+        Ok(copy)
+    }
+
+    /// Fetches the server package the local start needs; the boot view shows how far it is.
     fn install_server(&self, boot_id: u64) -> Result<(), String> {
+        let version = self.server_version();
+        let package = match server_package::pinned_package().filter(|package| package.version == version) {
+            Some(package) => package,
+            None => server_package::catalog()?.into_iter().find(|package| package.version == version).ok_or_else(|| i18n::f("Die Server-Version {} ist nicht verfügbar.", &[&version]))?,
+        };
         let megabytes = |bytes: u64| bytes / 1_048_576;
         let shown = AtomicU64::new(u64::MAX);
         server_package::install(
             &self.paths.server_packages(),
+            &package,
             |done, total| {
                 let (step, detail) = match total {
                     Some(total) if total > 0 => (done * 100 / total, i18n::f("Paperclip-Server wird heruntergeladen … {} von {} MB", &[&megabytes(done), &megabytes(total)])),
@@ -300,6 +351,7 @@ impl Client {
     pub fn snapshot(&self) -> Snapshot {
         let menu = crate::menu::build(self);
         let connection_menu = crate::menu::connection_entries(self);
+        let paperclip_path = self.paperclip_webview().filter(|_| self.settings.lock().unwrap().show_address_bar).and_then(|webview| webview.url().ok()).map(|address| address[url::Position::BeforePath..].to_owned());
         let launcher = self.launcher.lock().unwrap();
         let store = self.store.lock().unwrap();
         let current = self.current.lock().unwrap();
@@ -332,6 +384,7 @@ impl Client {
             menu,
             connection_menu,
             zoom_percent: self.zoom_percent(),
+            paperclip_path,
             menu_bar_shown: self.menu_bar_shown(),
             state: store.state().clone(),
             profiles: store.list_profiles(),
@@ -715,6 +768,11 @@ impl Client {
     fn follow_route(&self, view: &str) {
         if self.main_label.lock().unwrap().as_deref() == Some(view) {
             self.read_companies(true);
+            if self.settings.lock().unwrap().show_address_bar {
+                // Off the main thread, which the snapshot needs for reading the page's URL.
+                let client = Arc::clone(&self.handle.state::<Arc<Client>>());
+                std::thread::spawn(move || client.send_state());
+            }
         }
     }
 
@@ -748,9 +806,9 @@ impl Client {
     }
 
     /// Imports a template as a new company and switches to it once Paperclip has made it.
-    pub fn import_template(&self, source: &companies::TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<(), String> {
+    pub fn import_template(&self, source: &companies::TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>, adapters: &HashMap<String, companies::AdapterOverride>) -> Result<(), String> {
         let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
-        let id = companies::import(&webview, source, name, secrets)?;
+        let id = companies::import(&webview, source, name, secrets, adapters)?;
         let known = companies::read(&webview);
         let company = known.companies.iter().flatten().find(|company| company.id == id).cloned();
         *self.companies.lock().unwrap() = Some(known);
@@ -765,6 +823,15 @@ impl Client {
     pub fn preview_template(&self, source: &companies::TemplateSource) -> Result<companies::Preview, String> {
         let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
         companies::preview(&webview, source)
+    }
+
+    /// The adapters and models the Paperclip in front offers for a new company's agents.
+    pub fn adapter_options(&self) -> Result<Vec<companies::AdapterOption>, String> {
+        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
+        // Paperclip lists models per company; on a server without one yet, the list has adapters only.
+        let known = self.known_companies().or_else(|| Some(companies::read(&webview)));
+        let company = known.as_ref().and_then(|known| known.current_company().or_else(|| known.companies.as_ref()?.first()));
+        companies::adapters(&webview, company)
     }
 
     /// The files of a template, read by the Paperclip in front, for the wizard to take agents and skills from.
@@ -1185,6 +1252,7 @@ impl Client {
         }
 
         self.boot_status(BootStep::Server, i18n::t("Server ist bereit"), 70);
+        instance::turn_streamlined_ui_off_once(&instance::instance_dir(&self.paths.paperclip_home), &probe_origin);
         self.boot_status(BootStep::Ready, i18n::t("Oberfläche wird geladen …"), 80);
 
         let start_url = format!("http://localhost:{port}");
@@ -1408,13 +1476,13 @@ impl Client {
 
     /// Whether the server in use is the downloaded package, which the app can fetch again.
     pub fn can_reinstall_server(&self) -> bool {
-        server_package::can_download() && self.layout().map_or(true, |layout| layout.cwd == server_package::installed_dir(&self.paths.server_packages()))
+        self.can_download_server() && self.layout().map_or(true, |layout| layout.cwd == server_package::installed_dir(&self.paths.server_packages(), &self.server_version()))
     }
 
     /// Downloads the server package again and starts it.
     pub fn reinstall_server(self: &Arc<Self>) {
         self.stop_local();
-        let package = server_package::installed_dir(&self.paths.server_packages());
+        let package = server_package::installed_dir(&self.paths.server_packages(), &self.server_version());
         if package.exists()
             && let Err(e) = std::fs::remove_dir_all(&package)
         {
@@ -1456,9 +1524,21 @@ impl Client {
         self.eval_in_front(&format!("({OPEN_COMPANY_PAGE})({})", serde_json::Value::from(path)));
     }
 
-    /// Opens Paperclip's dialog for a new company.
-    pub fn new_company(&self) {
-        self.eval_in_front(&format!("({OPEN_COMPANY_PAGE})('companies').then({NEW_COMPANY})"));
+    /// Brings Paperclip to the front on `path`, a path of its own that already names the company, as its inbox gives it.
+    pub fn open_paperclip_path(&self, path: &str) -> Result<(), String> {
+        // Only a path on Paperclip's own origin: `//host` would be another site, and a scheme is no path.
+        if !path.starts_with('/') || path.starts_with("//") || path.contains('\\') {
+            return Err(i18n::t("Diese Seite gibt es in Paperclip nicht.").to_owned());
+        }
+        self.eval_in_front(&format!("history.pushState(null, '', {}); dispatchEvent(new PopStateEvent('popstate'))", serde_json::Value::from(path)));
+        Ok(())
+    }
+
+    /// What waits for the user in the company in front, read through Paperclip's page like its own inbox.
+    pub fn attention(&self) -> Result<Option<companies::Attention>, String> {
+        let Some(webview) = self.paperclip_webview() else { return Ok(None) };
+        let Some(company) = self.known_companies().and_then(|known| known.current_company().cloned()) else { return Ok(None) };
+        companies::attention(&webview, &company).map(Some)
     }
 
     /// Brings Paperclip to the front with its command palette open, and picks `action` there if it is given and found.
@@ -1470,7 +1550,8 @@ impl Client {
         if !self.reopen_current_connection_window() {
             return;
         }
-        if let Some(Err(e)) = self.paperclip_webview().map(|webview| webview.eval(script)) {
+        let script = format!("({})().then(() => {{ {script} }})", companies::CLOSE_DIALOGS);
+        if let Some(Err(e)) = self.paperclip_webview().map(|webview| webview.eval(&script)) {
             tracing::warn!("running a menu action in Paperclip: {e}");
         }
     }

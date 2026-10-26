@@ -1,9 +1,13 @@
 import type { PackageFile, TemplateAgent } from '@/lib/client'
 import type { Template } from '../catalog'
+import type { Collection } from '../collections'
 
 export type Files = Record<string, PackageFile>
 
-/// A skill as an agent names it: one of a catalog template's, or one the package only refers to, like Paperclip's own.
+/// Where agents and skills come from: a catalog template or a collection, by its id.
+export type Origin = Pick<Template, 'id' | 'name' | 'agents' | 'skills'>
+
+/// A skill as an agent names it: one of a template's or collection's, or one the package only refers to, like Paperclip's own.
 export interface SkillRef {
   template: string | null
   slug: string
@@ -12,7 +16,7 @@ export interface SkillRef {
 export interface DraftAgent {
   /// Its slug in the new company, unique there.
   slug: string
-  /// The catalog agent it was taken from; null for one made in the wizard.
+  /// The agent of a template or collection it was taken from; null for one made in the wizard.
   origin: { template: string; slug: string } | null
   name: string
   title: string
@@ -44,7 +48,7 @@ function uniqueSlug(base: string, taken: ReadonlySet<string>): string {
   for (let index = 2; ; index++) if (!taken.has(`${base}-${index}`)) return `${base}-${index}`
 }
 
-function skillRefs(template: Template, agent: TemplateAgent): SkillRef[] {
+function skillRefs(template: Origin, agent: TemplateAgent): SkillRef[] {
   const own = new Set(template.skills.map((skill) => skill.slug))
   return agent.skills.map((slug) => ({ template: own.has(slug) ? template.id : null, slug }))
 }
@@ -69,8 +73,8 @@ export function addTemplate(draft: Draft, template: Template, boss: string | nul
   return { ...draft, agents: [...draft.agents, ...added] }
 }
 
-/// Adds one agent of a template, reporting to `boss`.
-export function addAgent(draft: Draft, template: Template, agent: TemplateAgent, boss: string | null): Draft {
+/// Adds one agent of a template or collection, reporting to `boss`.
+export function addAgent(draft: Draft, template: Origin, agent: TemplateAgent, boss: string | null): Draft {
   const slug = uniqueSlug(agent.slug, new Set(draft.agents.map((known) => known.slug)))
   const added: DraftAgent = { slug, origin: { template: template.id, slug: agent.slug }, name: agent.name, title: agent.title ?? '', reportsTo: boss, skills: skillRefs(template, agent) }
   return { ...draft, agents: [...draft.agents, added] }
@@ -113,7 +117,7 @@ export function chartAgents(draft: Draft): TemplateAgent[] {
   return draft.agents.map((agent) => ({ slug: agent.slug, name: agent.name || agent.slug, title: agent.title || null, reportsTo: agent.reportsTo, skills: agent.skills.map((skill) => skill.slug) }))
 }
 
-/// The catalog templates whose files the package needs: those of its agents and of their skills.
+/// The templates and collections whose files the package needs: those of its agents and of their skills.
 export function usedTemplates(draft: Draft): string[] {
   const used = new Set<string>()
   for (const agent of draft.agents) {
@@ -172,7 +176,7 @@ export function agentSettings(yaml: string): Map<string, string[]> {
 
 /// Puts the draft together as a company package: the agents and skills come with their files from the templates they were
 /// taken from, under their new slugs, and the package refers to each source for its licence.
-export function compose(draft: Draft, files: Record<string, Files>, templates: readonly Template[]): Files {
+export function compose(draft: Draft, files: Record<string, Files>, templates: readonly Template[], collections: readonly Collection[]): Files {
   const out: Files = {}
   const copy = (template: string, from: string, to: string, change?: (text: string) => string) => {
     for (const [path, file] of Object.entries(files[template] ?? {})) {
@@ -224,7 +228,9 @@ export function compose(draft: Draft, files: Record<string, Files>, templates: r
 
   const companySlug = slugify(draft.name) === 'agent' ? 'company' : slugify(draft.name)
   out['COMPANY.md'] = setFrontMatter(`${draft.description}\n`, { name: draft.name, description: draft.description || null, slug: companySlug, schema: 'agentcompanies/v1', version: '1.0.0', goals: draft.goals.length ? draft.goals : null })
-  const sources = usedTemplates(draft).map((id) => templates.find((template) => template.id === id)).filter((template) => template !== undefined)
+  const used = usedTemplates(draft)
+  const sources = used.map((id) => templates.find((template) => template.id === id)).filter((template) => template !== undefined)
+  const taken = used.map((id) => collections.find((collection) => collection.id === id)).filter((collection) => collection !== undefined)
   out['README.md'] = [
     `# ${draft.name}`,
     '',
@@ -233,6 +239,7 @@ export function compose(draft: Draft, files: Record<string, Files>, templates: r
     ...(sources.length
       ? ['Put together with PaperclipDesk from these templates of https://github.com/paperclipai/companies (MIT):', '', ...sources.map((template) => `- ${template.name} (${template.id}), based on https://github.com/${template.source}`)]
       : []),
+    ...(taken.length ? ['', 'Agents and skills taken from these collections:', '', ...taken.map((collection) => `- ${collection.name}, https://github.com/${collection.id} at ${collection.commit} (${collection.license ?? 'no licence named'})`)] : []),
     '',
   ].join('\n')
   return out

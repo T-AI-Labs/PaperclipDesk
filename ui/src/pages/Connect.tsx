@@ -1,12 +1,13 @@
 import { type ReactNode, useState } from 'react'
 import { ArrowLeft, Check, CircleAlert, Globe, LoaderCircle, type LucideIcon, Monitor, Plus, RotateCcw, ShieldAlert, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notifications'
 
 import { AppMark } from '@/components/app-mark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { TONE_DOT, profileHealth, relativeTime } from '@/connect/format'
 import Welcome from '@/connect/Welcome'
+import type { Panel } from '@/shell/SettingsMenu'
 import { type BootStep, type LauncherView, type OpenConnection, type PageProps, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
@@ -136,7 +137,7 @@ function ConnectionCard({
 }
 
 /// The welcome page, or the saved remotes as cards to open them; while the app connects, the progress and what went wrong.
-export default function Connect({ snapshot, onAddRemote, ...props }: PageProps & { snapshot: Snapshot; onAddRemote: () => void }) {
+export default function Connect({ snapshot, onAddRemote, onPanel, ...props }: PageProps & { snapshot: Snapshot; onAddRemote: () => void; onPanel: (panel: Panel) => void }) {
   const [view, setView] = useState<LauncherView>(snapshot.view)
   const [lastAction, setLastAction] = useState<Action | null>(null)
 
@@ -158,7 +159,7 @@ export default function Connect({ snapshot, onAddRemote, ...props }: PageProps &
   const unsaved = open.filter((connection) => !connection.local && !remotes.some((profile) => profile.id === connection.profileId))
   const retry = lastAction ?? (snapshot.state.activeProfileId ? ({ kind: 'saved', profileId: snapshot.state.activeProfileId } satisfies Action) : null)
 
-  if (view === 'welcome') return <Welcome snapshot={snapshot} onStart={run} onAddRemote={onAddRemote} {...props} />
+  if (view === 'welcome') return <Welcome snapshot={snapshot} onStart={run} onAddRemote={onAddRemote} onPanel={onPanel} {...props} />
   if (view === 'local-boot') return <BootProgress snapshot={snapshot} />
   if (view === 'connecting') return <Connecting snapshot={snapshot} />
 

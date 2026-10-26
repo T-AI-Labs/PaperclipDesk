@@ -11,6 +11,7 @@
     "bundle-server": "node scripts/bundle-server.mjs",
     "prepare-server-ui": "node scripts/build-ui.mjs",
     "pack-server": "node scripts/pack-server.mjs",
+    "server-catalog": "node scripts/server-catalog.mjs",
     "licenses": "node scripts/create-licenses.mjs",
     "catalog": "node scripts/update-catalog.mjs",
     "build": "cd crates/paperclipdesk && npx --prefix ../../ui tauri build --no-bundle",

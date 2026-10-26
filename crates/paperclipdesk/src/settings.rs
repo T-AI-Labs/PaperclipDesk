@@ -20,17 +20,21 @@ pub struct Settings {
     pub show_welcome: bool,
     /// Whether the menu bar shows, above Paperclip and above the app's own pages.
     pub show_menu_bar: bool,
+    /// Whether the menu bar shows the path of the Paperclip page in front, as a field to go elsewhere.
+    pub show_address_bar: bool,
     /// The key of each action that has one, e.g. "view.fullscreen" → "F11".
     pub shortcuts: BTreeMap<String, String>,
     /// A language code, or "System" for the language Windows runs in.
     pub language: String,
+    /// The newer Paperclip server the user installed; none runs the one this build is tested with. Only `upgrade_server` sets it.
+    pub server_version: Option<String>,
     /// Which AI helps in the wizards: "off", or "claude_code" for the user's Claude subscription through Claude Code.
     pub assistant: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, shortcuts: crate::shortcuts::defaults(), language: "System".into(), assistant: "off".into() }
+        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, show_address_bar: false, shortcuts: crate::shortcuts::defaults(), language: "System".into(), server_version: None, assistant: "off".into() }
     }
 }
 

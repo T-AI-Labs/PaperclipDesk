@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, CircleAlert, Download, LoaderCircle, RefreshCw, ScrollText } from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowLeft, CircleAlert, Download, LoaderCircle, RefreshCw, ScrollText, X } from 'lucide-react'
+import { toast } from '@/lib/notifications'
 
 import { IconTile } from '@/components/icon-tile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -29,9 +29,12 @@ import Updates from './panels/Updates'
 const Templates = lazy(() => import('./panels/Templates'))
 const Wizard = lazy(() => import('./panels/Wizard'))
 
-const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', wizard: 'Firma zusammenstellen', shortcuts: 'Tastenkürzel' }
+const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', wizard: 'Neue Firma', shortcuts: 'Tastenkürzel' }
 
-type Loaded = { snapshot: Snapshot; settings: Settings } | { error: string }
+/// Panels with tables wide enough to need the whole window below the menu bar.
+const FULL_VIEW: Panel[] = ['templates', 'wizard']
+
+type Loaded ={ snapshot: Snapshot; settings: Settings } | { error: string }
 
 async function fetchAll(): Promise<Loaded> {
   try {
@@ -106,6 +109,18 @@ export default function App() {
     void holdOverlay('panel', false)
   }
 
+  const fullPanel = panel !== null && FULL_VIEW.includes(panel) ? panel : null
+
+  // A page that fills the window has no overlay of its own to close it with Escape, unlike the sheet.
+  useEffect(() => {
+    if (!fullPanel) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-state=open][role=dialog], [data-radix-popper-content-wrapper]')) closePanel()
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [fullPanel])
+
   useEffect(
     () =>
       onShortcut((action) => {
@@ -161,13 +176,32 @@ export default function App() {
           connectionName={snapshot.currentConnectionName}
           zoomPercent={snapshot.zoomPercent}
           connected={snapshot.hasCurrentConnection}
+          paperclipPath={snapshot.paperclipPath}
           onPanel={openPanel}
+          // Going elsewhere from the menu leaves the company being planned; the page in front would hide where the user went.
+          onNavigate={() => fullPanel && closePanel()}
           {...props}
         />
       )}
 
+      {fullPanel && (
+        <section aria-label={t(PANEL_TITLES[fullPanel])} className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+          <header className="flex h-12 shrink-0 items-center gap-3 border-b px-6">
+            <h1 className="flex-1 truncate font-heading text-base font-semibold tracking-tight">{t(PANEL_TITLES[fullPanel])}</h1>
+            <Button size="icon-sm" variant="ghost" aria-label={t('Schließen')} title={t('Schließen')} onClick={closePanel}>
+              <X />
+            </Button>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-4">
+            <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
+              {fullPanel === 'templates' ? <Templates snapshot={snapshot} onDone={closePanel} onCompose={() => openPanel('wizard')} /> : <Wizard snapshot={snapshot} assistant={settings.assistant === 'claude_code'} onDone={closePanel} />}
+            </Suspense>
+          </div>
+        </section>
+      )}
+
       {!onPaperclip && (
-        <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className={cn('relative z-10 flex min-h-0 min-w-0 flex-1 flex-col', fullPanel && 'hidden')}>
           {page === 'logs' && (
             <header className="glass-surface z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
               <IconTile icon={ScrollText} tone={-80} />
@@ -191,15 +225,15 @@ export default function App() {
 
           <main key={page} className="relative z-10 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
             <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>
-              {page === 'connect' && <Connect snapshot={snapshot} onAddRemote={() => openPanel('remotes')} {...props} />}
+              {page === 'connect' && <Connect snapshot={snapshot} onAddRemote={() => openPanel('remotes')} onPanel={openPanel} {...props} />}
               {page === 'logs' && <Logs />}
             </div>
           </main>
         </div>
       )}
 
-      <Sheet open={panel !== null} onOpenChange={(isOpen) => !isOpen && closePanel()}>
-        <SheetContent aria-describedby={undefined} className={cn('gap-0 data-[side=right]:sm:max-w-none', panel === 'wizard' ? 'data-[side=right]:w-[min(72rem,100vw)]' : 'data-[side=right]:w-[min(36rem,100vw)]')}>
+      <Sheet open={panel !== null && !fullPanel} onOpenChange={(isOpen) => !isOpen && closePanel()}>
+        <SheetContent aria-describedby={undefined} className="gap-0 data-[side=right]:w-[min(36rem,100vw)] data-[side=right]:sm:max-w-none">
           <SheetHeader className="border-b">
             <SheetTitle>{panel && t(PANEL_TITLES[panel])}</SheetTitle>
           </SheetHeader>
@@ -207,11 +241,6 @@ export default function App() {
             {panel === 'server' && <Server />}
             {panel === 'remotes' && <Remotes snapshot={snapshot} onChanged={setSnapshot} />}
             {panel === 'updates' && <Updates {...props} updater={updater} />}
-            {(panel === 'templates' || panel === 'wizard') && (
-              <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
-                {panel === 'templates' ? <Templates onDone={closePanel} /> : <Wizard assistant={settings.assistant === 'claude_code'} onDone={closePanel} />}
-              </Suspense>
-            )}
             {panel === 'shortcuts' && <Shortcuts snapshot={snapshot} {...props} />}
           </div>
         </SheetContent>

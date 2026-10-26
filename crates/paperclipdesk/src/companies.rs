@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::{Deserialize, Serialize};
 use tauri::webview::Webview;
 use webview2_com::{CallDevToolsProtocolMethodCompletedHandler, HistoryChangedEventHandler};
@@ -21,7 +24,10 @@ const SELECTED: &str = "localStorage.getItem('paperclip.selectedCompanyId')";
 /// Starts the import as a job and waits for it in the page: Paperclip accepts changes only with the page's session and origin.
 const IMPORT: &str = "async body => { const failed = (answer, response) => JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const started = await fetch('/api/companies/import?async=1', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const accepted = await started.json().catch(() => ({})); if (!started.ok) return failed(accepted, started); for (;;) { await new Promise(done => setTimeout(done, accepted.retryAfterMs ?? 1000)); const polled = await fetch(accepted.statusUrl); const state = await polled.json().catch(() => ({})); if (!polled.ok) return failed(state, polled); if (state.job.status === 'succeeded') return JSON.stringify({ companyId: state.job.result.companyId }); if (state.job.status === 'failed') return failed(state.job.error ?? {}, polled); } }";
 /// Paperclip selects the company by the first segment of its routes and remembers the last path of each company.
-const SWITCH: &str = "(id, prefix) => { let path = '/dashboard'; try { path = JSON.parse(localStorage.getItem('paperclip.companyPaths') ?? '{}')[id] ?? path; } catch {} const first = path.split('/').filter(Boolean)[0] ?? ''; const target = first.toLowerCase() === prefix.toLowerCase() ? path : `/${prefix}${path.startsWith('/') ? '' : '/'}${path}`; history.pushState(null, '', target); dispatchEvent(new PopStateEvent('popstate')); }";
+/// Closes Paperclip's open dialogs the way Escape does, one layer at a time; a dialog left open would cover the page the
+/// menu goes to. The wait lets each layer close before the next Escape, so it never reaches the page below.
+pub const CLOSE_DIALOGS: &str = "async () => { for (let left = 5; left > 0 && document.querySelector('[role=dialog][data-state=open], [role=alertdialog][data-state=open]'); left--) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); await new Promise(done => setTimeout(done, 80)); } }";
+const SWITCH: &str ="(id, prefix) => { let path = '/dashboard'; try { path = JSON.parse(localStorage.getItem('paperclip.companyPaths') ?? '{}')[id] ?? path; } catch {} const first = path.split('/').filter(Boolean)[0] ?? ''; const target = first.toLowerCase() === prefix.toLowerCase() ? path : `/${prefix}${path.startsWith('/') ? '' : '/'}${path}`; history.pushState(null, '', target); dispatchEvent(new PopStateEvent('popstate')); }";
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -85,7 +91,7 @@ pub fn watch_routes(webview: &Webview, changed: impl Fn() + Send + 'static) {
 
 /// Switches the page to the company and waits until Paperclip has taken the route, so a list read afterwards sees it in front.
 pub fn switch(webview: &Webview, company: &Company) -> bool {
-    let expression = format!("({SWITCH})({}, {}); 'ok'", serde_json::Value::from(company.id.as_str()), serde_json::Value::from(company.issue_prefix.as_str()));
+    let expression = format!("({CLOSE_DIALOGS})().then(() => ({SWITCH})({}, {})).then(() => 'ok')", serde_json::Value::from(company.id.as_str()), serde_json::Value::from(company.issue_prefix.as_str()));
     evaluate(webview, &expression, ANSWER_TIMEOUT).is_some()
 }
 
@@ -135,7 +141,7 @@ fn github_package_url(url: &str) -> Result<String, String> {
 }
 
 /// Asks Paperclip what a template brings without importing it, trimmed to what the panel shows; the files stay in the page.
-const PREVIEW: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const manifest = answer.manifest ?? {}; return JSON.stringify({ preview: { name: manifest.company?.name ?? null, description: manifest.company?.description ?? null, agents: (manifest.agents ?? []).map(agent => ({ slug: agent.slug, name: agent.name, title: agent.title ?? null, reportsTo: agent.reportsToSlug ?? null, skills: agent.skills ?? [] })), skills: (manifest.skills ?? []).map(skill => ({ slug: skill.slug, name: skill.name, description: /^[>|][-+]?$/.test(skill.description ?? '') ? null : (skill.description ?? null) })), inputs: (answer.envInputs ?? []).map(input => ({ key: input.key, required: input.requirement === 'required' })), warnings: answer.warnings ?? [], errors: answer.errors ?? [] } }); }";
+const PREVIEW: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const manifest = answer.manifest ?? {}; return JSON.stringify({ preview: { name: manifest.company?.name ?? null, description: manifest.company?.description ?? null, agents: (manifest.agents ?? []).map(agent => ({ slug: agent.slug, name: agent.name, title: agent.title ?? null, reportsTo: agent.reportsToSlug ?? null, skills: agent.skills ?? [], adapterType: agent.adapterType ?? null, model: typeof agent.adapterConfig?.model === 'string' ? agent.adapterConfig.model : null })), skills: (manifest.skills ?? []).map(skill => ({ slug: skill.slug, name: skill.name, description: /^[>|][-+]?$/.test(skill.description ?? '') ? null : (skill.description ?? null) })), inputs: (answer.envInputs ?? []).map(input => ({ key: input.key, required: input.requirement === 'required' })), warnings: answer.warnings ?? [], errors: answer.errors ?? [] } }); }";
 /// Every file of a template as Paperclip read it, for the wizard to take agents and skills from.
 const FILES: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); return JSON.stringify({ files: answer.files ?? {} }); }";
 /// Paperclip reads the whole package from GitHub for a preview.
@@ -162,6 +168,9 @@ struct PreviewAgent {
     title: Option<String>,
     reports_to: Option<String>,
     skills: Vec<String>,
+    /// What the package names; Paperclip makes it `process`, a command without AI, when it names none.
+    adapter_type: Option<String>,
+    model: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -197,16 +206,145 @@ pub fn files(webview: &Webview, source: &TemplateSource) -> Result<serde_json::M
     serde_json::from_value(previewed(webview, FILES, source, "files")?).map_err(|e| e.to_string())
 }
 
+/// The adapter an agent runs with instead of the one its package names, by the agent's slug.
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdapterOverride {
+    adapter_type: String,
+    adapter_config: serde_json::Map<String, serde_json::Value>,
+}
+
 /// Imports a template as a new company and returns its id. `secrets` fills the template's environment inputs;
 /// Paperclip stores them as secrets, the app keeps nothing of them.
-pub fn import(webview: &Webview, source: &TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>) -> Result<String, String> {
+pub fn import(webview: &Webview, source: &TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>, adapters: &HashMap<String, AdapterOverride>) -> Result<String, String> {
     let body = serde_json::json!({
         "source": source.body()?,
         "target": { "mode": "new_company", "newCompanyName": name.map(str::trim).filter(|name| !name.is_empty()) },
         "secretValues": secrets,
+        "adapterOverrides": adapters,
     });
     let answer = evaluate(webview, &format!("({IMPORT})({body})"), IMPORT_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
     imported(&answer)
+}
+
+/// The adapters this Paperclip runs agents with, and the models of each. Paperclip lists models per company only; without
+/// one, each adapter keeps its own default model.
+const ADAPTERS: &str = "async company => { const response = await fetch('/api/adapters'); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const usable = answer.filter(adapter => !adapter.disabled && adapter.type !== 'http'); const models = async type => { if (!company) return []; const listed = await fetch(`/api/companies/${encodeURIComponent(company)}/adapters/${encodeURIComponent(type)}/models`).catch(() => null); return listed?.ok ? ((await listed.json().catch(() => [])) ?? []).map(model => ({ id: String(model.id), label: String(model.label ?? model.id) })) : []; }; return JSON.stringify({ adapters: await Promise.all(usable.map(async adapter => ({ type: adapter.type, models: await models(adapter.type) }))) }); }";
+
+#[derive(Deserialize, Serialize)]
+pub struct AdapterOption {
+    r#type: String,
+    models: Vec<AdapterModel>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct AdapterModel {
+    id: String,
+    label: String,
+}
+
+/// Lists the adapters and their models, asking with `company` for the models; any company of this Paperclip will do.
+pub fn adapters(webview: &Webview, company: Option<&Company>) -> Result<Vec<AdapterOption>, String> {
+    let expression = format!("({ADAPTERS})({})", serde_json::Value::from(company.map(|company| company.id.as_str())));
+    let answer = evaluate(webview, &expression, PREVIEW_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
+    let mut answer: serde_json::Value = serde_json::from_str(&answer).map_err(|e| e.to_string())?;
+    if let Some(error) = answer["error"].as_str() {
+        return Err(error.to_owned());
+    }
+    serde_json::from_value(answer["adapters"].take()).map_err(|e| e.to_string())
+}
+
+/// A package read from a folder or an archive is held in memory and handed to the page whole; this keeps a stray pick of
+/// a home folder from filling it.
+const PACKAGE_LIMIT: u64 = 50 * 1024 * 1024;
+
+/// Reads a company package from a folder, e.g. one unpacked from a Clipmart download: the folder with the `COMPANY.md`
+/// nearest to `root` is the package, and its files become the inline source Paperclip imports from.
+pub fn read_package(root: &Path) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    let package = package_root(root, 0).ok_or_else(|| i18n::t("Darin ist kein Firmenpaket: Es fehlt eine COMPANY.md.").to_owned())?;
+    let mut files = serde_json::Map::new();
+    let mut size = 0;
+    collect(&package, &package, &mut files, &mut size)?;
+    Ok(files)
+}
+
+/// Breadth first, so the package at the top wins over example packages inside it.
+fn package_root(folder: &Path, depth: usize) -> Option<PathBuf> {
+    if folder.join("COMPANY.md").is_file() {
+        return Some(folder.to_owned());
+    }
+    if depth >= 3 {
+        return None;
+    }
+    let mut below: Vec<PathBuf> = std::fs::read_dir(folder).ok()?.flatten().map(|entry| entry.path()).filter(|path| path.is_dir()).collect();
+    below.sort();
+    below.iter().find(|path| path.join("COMPANY.md").is_file()).cloned().or_else(|| below.iter().find_map(|path| package_root(path, depth + 1)))
+}
+
+fn collect(package: &Path, folder: &Path, files: &mut serde_json::Map<String, serde_json::Value>, size: &mut u64) -> Result<(), String> {
+    let failed = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
+    for entry in std::fs::read_dir(folder).map_err(|e| failed(folder, e))?.flatten() {
+        let path = entry.path();
+        if entry.file_name() == ".git" {
+            continue;
+        }
+        if path.is_dir() {
+            collect(package, &path, files, size)?;
+            continue;
+        }
+        *size += entry.metadata().map(|metadata| metadata.len()).unwrap_or(0);
+        if *size > PACKAGE_LIMIT {
+            return Err(i18n::t("Das Firmenpaket ist größer als 50 MB.").to_owned());
+        }
+        let bytes = std::fs::read(&path).map_err(|e| failed(&path, e))?;
+        let relative = path.strip_prefix(package).map_err(|e| e.to_string())?.components().map(|part| part.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
+        let file = match String::from_utf8(bytes) {
+            Ok(text) => serde_json::Value::from(text),
+            Err(binary) => serde_json::json!({ "encoding": "base64", "data": BASE64.encode(binary.as_bytes()) }),
+        };
+        files.insert(relative, file);
+    }
+    Ok(())
+}
+
+/// The company's inbox as Paperclip's own page asks for it, trimmed to what the bell shows.
+const ATTENTION: &str = "async id => { const response = await fetch(`/api/companies/${encodeURIComponent(id)}/attention?limit=50`); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); return JSON.stringify({ total: answer.totalCount ?? 0, items: (answer.items ?? []).map(item => ({ id: item.id, kind: item.sourceKind ?? null, title: item.subject?.title ?? item.whyNow ?? '', why: item.whyNow ?? null, severity: item.severity ?? null, at: item.activityAt ?? null, href: item.subject?.href ?? null })) }); }";
+
+/// What waits for a decision or a look in one company.
+#[derive(Serialize)]
+pub struct Attention {
+    company: String,
+    total: u32,
+    items: Vec<AttentionItem>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct AttentionItem {
+    id: String,
+    kind: Option<String>,
+    title: String,
+    why: Option<String>,
+    severity: Option<String>,
+    at: Option<String>,
+    /// A path of Paperclip's own that already names the company.
+    href: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AttentionAnswer {
+    total: u32,
+    items: Vec<AttentionItem>,
+}
+
+pub fn attention(webview: &Webview, company: &Company) -> Result<Attention, String> {
+    let expression = format!("({ATTENTION})({})", serde_json::Value::from(company.id.as_str()));
+    let answer = evaluate(webview, &expression, ANSWER_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
+    let answer: serde_json::Value = serde_json::from_str(&answer).map_err(|e| e.to_string())?;
+    if let Some(error) = answer["error"].as_str() {
+        return Err(error.to_owned());
+    }
+    let AttentionAnswer { total, items } = serde_json::from_value(answer).map_err(|e| e.to_string())?;
+    Ok(Attention { company: company.name.clone(), total, items })
 }
 
 /// The template's folder in the catalog on GitHub.
@@ -265,6 +403,26 @@ mod tests {
             {"id":"c","name":"Odd","issuePrefix":"a/../b","status":"active"}
         ]"#;
         assert_eq!(parse(json).unwrap().into_iter().map(|company| company.id).collect::<Vec<_>>(), ["a"]);
+    }
+
+    #[test]
+    fn a_package_is_read_from_the_folder_of_its_company_md() {
+        let root = std::env::temp_dir().join(format!("paperclipdesk-test-{}", uuid::Uuid::new_v4()));
+        let package = root.join("lead-gen").join("lead-gen-machine");
+        std::fs::create_dir_all(package.join("agents/ceo")).unwrap();
+        std::fs::create_dir_all(package.join(".git")).unwrap();
+        std::fs::write(package.join("COMPANY.md"), "---\nname: Lead Gen\n---\n").unwrap();
+        std::fs::write(package.join("agents/ceo/AGENTS.md"), "CEO").unwrap();
+        std::fs::write(package.join("logo.png"), [0x89, 0x50, 0xff, 0x00]).unwrap();
+        std::fs::write(package.join(".git/HEAD"), "ref").unwrap();
+
+        let files = read_package(&root).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let mut paths: Vec<&str> = files.keys().map(String::as_str).collect();
+        paths.sort();
+        assert_eq!(paths, ["COMPANY.md", "agents/ceo/AGENTS.md", "logo.png"]);
+        assert_eq!(files["logo.png"], serde_json::json!({ "encoding": "base64", "data": "iVD/AA==" }));
+        assert!(read_package(&std::env::temp_dir().join("paperclipdesk-no-such-folder")).is_err());
     }
 
     #[test]

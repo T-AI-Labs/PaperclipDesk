@@ -32,15 +32,15 @@ pub struct ServerLayout {
 }
 
 impl ServerLayout {
-    /// The server is next to the exe (`scripts/install.ps1`), downloaded into the app's data, or, for a build run from the
-    /// repository, where `npm run prepare-server` staged it.
-    pub fn find(packages: &Path) -> Result<Self, String> {
-        let downloaded = crate::server_package::installed_dir(packages);
+    /// `version` downloaded into the app's data, else the server next to the exe (`scripts/install.ps1`), or, for a build
+    /// run from the repository, where `npm run prepare-server` staged it. The download comes first: it is the one the user chose.
+    pub fn find(packages: &Path, version: &str) -> Result<Self, String> {
+        let downloaded = crate::server_package::installed_dir(packages, version);
         let installed = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("app-server")));
         let staged = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|root| root.join("build"));
         let candidates = [
-            installed.as_ref().map(|root| (root.join("server"), root.join("node-bin").join("node.exe"), root.clone())),
             Some((downloaded.join("server"), downloaded.join("node-bin").join("node.exe"), downloaded.clone())),
+            installed.as_ref().map(|root| (root.join("server"), root.join("node-bin").join("node.exe"), root.clone())),
             staged.as_ref().map(|build| {
                 let bundle = build.join("server-bundle").join("win-x64");
                 (bundle.join("server"), build.join("node-bin").join("win-x64").join("node.exe"), bundle)
@@ -51,7 +51,7 @@ impl ServerLayout {
             .flatten()
             .find(|(server_dir, ..)| server_dir.join("dist").join("index.js").is_file())
             .map(|(server_dir, node, cwd)| Self { node: if node.is_file() { node } else { "node".into() }, server_dir, cwd })
-            .ok_or_else(|| i18n::f("Der Paperclip-Server {} ist noch nicht installiert.", &[&crate::server_package::VERSION]))
+            .ok_or_else(|| i18n::f("Der Paperclip-Server {} ist noch nicht installiert.", &[&version]))
     }
 
     /// The single-file bundle `prepare-server` writes starts several seconds sooner; a package without one starts from its modules.
