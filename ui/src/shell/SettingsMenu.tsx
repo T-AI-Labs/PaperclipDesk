@@ -17,12 +17,12 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from '@/components/ui/menubar'
-import { type PageProps, assistantAvailable, errorMessage, exportSettings, importSettings, menuAction } from '@/lib/client'
+import { type PageProps, errorMessage, exportSettings, importSettings, menuAction } from '@/lib/client'
 import { ACCENTS, type ColorScheme, THEMES, type ThemePreset } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { LANGUAGES, t } from '@/i18n'
 
-export type Panel = 'server' | 'remotes' | 'updates' | 'templates' | 'wizard' | 'shortcuts'
+export type Panel = 'server' | 'remotes' | 'updates' | 'templates' | 'shortcuts'
 
 interface Props extends PageProps {
   zoomPercent: number
@@ -83,12 +83,6 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
   useEffect(() => {
     const frame = requestAnimationFrame(() => search.current?.focus())
     return () => cancelAnimationFrame(frame)
-  }, [])
-  const [claudeCode, setClaudeCode] = useState<boolean | null>(null)
-  useEffect(() => {
-    assistantAvailable()
-      .then(setClaudeCode)
-      .catch(() => setClaudeCode(false))
   }, [])
   const set = (next: Partial<typeof settings>) => void save({ ...settings, ...next }, '')
   const command = (id: string) => () => void menuAction(id).catch(failed)
@@ -223,30 +217,6 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
                     </MenubarRadioItem>
                   ))}
                 </MenubarRadioGroup>
-              </MenubarSubContent>
-            </MenubarSub>
-          ),
-        },
-        {
-          words: [t('KI-Assistent'), t('Aus'), t('Claude-Abo über Claude Code')],
-          node: (
-            <MenubarSub key="assistant">
-              <MenubarSubTrigger inset>
-                {t('KI-Assistent')}
-                <span className="ml-auto pl-3 text-xs text-muted-foreground">{settings.assistant === 'claude_code' ? 'Claude' : t('Aus')}</span>
-              </MenubarSubTrigger>
-              <MenubarSubContent className="max-w-80">
-                <MenubarRadioGroup value={settings.assistant} onValueChange={(assistant) => set({ assistant: assistant as typeof settings.assistant })}>
-                  <MenubarRadioItem value="off" disabled={saving}>
-                    {t('Aus')}
-                  </MenubarRadioItem>
-                  <MenubarRadioItem value="claude_code" disabled={saving || claudeCode === false}>
-                    {t('Claude-Abo über Claude Code')}
-                  </MenubarRadioItem>
-                </MenubarRadioGroup>
-                <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                  {claudeCode === false ? t('Claude Code ist nicht installiert.') : t('Hilft in den Assistenten mit Fragen und Vorschlägen. Die App gibt Claude nur deine Beschreibung, deine Antworten und den Vorlagenkatalog; es zählt gegen dein Abo.')}
-                </p>
               </MenubarSubContent>
             </MenubarSub>
           ),

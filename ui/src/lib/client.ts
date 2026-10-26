@@ -150,8 +150,6 @@ export interface Settings {
   language: string
   /// The newer Paperclip server the user installed, or null for the one this app is tested with; only `upgradeServer` changes it.
   server_version: string | null
-  /// Which AI helps in the wizards; 'claude_code' asks Claude through the user's Claude Code and subscription.
-  assistant: 'off' | 'claude_code'
 }
 
 /// What the settings menu and its panels get from the shell.
@@ -237,7 +235,7 @@ export const updateSettings = (settings: Settings) => call<Settings>('update_set
 export const getLog = (file: string | null, lines: number) => call<LogTail>('get_log', { file, lines })
 export const clearLog = (file: string) => call<void>('clear_log', { file })
 export const openDataFolder = () => call<void>('open_data_folder')
-export type ProjectLink = 'repository' | 'report_issue' | 'github_tokens' | { template: string } | { clipmart_template: string } | { template_source: string } | { github_search: string } | { server_release: string }
+export type ProjectLink = 'repository' | 'report_issue' | { template: string } | { template_source: string } | { server_release: string }
 export const openProjectLink = (link: ProjectLink) => call<void>('open_project_link', { link })
 export const showPage = (page: LauncherPage) => call<void>('show_page', { page })
 export const getAbout = () => call<About>('get_about')
@@ -255,11 +253,8 @@ export const resetLocalServer = (keepConfig: boolean, backup: boolean) => call<s
 /// Both resolve to null when the user cancelled the file dialog.
 export const exportSettings = () => call<string | null>('export_settings')
 export const importSettings = () => call<Settings | null>('import_settings')
-/// A file of a company package by its path there; a binary one comes encoded.
-export type PackageFile = string | { encoding: 'base64'; data: string; contentType?: string | null }
-
-/// A folder of Paperclip's catalog, the URL of a package the GitHub search found, or the files of a package put together in the app.
-export type TemplateSource = { catalog: string } | { github: string } | { inline: Record<string, PackageFile> }
+/// A folder of Paperclip's catalog.
+export type TemplateSource = { catalog: string }
 
 export interface TemplateAgent {
   slug: string
@@ -284,34 +279,6 @@ export interface TemplateInput {
   required: boolean
 }
 
-/// What a template brings, as Paperclip reads it before an import.
-export interface TemplatePreview {
-  name: string | null
-  description: string | null
-  agents: TemplateAgent[]
-  skills: TemplateSkill[]
-  inputs: TemplateInput[]
-  warnings: string[]
-  errors: string[]
-}
-
-/// A company package on GitHub outside Paperclip's catalog.
-export interface FoundTemplate {
-  repository: string
-  folder: string
-  url: string
-  slug: string
-  name: string
-  description: string
-  stars: number
-  updated: string
-  agents: Pick<TemplateAgent, 'slug' | 'reportsTo'>[]
-  skills: number
-  teams: number
-  /// The avatar of the repository's owner on GitHub.
-  avatar: string | null
-}
-
 /// An adapter of the Paperclip in front; its models are empty when Paperclip has no company yet to list them for.
 export interface AdapterOption {
   type: string
@@ -327,23 +294,6 @@ export interface AdapterOverride {
 /// Imports a template as a new company in the Paperclip in front and switches to it; `adapters` go by agent slug.
 export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>, adapters: Record<string, AdapterOverride>) => call<void>('import_company_template', { source, name, secrets, adapters })
 export const adapterOptions = () => call<AdapterOption[]>('adapter_options')
-/// Asks for a `.zip` or a folder with a company package; null when the user cancelled.
-export const readCompanyPackage = (archive: boolean) => call<Record<string, PackageFile> | null>('read_company_package', { archive })
-export const previewCompanyTemplate = (source: TemplateSource) => call<TemplatePreview>('preview_company_template', { source })
-/// Every file of a template, as the Paperclip in front reads it.
-export const companyTemplateFiles = (source: TemplateSource) => call<Record<string, PackageFile>>('company_template_files', { source })
-/// A file to fetch from GitHub with what it must hash to: the SHA-256 of a snapshot, or the Git blob SHA of a branch read before.
-export type GithubFile = { path: string } & ({ sha256: string } | { blob: string })
-/// Files of a repository at a commit, by path; the host refuses one whose checksum differs from the one given.
-export const githubFiles = (repository: string, commit: string, files: GithubFile[]) => call<Record<string, PackageFile>>('github_files', { repository, commit, files })
-/// The head of a repository's default branch and every file in it.
-export interface GithubBranch {
-  commit: string
-  /// YYYY-MM-DD.
-  date: string
-  files: { path: string; blob: string; size: number }[]
-}
-export const githubBranch = (repository: string) => call<GithubBranch>('github_branch', { repository })
 /// One entry of Paperclip's inbox; the texts are Paperclip's own.
 export interface AttentionItem {
   id: string
@@ -365,29 +315,6 @@ export interface Attention {
 /// The inbox of the company in front; null while no company is open.
 export const companyAttention = () => call<Attention | null>('company_attention')
 export const openPaperclipPath = (path: string) => call<void>('open_paperclip_path', { path })
-/// Whether Claude Code is installed, which the assistant needs.
-export const assistantAvailable = () => call<boolean>('assistant_available')
-/// Asks the assistant the user turned on and resolves to its answer text.
-export const askAssistant = (prompt: string) => call<string>('ask_assistant', { prompt })
-/// Needs a token stored with `setGithubToken` or a signed-in GitHub CLI; an empty query finds what GitHub lists first.
-export const searchTemplates = (query: string) => call<FoundTemplate[]>('search_templates', { query })
-/// A repository with skills somewhere on GitHub, found by its `SKILL.md` files.
-export interface FoundSkills {
-  repository: string
-  description: string
-  stars: number
-  updated: string
-  /// The SPDX id of its licence; null when GitHub knows of none.
-  license: string | null
-  /// The `SKILL.md` files the search saw; the repository may hold more.
-  skills: number
-  avatar: string | null
-}
-export const searchSkills = (query: string) => call<FoundSkills[]>('search_skills', { query })
-/// Where the search's token comes from: stored here, the GitHub CLI's, or null without one.
-export const githubAccess = () => call<'stored' | 'cli' | null>('github_access')
-/// An empty token removes the stored one.
-export const setGithubToken = (token: string) => call<void>('set_github_token', { token })
 
 export function onLauncherState(handler: (snapshot: Snapshot) => void): () => void {
   const unlisten = listen<Snapshot>('launcher:state', (event) => handler(event.payload))

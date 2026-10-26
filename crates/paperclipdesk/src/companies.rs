@@ -1,10 +1,7 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::{Deserialize, Serialize};
 use tauri::webview::Webview;
 use webview2_com::{CallDevToolsProtocolMethodCompletedHandler, HistoryChangedEventHandler};
@@ -100,14 +97,11 @@ pub fn reopen(webview: &Webview, company: &Company) {
     let _ = webview.eval(format!("location.assign({})", serde_json::Value::from(format!("/{}/dashboard", company.issue_prefix))));
 }
 
-/// Where a template comes from: a folder of Paperclip's catalog, a package the GitHub search found, or the files of a
-/// package the wizard put together.
+/// Where a template comes from: a folder of Paperclip's catalog.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateSource {
     Catalog(String),
-    Github(String),
-    Inline(serde_json::Map<String, serde_json::Value>),
 }
 
 impl TemplateSource {
@@ -115,96 +109,12 @@ impl TemplateSource {
     fn body(&self) -> Result<serde_json::Value, String> {
         Ok(match self {
             Self::Catalog(template) => serde_json::json!({ "type": "github", "url": template_url(template)? }),
-            Self::Github(url) => serde_json::json!({ "type": "github", "url": github_package_url(url)? }),
-            // Paperclip refuses a package that arrives with fewer files than it says it has.
-            Self::Inline(files) => serde_json::json!({ "type": "inline", "files": files, "expectedFileCount": files.len() }),
         })
     }
 }
 
-/// A package URL as the search builds it, `https://github.com/owner/name?ref=branch&path=folder`, checked part by part.
-fn github_package_url(url: &str) -> Result<String, String> {
-    let wrong = || i18n::t("Diese Vorlage gibt es nicht.").to_owned();
-    let parsed = tauri::Url::parse(url).map_err(|_| wrong())?;
-    let plain = |part: &str| !part.is_empty() && !part.starts_with('.') && part.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
-    let segments = parsed.path_segments().map(|segments| segments.collect::<Vec<_>>()).unwrap_or_default();
-    let query_ok = parsed.query_pairs().all(|(key, value)| match key.as_ref() {
-        "ref" => value.split('/').all(plain),
-        "path" => value.is_empty() || value.split('/').all(plain),
-        _ => false,
-    });
-    let well_formed = parsed.scheme() == "https" && parsed.host_str() == Some("github.com") && parsed.port().is_none() && parsed.username().is_empty() && parsed.password().is_none() && parsed.fragment().is_none();
-    if !well_formed || segments.len() != 2 || !segments.iter().all(|segment| plain(segment)) || !query_ok || !parsed.query_pairs().any(|(key, _)| key == "ref") {
-        return Err(wrong());
-    }
-    Ok(parsed.into())
-}
-
-/// Asks Paperclip what a template brings without importing it, trimmed to what the panel shows; the files stay in the page.
-const PREVIEW: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const manifest = answer.manifest ?? {}; return JSON.stringify({ preview: { name: manifest.company?.name ?? null, description: manifest.company?.description ?? null, agents: (manifest.agents ?? []).map(agent => ({ slug: agent.slug, name: agent.name, title: agent.title ?? null, reportsTo: agent.reportsToSlug ?? null, skills: agent.skills ?? [], adapterType: agent.adapterType ?? null, model: typeof agent.adapterConfig?.model === 'string' ? agent.adapterConfig.model : null })), skills: (manifest.skills ?? []).map(skill => ({ slug: skill.slug, name: skill.name, description: /^[>|][-+]?$/.test(skill.description ?? '') ? null : (skill.description ?? null) })), inputs: (answer.envInputs ?? []).map(input => ({ key: input.key, required: input.requirement === 'required' })), warnings: answer.warnings ?? [], errors: answer.errors ?? [] } }); }";
-/// Every file of a template as Paperclip read it, for the wizard to take agents and skills from.
-const FILES: &str = "async body => { const response = await fetch('/api/companies/import/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); return JSON.stringify({ files: answer.files ?? {} }); }";
-/// Paperclip reads the whole package from GitHub for a preview.
-const PREVIEW_TIMEOUT: Duration = Duration::from_secs(120);
-
-/// What a template brings, as Paperclip reads it.
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Preview {
-    name: Option<String>,
-    description: Option<String>,
-    agents: Vec<PreviewAgent>,
-    skills: Vec<PreviewSkill>,
-    inputs: Vec<PreviewInput>,
-    warnings: Vec<String>,
-    errors: Vec<String>,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PreviewAgent {
-    slug: String,
-    name: String,
-    title: Option<String>,
-    reports_to: Option<String>,
-    skills: Vec<String>,
-    /// What the package names; Paperclip makes it `process`, a command without AI, when it names none.
-    adapter_type: Option<String>,
-    model: Option<String>,
-}
-
-#[derive(Deserialize, Serialize)]
-struct PreviewSkill {
-    slug: String,
-    name: String,
-    description: Option<String>,
-}
-
-#[derive(Deserialize, Serialize)]
-struct PreviewInput {
-    key: String,
-    required: bool,
-}
-
-/// Runs a preview script in the page and hands back the part of its answer named `part`, or Paperclip's error.
-fn previewed(webview: &Webview, script: &str, source: &TemplateSource, part: &str) -> Result<serde_json::Value, String> {
-    let body = serde_json::json!({ "source": source.body()?, "target": { "mode": "new_company" } });
-    let answer = evaluate(webview, &format!("({script})({body})"), PREVIEW_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
-    let mut answer: serde_json::Value = serde_json::from_str(&answer).map_err(|e| e.to_string())?;
-    if let Some(error) = answer["error"].as_str() {
-        return Err(error.to_owned());
-    }
-    Ok(answer[part].take())
-}
-
-pub fn preview(webview: &Webview, source: &TemplateSource) -> Result<Preview, String> {
-    serde_json::from_value(previewed(webview, PREVIEW, source, "preview")?).map_err(|e| e.to_string())
-}
-
-/// The files of a template by their path in the package; a binary one comes as `{ encoding, data, contentType }`.
-pub fn files(webview: &Webview, source: &TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
-    serde_json::from_value(previewed(webview, FILES, source, "files")?).map_err(|e| e.to_string())
-}
+/// Paperclip asks every adapter for its models before it answers.
+const ADAPTERS_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// The adapter an agent runs with instead of the one its package names, by the agent's slug.
 #[derive(Deserialize, Serialize)]
@@ -246,65 +156,12 @@ struct AdapterModel {
 /// Lists the adapters and their models, asking with `company` for the models; any company of this Paperclip will do.
 pub fn adapters(webview: &Webview, company: Option<&Company>) -> Result<Vec<AdapterOption>, String> {
     let expression = format!("({ADAPTERS})({})", serde_json::Value::from(company.map(|company| company.id.as_str())));
-    let answer = evaluate(webview, &expression, PREVIEW_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
+    let answer = evaluate(webview, &expression, ADAPTERS_TIMEOUT).ok_or_else(|| i18n::t("Paperclip hat nicht rechtzeitig geantwortet.").to_owned())?;
     let mut answer: serde_json::Value = serde_json::from_str(&answer).map_err(|e| e.to_string())?;
     if let Some(error) = answer["error"].as_str() {
         return Err(error.to_owned());
     }
     serde_json::from_value(answer["adapters"].take()).map_err(|e| e.to_string())
-}
-
-/// A package read from a folder or an archive is held in memory and handed to the page whole; this keeps a stray pick of
-/// a home folder from filling it.
-const PACKAGE_LIMIT: u64 = 50 * 1024 * 1024;
-
-/// Reads a company package from a folder, e.g. one unpacked from a Clipmart download: the folder with the `COMPANY.md`
-/// nearest to `root` is the package, and its files become the inline source Paperclip imports from.
-pub fn read_package(root: &Path) -> Result<serde_json::Map<String, serde_json::Value>, String> {
-    let package = package_root(root, 0).ok_or_else(|| i18n::t("Darin ist kein Firmenpaket: Es fehlt eine COMPANY.md.").to_owned())?;
-    let mut files = serde_json::Map::new();
-    let mut size = 0;
-    collect(&package, &package, &mut files, &mut size)?;
-    Ok(files)
-}
-
-/// Breadth first, so the package at the top wins over example packages inside it.
-fn package_root(folder: &Path, depth: usize) -> Option<PathBuf> {
-    if folder.join("COMPANY.md").is_file() {
-        return Some(folder.to_owned());
-    }
-    if depth >= 3 {
-        return None;
-    }
-    let mut below: Vec<PathBuf> = std::fs::read_dir(folder).ok()?.flatten().map(|entry| entry.path()).filter(|path| path.is_dir()).collect();
-    below.sort();
-    below.iter().find(|path| path.join("COMPANY.md").is_file()).cloned().or_else(|| below.iter().find_map(|path| package_root(path, depth + 1)))
-}
-
-fn collect(package: &Path, folder: &Path, files: &mut serde_json::Map<String, serde_json::Value>, size: &mut u64) -> Result<(), String> {
-    let failed = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
-    for entry in std::fs::read_dir(folder).map_err(|e| failed(folder, e))?.flatten() {
-        let path = entry.path();
-        if entry.file_name() == ".git" {
-            continue;
-        }
-        if path.is_dir() {
-            collect(package, &path, files, size)?;
-            continue;
-        }
-        *size += entry.metadata().map(|metadata| metadata.len()).unwrap_or(0);
-        if *size > PACKAGE_LIMIT {
-            return Err(i18n::t("Das Firmenpaket ist größer als 50 MB.").to_owned());
-        }
-        let bytes = std::fs::read(&path).map_err(|e| failed(&path, e))?;
-        let relative = path.strip_prefix(package).map_err(|e| e.to_string())?.components().map(|part| part.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
-        let file = match String::from_utf8(bytes) {
-            Ok(text) => serde_json::Value::from(text),
-            Err(binary) => serde_json::json!({ "encoding": "base64", "data": BASE64.encode(binary.as_bytes()) }),
-        };
-        files.insert(relative, file);
-    }
-    Ok(())
 }
 
 /// The company's inbox as Paperclip's own page asks for it, trimmed to what the bell shows.
@@ -406,49 +263,9 @@ mod tests {
     }
 
     #[test]
-    fn a_package_is_read_from_the_folder_of_its_company_md() {
-        let root = std::env::temp_dir().join(format!("paperclipdesk-test-{}", uuid::Uuid::new_v4()));
-        let package = root.join("lead-gen").join("lead-gen-machine");
-        std::fs::create_dir_all(package.join("agents/ceo")).unwrap();
-        std::fs::create_dir_all(package.join(".git")).unwrap();
-        std::fs::write(package.join("COMPANY.md"), "---\nname: Lead Gen\n---\n").unwrap();
-        std::fs::write(package.join("agents/ceo/AGENTS.md"), "CEO").unwrap();
-        std::fs::write(package.join("logo.png"), [0x89, 0x50, 0xff, 0x00]).unwrap();
-        std::fs::write(package.join(".git/HEAD"), "ref").unwrap();
-
-        let files = read_package(&root).unwrap();
-        let _ = std::fs::remove_dir_all(&root);
-        let mut paths: Vec<&str> = files.keys().map(String::as_str).collect();
-        paths.sort();
-        assert_eq!(paths, ["COMPANY.md", "agents/ceo/AGENTS.md", "logo.png"]);
-        assert_eq!(files["logo.png"], serde_json::json!({ "encoding": "base64", "data": "iVD/AA==" }));
-        assert!(read_package(&std::env::temp_dir().join("paperclipdesk-no-such-folder")).is_err());
-    }
-
-    #[test]
     fn an_import_answers_with_the_new_company_or_paperclips_error() {
         assert_eq!(imported(r#"{"companyId":"c-1"}"#), Ok("c-1".to_owned()));
         assert_eq!(imported(r#"{"error":"Required environment values are missing: GH_TOKEN"}"#), Err("Required environment values are missing: GH_TOKEN".to_owned()));
-    }
-
-    #[test]
-    fn a_found_package_stays_on_github() {
-        let good = "https://github.com/acme/agents?ref=main&path=packages%2Fstudio";
-        assert_eq!(github_package_url(good).as_deref(), Ok(good));
-        assert!(github_package_url("https://github.com/acme/agents?ref=feature%2Fx&path=").is_ok());
-        for wrong in [
-            "https://github.com/acme/agents",
-            "http://github.com/acme/agents?ref=main",
-            "https://gist.github.com/acme/agents?ref=main",
-            "https://github.com:8443/acme/agents?ref=main",
-            "https://user@github.com/acme/agents?ref=main",
-            "https://github.com/acme/agents/tree/main?ref=main",
-            "https://github.com/acme/agents?ref=main&path=..%2Fx",
-            "https://github.com/acme/agents?ref=main&companyPath=x",
-            "https://github.com/acme/agents?ref=main#x",
-        ] {
-            assert!(github_package_url(wrong).is_err(), "{wrong}");
-        }
     }
 
     #[test]

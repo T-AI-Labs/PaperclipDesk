@@ -1,10 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod assistant;
 mod client;
 mod companies;
 mod connection;
-mod github;
 mod i18n;
 mod instance;
 mod logs;
@@ -117,57 +115,6 @@ async fn adapter_options(client: Shared<'_>) -> Result<Vec<companies::AdapterOpt
     tauri::async_runtime::spawn_blocking(move || client.adapter_options()).await.map_err(|e| e.to_string())?
 }
 
-/// A company package the user picks: a `.zip`, e.g. downloaded from Clipmart, or a folder. `None` when the user cancelled.
-#[tauri::command]
-async fn read_company_package(client: Shared<'_>, archive: bool) -> Result<Option<serde_json::Map<String, serde_json::Value>>, String> {
-    let client = Arc::clone(&client);
-    tauri::async_runtime::spawn_blocking(move || {
-        let dialog = client.handle().dialog().file();
-        let dialog = match client.window() {
-            Some(window) => dialog.set_parent(&window),
-            None => dialog,
-        };
-        if !archive {
-            let Some(folder) = dialog.blocking_pick_folder() else { return Ok(None) };
-            return companies::read_package(&folder.into_path().map_err(|e| e.to_string())?).map(Some);
-        }
-        let Some(file) = dialog.add_filter("ZIP", &["zip"]).blocking_pick_file() else { return Ok(None) };
-        let unpacked = std::env::temp_dir().join(format!("PaperclipDesk-package-{}", uuid::Uuid::new_v4()));
-        let read = server_package::unpack(&file.into_path().map_err(|e| e.to_string())?, &unpacked)
-            .map_err(|e| i18n::f("Die ZIP-Datei ließ sich nicht entpacken: {}", &[&e]))
-            .and_then(|()| companies::read_package(&unpacked));
-        let _ = std::fs::remove_dir_all(&unpacked);
-        read.map(Some)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
-async fn preview_company_template(client: Shared<'_>, source: companies::TemplateSource) -> Result<companies::Preview, String> {
-    let client = Arc::clone(&client);
-    tauri::async_runtime::spawn_blocking(move || client.preview_template(&source)).await.map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
-async fn company_template_files(client: Shared<'_>, source: companies::TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
-    let client = Arc::clone(&client);
-    tauri::async_runtime::spawn_blocking(move || client.template_files(&source)).await.map_err(|e| e.to_string())?
-}
-
-/// Files of a collection of agents and skills on GitHub, each checked against the checksum the shell names for it.
-#[tauri::command]
-async fn github_files(repository: String, commit: String, files: Vec<github::PinnedFile>) -> Result<serde_json::Map<String, serde_json::Value>, String> {
-    tauri::async_runtime::spawn_blocking(move || github::pinned_files(&repository, &commit, &files)).await.map_err(|e| e.to_string())?
-}
-
-/// The head of a collection's default branch, for one the wizard reads live instead of from the snapshot.
-#[tauri::command]
-async fn github_branch(client: Shared<'_>, repository: String) -> Result<github::Branch, String> {
-    let user_data = client.paths.user_data.clone();
-    tauri::async_runtime::spawn_blocking(move || github::branch(&repository, github::access(&user_data).map(|(token, _)| token).as_deref())).await.map_err(|e| e.to_string())?
-}
-
 /// The inbox of the company in front for the bell; `None` while no company is open.
 #[tauri::command]
 async fn company_attention(client: Shared<'_>) -> Result<Option<companies::Attention>, String> {
@@ -179,64 +126,6 @@ async fn company_attention(client: Shared<'_>) -> Result<Option<companies::Atten
 async fn open_paperclip_path(client: Shared<'_>, path: String) -> Result<(), String> {
     let client = Arc::clone(&client);
     tauri::async_runtime::spawn_blocking(move || client.open_paperclip_path(&path)).await.map_err(|e| e.to_string())?
-}
-
-/// Whether Claude Code is installed, so the assistant can be turned on.
-#[tauri::command]
-async fn assistant_available() -> Result<bool, String> {
-    Ok(assistant::find().is_some())
-}
-
-/// Asks the assistant the user turned on; the wizard writes the prompt and reads the JSON in the answer.
-#[tauri::command]
-async fn ask_assistant(client: Shared<'_>, prompt: String) -> Result<String, String> {
-    if client.settings.lock().unwrap().assistant != assistant::CLAUDE_CODE {
-        return Err(i18n::t("Der KI-Assistent ist in den Einstellungen ausgeschaltet.").to_owned());
-    }
-    let claude = assistant::find().ok_or_else(|| i18n::t("Claude Code wurde nicht gefunden. Installiere es und melde dich mit deinem Claude-Abo an.").to_owned())?;
-    tauri::async_runtime::spawn_blocking(move || assistant::ask(&claude, &prompt)).await.map_err(|e| e.to_string())?
-}
-
-/// Searches GitHub for company packages beyond the catalog, with the token the user stored or that of the GitHub CLI.
-#[tauri::command]
-async fn search_templates(client: Shared<'_>, query: String) -> Result<Vec<github::Found>, String> {
-    let user_data = client.paths.user_data.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let (token, _) = github::access(&user_data).ok_or_else(|| i18n::t("Für die Suche auf GitHub braucht es ein Token.").to_owned())?;
-        github::search(&token, &query)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-/// Searches GitHub for repositories with skills, with the same token as the search for company packages.
-#[tauri::command]
-async fn search_skills(client: Shared<'_>, query: String) -> Result<Vec<github::FoundSkills>, String> {
-    let user_data = client.paths.user_data.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let (token, _) = github::access(&user_data).ok_or_else(|| i18n::t("Für die Suche auf GitHub braucht es ein Token.").to_owned())?;
-        github::search_skills(&token, &query)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
-async fn github_access(client: Shared<'_>) -> Result<Option<github::Access>, String> {
-    let user_data = client.paths.user_data.clone();
-    tauri::async_runtime::spawn_blocking(move || github::access(&user_data).map(|(_, access)| access)).await.map_err(|e| e.to_string())
-}
-
-/// Stores the token for GitHub's search in the Windows credential store, or removes it when `token` is empty.
-#[tauri::command]
-async fn set_github_token(client: Shared<'_>, token: String) -> Result<(), String> {
-    match token.trim() {
-        "" => {
-            github::token::delete(&client.paths.user_data);
-            Ok(())
-        }
-        token => github::token::write(&client.paths.user_data, token),
-    }
 }
 
 #[tauri::command]
@@ -591,20 +480,9 @@ fn main() -> anyhow::Result<()> {
             set_menu_open,
             record_shortcut,
             import_company_template,
-            preview_company_template,
-            company_template_files,
-            github_files,
-            github_branch,
             company_attention,
             adapter_options,
-            read_company_package,
             open_paperclip_path,
-            assistant_available,
-            ask_assistant,
-            search_templates,
-            search_skills,
-            github_access,
-            set_github_token,
             save_remote_profile,
             duplicate_profile,
             delete_profile,

@@ -133,7 +133,7 @@ fn download(url: &str, archive: &Path, progress: &impl Fn(u64, Option<u64>), can
 
 /// Windows' own tar reads zip archives; naming it by path keeps another `tar` on the PATH out of it. The error says only
 /// what went wrong, the caller says with what.
-pub fn unpack(archive: &Path, target: &Path) -> Result<(), String> {
+fn unpack(archive: &Path, target: &Path) -> Result<(), String> {
     let _ = std::fs::remove_dir_all(target);
     std::fs::create_dir_all(target).map_err(|e| format!("{}: {e}", target.display()))?;
     let tar = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into())).join("System32").join("tar.exe");

@@ -3,7 +3,7 @@ import type { TemplateAgent, TemplateInput, TemplateSkill } from '@/lib/client'
 
 import snapshot from './templates.json'
 
-export type TemplateCategory = 'software' | 'security' | 'research' | 'creative' | 'business' | 'marketing' | 'commerce' | 'finance' | 'media'
+export type TemplateCategory = 'software' | 'security' | 'research' | 'creative' | 'business'
 
 export const TEMPLATE_CATEGORIES: { id: TemplateCategory; label: Message }[] = [
   { id: 'software', label: 'Software' },
@@ -11,14 +11,6 @@ export const TEMPLATE_CATEGORIES: { id: TemplateCategory; label: Message }[] = [
   { id: 'research', label: 'Forschung' },
   { id: 'creative', label: 'Kreativ' },
   { id: 'business', label: 'Business' },
-]
-
-/// Categories only Clipmart's templates have; the wizard takes agents of the catalog only and does not offer them.
-export const CLIPMART_CATEGORIES: { id: TemplateCategory; label: Message }[] = [
-  { id: 'marketing', label: 'Marketing' },
-  { id: 'commerce', label: 'E-Commerce' },
-  { id: 'finance', label: 'Finanzen' },
-  { id: 'media', label: 'Medien' },
 ]
 
 /// A company of Paperclip's catalog github.com/paperclipai/companies, by its folder there. The texts are the catalog's own, in English.

@@ -1,5 +1,5 @@
 ####################################################################################################
-Rust crates (311)
+Rust crates (310)
 ####################################################################################################
 Package:adler2
 Version:2.0.1
@@ -1300,13 +1300,6 @@ Package:servo_arc
 Version:0.4.3
 project URL:https://github.com/servo/stylo
 Description:A fork of std::sync::Arc with some extra functionality and without weak references
-license Type:Apache-2.0 OR MIT
-
-####################################################################################################
-Package:sha1
-Version:0.10.7
-project URL:https://github.com/RustCrypto/hashes
-Description:SHA-1 hash function
 license Type:Apache-2.0 OR MIT
 
 ####################################################################################################

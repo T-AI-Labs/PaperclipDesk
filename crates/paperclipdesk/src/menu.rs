@@ -6,7 +6,7 @@ use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind, MessageDialogResult};
 
 use crate::client::{Client, LauncherPage, LauncherView};
-use crate::{companies, github};
+use crate::companies;
 use crate::connection::types::LOCAL_PROFILE_ID;
 
 const RECENT_PREFIX: &str = "connection.recent.";
@@ -17,7 +17,6 @@ const COMPANY_PREFIX: &str = "company.";
 const SHELL_UPDATES: &str = "shell.updates";
 const SHELL_CONNECTIONS: &str = "shell.connections";
 const SHELL_TEMPLATES: &str = "shell.templates";
-const SHELL_WIZARD: &str = "shell.wizard";
 pub const RECENT_CONNECTIONS: usize = 5;
 const ZOOM_STEP: f64 = 0.1;
 const DOCS_URL: &str = "https://docs.paperclip.ing/";
@@ -25,22 +24,16 @@ const REPOSITORY_URL: &str = "https://github.com/T-AI-Labs/PaperclipDesk";
 /// Written by `npm run licenses` and shipped as a resource next to the app.
 const LICENSES_FILE: &str = "THIRD_PARTY_LICENSES.txt";
 
-/// The project's own pages and the template sites the shell points to. They are built here, so the window never hands the app a URL to open.
+/// The project's own pages and the template pages the shell points to. They are built here, so the window never hands the app a URL to open.
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectLink {
     Repository,
     ReportIssue,
-    /// A template's page on clipmart.ai, by its slug.
-    ClipmartTemplate(String),
-    /// Where the user makes a token for the template search.
-    GithubTokens,
     /// A template's folder in Paperclip's catalog.
     Template(String),
     /// The GitHub repository a template was generated from, as owner/name.
     TemplateSource(String),
-    /// GitHub's own search for company packages, with the words of the template search.
-    GithubSearch(String),
     /// What changed in a version of the Paperclip server, before the user installs it.
     ServerRelease(String),
 }
@@ -62,12 +55,8 @@ pub fn open_project_link(client: &Client, link: ProjectLink) -> Result<(), Strin
             let versions = format!("\n\n---\nPaperclipDesk {}, Paperclip server {}", env!("CARGO_PKG_VERSION"), client.local_server_version().as_deref().unwrap_or("–"));
             tauri::Url::parse_with_params(&format!("{REPOSITORY_URL}/issues/new"), [("body", versions)]).map_err(|e| e.to_string())?.into()
         }
-        ProjectLink::ClipmartTemplate(slug) if !slug.is_empty() && slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') => format!("https://www.clipmart.ai/templates/{slug}"),
-        ProjectLink::ClipmartTemplate(_) => return Err(i18n::t("Diese Vorlage gibt es nicht.").to_owned()),
-        ProjectLink::GithubTokens => "https://github.com/settings/personal-access-tokens/new".to_owned(),
         ProjectLink::Template(template) => companies::template_url(&template)?,
         ProjectLink::TemplateSource(repository) => github_repository(&repository)?,
-        ProjectLink::GithubSearch(words) => github::search_page(&words),
         ProjectLink::ServerRelease(version) if crate::server_package::is_version(&version) => format!("https://github.com/paperclipai/paperclip/releases/tag/v{version}"),
         ProjectLink::ServerRelease(version) => return Err(i18n::f("Die Server-Version {} ist nicht verfügbar.", &[&version])),
     };
@@ -120,8 +109,7 @@ pub fn build(client: &Client) -> Vec<Menu> {
         page("companies", i18n::t("Firmen verwalten …")),
         page("company/settings", i18n::t("Firmeneinstellungen")),
         Entry::Separator,
-        // Both work before a connection is open: the catalog is in the app, and the shell starts the local server once it needs one.
-        item(SHELL_WIZARD, i18n::t("Neue Firma …")),
+        // Works before a connection is open: the catalog is in the app, and the shell starts the local server once it needs one.
         item(SHELL_TEMPLATES, i18n::t("Firma aus Vorlage …")),
     ]);
 

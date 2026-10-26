@@ -819,12 +819,6 @@ impl Client {
         Ok(())
     }
 
-    /// What a template brings, read by the Paperclip in front.
-    pub fn preview_template(&self, source: &companies::TemplateSource) -> Result<companies::Preview, String> {
-        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
-        companies::preview(&webview, source)
-    }
-
     /// The adapters and models the Paperclip in front offers for a new company's agents.
     pub fn adapter_options(&self) -> Result<Vec<companies::AdapterOption>, String> {
         let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
@@ -832,12 +826,6 @@ impl Client {
         let known = self.known_companies().or_else(|| Some(companies::read(&webview)));
         let company = known.as_ref().and_then(|known| known.current_company().or_else(|| known.companies.as_ref()?.first()));
         companies::adapters(&webview, company)
-    }
-
-    /// The files of a template, read by the Paperclip in front, for the wizard to take agents and skills from.
-    pub fn template_files(&self, source: &companies::TemplateSource) -> Result<serde_json::Map<String, serde_json::Value>, String> {
-        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
-        companies::files(&webview, source)
     }
 
     /// Switches Paperclip to one of the companies the menu lists.

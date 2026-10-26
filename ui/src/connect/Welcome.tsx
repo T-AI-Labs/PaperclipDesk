@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, Download, Globe, LayoutTemplate, Monitor, Plus } from 'lucide-react'
+import { Download, Globe, LayoutTemplate, Monitor, Plus } from 'lucide-react'
 import { toast } from '@/lib/notifications'
 
 import { AppMark } from '@/components/app-mark'
@@ -114,12 +114,9 @@ export default function Welcome({
       <div className="flex w-full flex-col gap-3 rounded-xl border border-dashed p-4 sm:flex-row sm:items-center">
         <div className="flex flex-1 flex-col gap-1">
           <p className="font-heading text-sm font-semibold tracking-tight">{t('Gleich eine Firma planen')}</p>
-          <p className="text-xs text-muted-foreground">{t('Stell sie zusammen oder such dir eine Vorlage aus, noch bevor ein Server läuft. Erst zum Anlegen startet die App den lokalen Server.')}</p>
+          <p className="text-xs text-muted-foreground">{t('Such dir eine Vorlage aus, noch bevor ein Server läuft. Erst zum Anlegen startet die App den lokalen Server.')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => onPanel('wizard')}>
-            <Building2 /> {t('Neue Firma')}
-          </Button>
           <Button variant="outline" onClick={() => onPanel('templates')}>
             <LayoutTemplate /> {t('Firma aus Vorlage')}
           </Button>

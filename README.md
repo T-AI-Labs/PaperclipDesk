@@ -13,6 +13,7 @@
 
 <p align="center">
   <a href="#what-paperclip-does">What Paperclip does</a> ·
+  <a href="#ai-companies">AI companies</a> ·
   <a href="#install"><strong>Install</strong></a> ·
   <a href="#local-or-remote">Local or remote</a> ·
   <a href="#the-menu-bar">Menu bar</a> ·
@@ -41,12 +42,31 @@
 | **You stay the board** | Hires, strategies and budget overrides wait in an approval queue for your yes, no or request for changes. You can pause or terminate any agent. |
 | **Your choice of AI** | Adapters connect agents to Claude, Codex, Gemini, a local command or your own HTTP service. Skills teach them how to work, connectors give them access to outside services. |
 
-PaperclipDesk adds a menu for the company in front: switch between companies, open their settings, import or export one, or start a new company from a ready-made template of [Paperclip's catalog](https://github.com/paperclipai/companies). Everything else is Paperclip's own interface; its [documentation](https://docs.paperclip.ing/) explains it in depth.
+PaperclipDesk adds a menu for the company in front: switch between companies, manage them, open their settings, or start a new company from a ready-made template of [Paperclip's catalog](https://github.com/paperclipai/companies), see [AI companies](#ai-companies). Everything else is Paperclip's own interface; its [documentation](https://docs.paperclip.ing/) explains it in depth.
+
+## AI companies
+
+PaperclipDesk is there to set up AI companies quickly and to run them well. Paperclip runs the company; the app gets it started.
+
+### A company from a template
+
+**Company from template …** in the **Company** menu, or on the welcome page, opens the ready-made companies of [Paperclip's catalog](https://github.com/paperclipai/companies) over the whole window, before any server runs. The templates are a table that searches down to their agents and skills, sorts by any column (the stars of the project each one was made from, recent update, name, number of agents, skills, teams or levels) and filters by category, size and contents. Each template shows its goals, agents, hierarchy, teams and skills before the import.
+
+Before the company is created, you choose which AI its agents work with: a standard for all, e.g. Claude Code with your subscription and a Sonnet model, and any agent set apart; an agent whose template names no adapter would otherwise come in as a plain command without AI. Only then does the app start the local server, and Paperclip creates the company and switches to it.
+
+<p align="center"><img src="assets/templates.png" alt="The template page with the table of ready-made companies, their category, agents, skills, teams, levels, stars and last update" width="100%"></p>
+
+<p align="center"><img src="assets/template-details.png" alt="A template opened with its goals, its agents as a table and the import with the name of the new company and the AI of its agents" width="100%"></p>
+
+### Coming next: the company wizard
+
+A wizard puts a new company together instead of taking a template whole. It starts from a name, a purpose and goals, takes agents of any template or of your own, sets whom each one reports to with the org chart beside it, and adds or removes skills; Paperclip checks the result before it creates the company. An optional AI assistant proposes the whole company from a description and asks back when something essential is missing. It runs through your own Claude Code and its subscription and gets only what you wrote and the template catalog. The wizard is in development and not part of a release yet.
 
 ## TL;DR
 
 - **No terminal, no browser tab.** PaperclipDesk downloads the [Paperclip](https://docs.paperclip.ing/) server, starts it with its database and ends it when you close the window.
 - **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them with the connection button at the right of the menu bar. Each connection keeps its own login.
+- **An AI company in minutes.** Pick a ready-made company of Paperclip's catalog, look at its agents, hierarchy and skills, choose the AI they work with and create it. A wizard that puts a company together, with an AI assistant, is coming next.
 - **Paperclip's actions in a real menu bar.** Switch companies, create issues and agents, and jump to the inbox, approvals or costs from the menu bar.
 - **Settings without leaving Paperclip.** The gear at the right of the menu bar holds the view, the appearance and the app's options, and opens panels over Paperclip for the local server and your remotes.
 - **You stay in control of the server.** See its version, edit its configuration, restart or reinstall it, or reset it with a backup of the old data.
@@ -85,9 +105,9 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 
 | Menu | Entries |
 | --- | --- |
-| **Company** | Your companies with a tick at the one in front, **Company settings**, **New company …**, a wizard that puts a new company together from agents of any template, and **Company from template …**, which creates a company from a ready-made template of Paperclip's catalog. Both fill the window and work before any server runs; the local server starts only when the company is created. The templates are a table that searches down to their agents and skills, sorts by any column (the stars of the project each one was made from, recent update, name, number of agents, skills, teams or levels) and filters by category, source, size and contents; each template shows its agents, hierarchy, teams and skills as tables of their own before the import. Above the table, **All · Companies · Agents · Skills** switches between ready-made companies and collections of single agents and skills on GitHub (such as wshobson/agents, VoltAgent's subagents, Anthropic's and Jeffallan's skills), chosen by their stars; msitarzewski/agency-agents, the project the Agency Agents template was made from, is read from its main branch each time the app runs, so its newest agents are there too; a collection has no teams and one level, and its agents and skills are offered in the wizard. Each row shows the icon of the project it comes from. The free templates of [Clipmart](https://www.clipmart.ai/) are in the same table, with Clipmart's estimate of their monthly AI costs and an evaluation of what their packages hold; the app builds such a package itself, with each agent's model set, and imports it like any other. A package of your own, a ZIP or a folder, opens from **Own package** above the table. Before a company is created, you choose which AI its agents work with: a standard for all, e.g. Claude Code with your subscription and a Sonnet model, and any agent set apart; an agent whose template names no adapter would otherwise come in as a plain command without AI. With a GitHub token or a signed-in GitHub CLI it also searches GitHub for company packages outside the catalog and for any repository with skills (a `SKILL.md` per skill), behind the **GitHub** button above the table; picking such a repository reads its skills from its default branch, and the wizard offers them like those of a collection. The wizard starts from a name, a purpose and goals and optionally a template's agents, adds agents of any template or collection or of your own, sets whom each one reports to with the org chart beside it, adds or removes skills of the templates and collections, and lets Paperclip check the result before it creates the company. With the AI assistant turned on (**Gear → App → AI assistant**), Claude proposes the whole company from a description, asking back first when something essential is missing; it runs through your own Claude Code and its subscription and gets only your description, your answers and the template catalog |
+| **Company** | Your companies with a tick at the one in front, **Manage companies …**, **Company settings** and **Company from template …**, see [A company from a template](#a-company-from-a-template) |
 | **New** | **New issue …**, **New agent …**, **Search …** |
-| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Agents**, **Approvals**, **Costs** |
+| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Review queue**, **Learnings**, **Agents**, **Approvals**, **Costs** |
 | **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
 
 At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages.

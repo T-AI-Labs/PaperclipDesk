@@ -27,12 +27,11 @@ import Updates from './panels/Updates'
 
 // The catalog and its snapshot are large and only needed once the panel opens.
 const Templates = lazy(() => import('./panels/Templates'))
-const Wizard = lazy(() => import('./panels/Wizard'))
 
-const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', wizard: 'Neue Firma', shortcuts: 'Tastenkürzel' }
+const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', shortcuts: 'Tastenkürzel' }
 
 /// Panels with tables wide enough to need the whole window below the menu bar.
-const FULL_VIEW: Panel[] = ['templates', 'wizard']
+const FULL_VIEW: Panel[] = ['templates']
 
 type Loaded ={ snapshot: Snapshot; settings: Settings } | { error: string }
 
@@ -194,7 +193,7 @@ export default function App() {
           </header>
           <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-4">
             <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
-              {fullPanel === 'templates' ? <Templates snapshot={snapshot} onDone={closePanel} onCompose={() => openPanel('wizard')} /> : <Wizard snapshot={snapshot} assistant={settings.assistant === 'claude_code'} onDone={closePanel} />}
+              <Templates snapshot={snapshot} onDone={closePanel} />
             </Suspense>
           </div>
         </section>

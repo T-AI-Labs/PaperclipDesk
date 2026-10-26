@@ -6,9 +6,10 @@ why Agno is not part of it, is in `PLAN.md`.
 
 ## Company wizard
 
-A wizard that builds a new company step by step instead of importing one template as a whole. Done: name, purpose and
-goals, agents from any catalog template or of the user's own, whom each reports to with a live org chart, skills per
-agent, and a check by Paperclip before the company is created from an inline package. Left from the ideas below:
+A wizard that builds a new company step by step instead of importing one template as a whole. Built on the branch
+`company-wizard`, not released yet: name, purpose and goals, agents from any catalog template or of the user's own,
+whom each reports to with a live org chart, skills per agent, and a check by Paperclip before the company is created
+from an inline package. Left from the ideas below:
 drag and drop in the org chart, teams, packages found on GitHub as a source, and example projects and tasks.
 
 - Start empty or from a template, then add agents from any template of the catalog, remove some, rename them.
@@ -27,8 +28,9 @@ drag and drop in the org chart, teams, packages found on GitHub as a source, and
 
 ## Template catalog
 
-The catalog snapshot with agents, hierarchy, teams and skills, the content search, sorting and filters, the org chart and
-the GitHub search are done. Left:
+The catalog snapshot with agents, hierarchy, teams and skills, the content search, sorting and filters and the org chart
+are done. Built on `company-wizard`, not released yet: the GitHub search, Clipmart's free templates, collections of
+single agents and skills, and a package of the user's own. Left:
 
 - Filter by licence.
 - Hierarchy depth and required secrets of a GitHub result are known only once it is opened; reading them for the
@@ -36,7 +38,7 @@ the GitHub search are done. Left:
 
 ## AI assistant for the wizards
 
-Done for the company wizard: off by default, the user's Claude subscription through Claude Code when turned on; it asks
+Built for the company wizard on `company-wizard`, not released yet: off by default, the user's Claude subscription through Claude Code when turned on; it asks
 up to three questions and proposes name, goals, agents, hierarchy and skills from the catalog. Left:
 
 - API keys and other providers next to Claude Code.
