@@ -125,9 +125,9 @@ The gear opens the settings as a menu, with a search field on top.
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
 
-**Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, restarts or reinstalls it, has an editor for its `config.json` and `.env`, and resets it. The first time the app starts a local server, it turns Paperclip's experimental **Streamlined UI** off; you can turn it on again in Paperclip's instance settings, and the app leaves it so.
+**Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, offers newer versions of Paperclip from a list the project signs and copies the data first if you keep the backup on, restarts or reinstalls the server, has an editor for its `config.json` and `.env`, and resets it. The first time the app starts a local server, it turns Paperclip's experimental **Streamlined UI** off; you can turn it on again in Paperclip's instance settings, and the app leaves it so.
 
-<p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the server version, the configuration editor and the reset" width="100%"></p>
+<p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the installed version, a newer version to install, the configuration editor and the reset" width="100%"></p>
 
 ### The menu bar and keyboard shortcuts
 
