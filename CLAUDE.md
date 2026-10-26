@@ -48,6 +48,7 @@ npm run app:install         # build and copy to %LOCALAPPDATA%\PaperclipDesk, wi
 npm run prepare-server      # stage the pinned Paperclip server and Node.js under build/
 npm run prepare-server-ui   # build Paperclip's web UI into the staged server
 npm run pack-server         # pack the staged server into the archive a release build downloads
+npm run server-catalog      # sign and publish the list of server packages; needs gh and SERVER_CATALOG_SIGNING_KEY
 npm run licenses            # rewrite THIRD_PARTY_LICENSES.txt; needs cargo-license
 ```
 
@@ -150,6 +151,18 @@ the NSIS installer, writes `latest.json` for the updater, tags `v<version>` and 
 It needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the matching
 public key is in `crates/paperclipdesk/tauri.conf.json`. The app version comes from the same file, and
 `release-notes/v<version>.md` must exist.
+
+The `Server Packages` workflow runs every day and on manual dispatch, with a version or without one for Paperclip's
+latest release; the daily check runs on Linux and only a missing package starts a build. It packages server versions
+newer than the pinned one and publishes `server-versions.json` with each version's SHA-256, and its signature, in the
+release `server-catalog`. `PAPERCLIP_SERVER_VERSION` makes `prepare-server`, `prepare-server-ui` and `pack-server`
+build that version. Its jobs keep Paperclip's code away from secrets: `build` runs Paperclip's install scripts on
+Windows without any secret or write token and hands the package on as an artifact, `publish` creates the
+`server-v<version>` release from it, and `sign` writes and signs the list. `sign` runs in the environment
+`server-catalog`, which holds `SERVER_CATALOG_SIGNING_KEY` and waits for a reviewer. That key is not the updater's: a
+key stolen next to Paperclip's code must not sign app updates. Its public half is `crates/paperclipdesk/server-catalog.pub`,
+its local copy `~/.tauri/paperclipdesk-server-catalog.key` has no password. A manual dispatch for a version that is
+packaged already signs the list again.
 
 ## Known rough edges
 
