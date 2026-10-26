@@ -17,7 +17,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const buildDir = path.join(projectRoot, "build");
 const variant = "win-x64";
 
-const version = JSON.parse(readFileSync(path.join(projectRoot, "package.json"), "utf8")).paperclip?.server;
+const version = process.env.PAPERCLIP_SERVER_VERSION || JSON.parse(readFileSync(path.join(projectRoot, "package.json"), "utf8")).paperclip?.server;
 const serverDir = path.join(buildDir, "server-bundle", variant, "server");
 const nodeBin = path.join(buildDir, "node-bin", variant, "node.exe");
 

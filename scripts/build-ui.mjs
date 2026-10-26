@@ -49,7 +49,8 @@ if (
 // ── Read the target server version ──────────────────────────────────────────
 
 const projectPkg = JSON.parse(readFileSync(path.join(projectRoot, "package.json"), "utf8"));
-const serverVersion = projectPkg.paperclip?.server;
+// PAPERCLIP_SERVER_VERSION builds a newer server than the pinned one, for the list of versions the app offers.
+const serverVersion = process.env.PAPERCLIP_SERVER_VERSION || projectPkg.paperclip?.server;
 if (!serverVersion) {
   console.error("[build-ui] paperclip.server not found in package.json");
   process.exit(1);
