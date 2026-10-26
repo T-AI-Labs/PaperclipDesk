@@ -1,5 +1,5 @@
 import { Power } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/notifications'
 
 import RemoteConnections from '@/connect/RemoteConnections'
 import RemoteForm from '@/connect/RemoteForm'
@@ -13,7 +13,7 @@ const needsInsecureConfirmation = (profile: ConnectionProfile) => profile.remote
 const failed = (e: unknown) => toast.error(errorMessage(e))
 
 /// Everything about the connections themselves: the ones opened at launch, the saved remotes and a new one.
-export default function Connections({ snapshot, onChanged }: { snapshot: Snapshot; onChanged: (snapshot: Snapshot) => void }) {
+export default function Remotes({ snapshot, onChanged }: { snapshot: Snapshot; onChanged: (snapshot: Snapshot) => void }) {
   const { state, profiles } = snapshot
 
   return (

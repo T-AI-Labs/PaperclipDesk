@@ -30,6 +30,27 @@ impl ConfigFile {
     }
 }
 
+/// Marks an instance whose Streamlined UI the app turned off; it lives and goes with the instance's database.
+const STREAMLINED_UI_OFF: &str = ".paperclipdesk-streamlined-ui-off";
+
+/// Turns Paperclip's experimental Streamlined UI off the first time the app runs this instance's server, which then
+/// leaves it to the user. A server in authenticated mode refuses the request, and the next start tries again.
+pub fn turn_streamlined_ui_off_once(instance: &Path, origin: &str) {
+    let marker = instance.join(STREAMLINED_UI_OFF);
+    if marker.exists() {
+        return;
+    }
+    let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(10))).build().into();
+    match agent.patch(format!("{origin}/api/instance/settings/experimental")).send_json(serde_json::json!({ "enableStreamlinedUi": false })) {
+        Ok(_) => {
+            if let Err(e) = std::fs::write(&marker, "") {
+                tracing::warn!("writing {}: {e}", marker.display());
+            }
+        }
+        Err(e) => tracing::warn!("turning Streamlined UI off: {e}"),
+    }
+}
+
 /// Where the local server keeps its database, companies, secrets and configuration.
 pub fn instance_dir(paperclip_home: &Path) -> PathBuf {
     let id = std::env::var(INSTANCE_ID_ENV).ok().filter(|id| !id.trim().is_empty()).unwrap_or_else(|| DEFAULT_INSTANCE.into());
@@ -71,10 +92,7 @@ pub fn reset(instance: &Path, keep_config: bool, backup: bool, stamp: &str) -> R
     let failed = |e: std::io::Error| i18n::f("Die Server-Daten ließen sich nicht zurücksetzen: {}", &[&e]);
     let kept: Vec<(ConfigFile, String)> = ConfigFile::ALL.into_iter().filter(|_| keep_config).map(|file| (file, read_config(instance, file))).collect();
 
-    let moved = backup.then(|| {
-        let name = instance.file_name().unwrap_or_default().to_string_lossy();
-        instance.with_file_name(format!("{name}.backup-{stamp}"))
-    });
+    let moved = backup.then(|| backup_path(instance, stamp));
     retry(|| match &moved {
         Some(target) => std::fs::rename(instance, target),
         None => std::fs::remove_dir_all(instance),
@@ -85,6 +103,35 @@ pub fn reset(instance: &Path, keep_config: bool, backup: bool, stamp: &str) -> R
         write_config(instance, file, &content)?;
     }
     Ok(moved)
+}
+
+/// Copies the instance next to itself, e.g. before a newer server migrates its database; `None` when there is nothing to copy.
+pub fn backup(instance: &Path, stamp: &str) -> Result<Option<PathBuf>, String> {
+    if !instance.exists() {
+        return Ok(None);
+    }
+    let target = backup_path(instance, stamp);
+    copy_dir(instance, &target).map_err(|e| i18n::f("Die Server-Daten ließen sich nicht sichern: {}", &[&e]))?;
+    Ok(Some(target))
+}
+
+fn backup_path(instance: &Path, stamp: &str) -> PathBuf {
+    let name = instance.file_name().unwrap_or_default().to_string_lossy();
+    instance.with_file_name(format!("{name}.backup-{stamp}"))
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
 }
 
 fn retry(action: impl Fn() -> std::io::Result<()>) -> std::io::Result<()> {
@@ -139,5 +186,15 @@ mod tests {
         assert!(!instance.exists());
         assert_eq!(reset(&instance, false, false, "x").unwrap(), None);
         std::fs::remove_dir_all(instance.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn a_backup_copies_the_data_and_leaves_it_in_place() {
+        let instance = temp_instance();
+        let backup = backup(&instance, "20261026-120000").unwrap().unwrap();
+        assert!(backup.join("db").join("PG_VERSION").is_file());
+        assert!(instance.join("db").join("PG_VERSION").is_file());
+        std::fs::remove_dir_all(instance.parent().unwrap()).unwrap();
+        assert_eq!(super::backup(&instance, "x").unwrap(), None);
     }
 }

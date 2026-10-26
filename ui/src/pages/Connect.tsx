@@ -1,12 +1,14 @@
 import { type ReactNode, useState } from 'react'
-import { ArrowLeft, Check, CircleAlert, Globe, LoaderCircle, type LucideIcon, Monitor, Play, Plus, RotateCcw, ShieldAlert, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowLeft, Check, CircleAlert, Globe, LoaderCircle, type LucideIcon, Monitor, Plus, RotateCcw, ShieldAlert, X } from 'lucide-react'
+import { toast } from '@/lib/notifications'
 
 import { AppMark } from '@/components/app-mark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { TONE_DOT, profileHealth, relativeTime } from '@/connect/format'
-import { type BootStep, type LauncherView, type OpenConnection, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage, showPage } from '@/lib/client'
+import Welcome from '@/connect/Welcome'
+import type { Panel } from '@/shell/SettingsMenu'
+import { type BootStep, type LauncherView, type OpenConnection, type PageProps, type Snapshot, activateConnection, cancelConnect, closeConnection, connectLocal, connectSavedProfile, errorMessage } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { type Message, t } from '@/i18n'
 
@@ -134,8 +136,8 @@ function ConnectionCard({
   )
 }
 
-/// Every connection as a card to open it; while the app connects, the progress and what went wrong.
-export default function Connect({ snapshot }: { snapshot: Snapshot }) {
+/// The welcome page, or the saved remotes as cards to open them; while the app connects, the progress and what went wrong.
+export default function Connect({ snapshot, onAddRemote, onPanel, ...props }: PageProps & { snapshot: Snapshot; onAddRemote: () => void; onPanel: (panel: Panel) => void }) {
   const [view, setView] = useState<LauncherView>(snapshot.view)
   const [lastAction, setLastAction] = useState<Action | null>(null)
 
@@ -152,13 +154,12 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
   }
 
   const open = snapshot.openConnections
-  const openLocal = open.find((connection) => connection.local)
   const remotes = snapshot.profiles.filter((profile) => profile.mode === 'remote_existing')
   // A remote that was connected once without saving it has no profile, and so no card of its own.
   const unsaved = open.filter((connection) => !connection.local && !remotes.some((profile) => profile.id === connection.profileId))
   const retry = lastAction ?? (snapshot.state.activeProfileId ? ({ kind: 'saved', profileId: snapshot.state.activeProfileId } satisfies Action) : null)
-  const lastLocal = relativeTime(snapshot.state.localLastConnectedAt)
 
+  if (view === 'welcome') return <Welcome snapshot={snapshot} onStart={run} onAddRemote={onAddRemote} onPanel={onPanel} {...props} />
   if (view === 'local-boot') return <BootProgress snapshot={snapshot} />
   if (view === 'connecting') return <Connecting snapshot={snapshot} />
 
@@ -183,7 +184,7 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
               <RotateCcw /> {t('Erneut versuchen')}
             </Button>
           )}
-          <Button variant="outline" onClick={() => setView('chooser')}>
+          <Button variant="outline" onClick={() => setView('welcome')}>
             <ArrowLeft /> {t('Zur Auswahl')}
           </Button>
           {retry?.kind !== 'local' && (
@@ -198,38 +199,6 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
 
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
-      <ConnectionCard
-        icon={Monitor}
-        name={t('Lokal')}
-        open={openLocal}
-        status={
-          openLocal ? (
-            <span className="flex items-center gap-1.5">
-              <span aria-hidden className={cn('size-1.5 rounded-full', TONE_DOT.ok)} />
-              {t('Lokaler Server läuft')}
-            </span>
-          ) : (
-            snapshot.localServerVersion !== null && `Paperclip-Server ${snapshot.localServerVersion}`
-          )
-        }
-        action={
-          <Button variant={open.length === 0 ? 'default' : 'outline'} disabled={snapshot.localServerVersion === null} onClick={() => run({ kind: 'local' })}>
-            <Play /> {t('Starten')}
-          </Button>
-        }
-      >
-        {snapshot.localServerVersion === null ? (
-          <p className="text-destructive">
-            {t('Der Paperclip-Server fehlt')}. {t('Dieser Build kann ihn nicht nachladen. Im Repository legt „npm run prepare-server“ ihn an.')}
-          </p>
-        ) : (
-          <>
-            <p>{t('Startet den mitgelieferten Paperclip-Server auf diesem Rechner, mit vertrauenswürdigem lokalem Zugriff.')}</p>
-            <p>{snapshot.localServerInstalled ? lastLocal && t('Zuletzt verbunden {when}', { when: lastLocal }) : t('wird beim ersten Start heruntergeladen (einige hundert MB)')}</p>
-          </>
-        )}
-      </ConnectionCard>
-
       {remotes.map((profile) => {
         const health = profileHealth(profile)
         const last = relativeTime(profile.lastConnectedAt)
@@ -270,7 +239,7 @@ export default function Connect({ snapshot }: { snapshot: Snapshot }) {
 
       <button
         type="button"
-        onClick={() => showPage('connections').catch(failed)}
+        onClick={onAddRemote}
         className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
       >
         <Plus className="size-5" />

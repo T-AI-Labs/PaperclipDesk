@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod client;
+mod companies;
 mod connection;
 mod i18n;
 mod instance;
@@ -10,8 +11,10 @@ mod paths;
 mod server;
 mod server_package;
 mod settings;
+mod shortcuts;
 mod updater;
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -101,6 +104,37 @@ async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn import_company_template(client: Shared<'_>, source: companies::TemplateSource, name: Option<String>, secrets: HashMap<String, String>, adapters: HashMap<String, companies::AdapterOverride>) -> Result<(), String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.import_template(&source, name.as_deref(), &secrets, &adapters)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn adapter_options(client: Shared<'_>) -> Result<Vec<companies::AdapterOption>, String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.adapter_options()).await.map_err(|e| e.to_string())?
+}
+
+/// The inbox of the company in front for the bell; `None` while no company is open.
+#[tauri::command]
+async fn company_attention(client: Shared<'_>) -> Result<Option<companies::Attention>, String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.attention()).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn open_paperclip_path(client: Shared<'_>, path: String) -> Result<(), String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.open_paperclip_path(&path)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn record_shortcut(client: Shared<'_>, recording: bool) -> Result<(), String> {
+    client.record_shortcut(recording);
+    Ok(())
+}
+
+#[tauri::command]
 async fn set_menu_open(client: Shared<'_>, open: bool) -> Result<(), String> {
     client.set_menu_open(open);
     Ok(())
@@ -172,12 +206,19 @@ async fn get_settings(client: Shared<'_>) -> Result<Settings, String> {
 }
 
 #[tauri::command]
-async fn update_settings(client: Shared<'_>, settings: Settings) -> Result<Settings, String> {
+async fn update_settings(client: Shared<'_>, mut settings: Settings) -> Result<Settings, String> {
+    // Only an upgrade changes the server version, after the user confirmed it.
+    settings.server_version = client.settings.lock().unwrap().server_version.clone();
     settings::save(&settings::file_path(&client.paths.user_data), &settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
+    let scheme_changed = client.settings.lock().unwrap().color_scheme != settings.color_scheme;
     *client.settings.lock().unwrap() = settings.clone();
+    if scheme_changed {
+        client.reset_paperclip_theme();
+    }
     // The menu bar is in the app's language too.
     i18n::set(&settings.language);
     client.apply_color_scheme();
+    client.relayout();
     client.send_state();
     Ok(settings)
 }
@@ -260,6 +301,20 @@ async fn reinstall_server(client: Shared<'_>) -> Result<(), String> {
     Ok(())
 }
 
+/// The server versions newer than the local one, newest first, from the signed list.
+#[tauri::command]
+async fn server_versions(client: Shared<'_>) -> Result<Vec<String>, String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.newer_server_versions()).await.map_err(|e| e.to_string())?
+}
+
+/// Installs a newer server version and starts it; resolves to where the data was copied when a backup was asked for.
+#[tauri::command]
+async fn upgrade_server(client: Shared<'_>, version: String, backup: bool) -> Result<Option<String>, String> {
+    let client = Arc::clone(&client);
+    tauri::async_runtime::spawn_blocking(move || client.upgrade_server(&version, backup).map(|copy| copy.map(|path| path.display().to_string()))).await.map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn read_server_config(client: Shared<'_>) -> Result<ServerConfig, String> {
     let instance = instance::instance_dir(&client.paths.paperclip_home);
@@ -335,7 +390,9 @@ async fn import_settings(client: Shared<'_>) -> Result<Option<Settings>, String>
         let Some(source) = file_dialog(&client).blocking_pick_file() else { return Ok(None) };
         let path = source.into_path().map_err(|e| e.to_string())?;
         let raw = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let import: SettingsExport = serde_json::from_str(&raw).map_err(|_| i18n::t("Diese Datei enthält keine PaperclipDesk-Einstellungen.").to_owned())?;
+        let mut import: SettingsExport = serde_json::from_str(&raw).map_err(|_| i18n::t("Diese Datei enthält keine PaperclipDesk-Einstellungen.").to_owned())?;
+        // Another machine's server version would migrate this machine's data without asking.
+        import.settings.server_version = client.settings.lock().unwrap().server_version.clone();
 
         settings::save(&settings::file_path(&client.paths.user_data), &import.settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
         *client.settings.lock().unwrap() = import.settings.clone();
@@ -421,6 +478,11 @@ fn main() -> anyhow::Result<()> {
             close_connection,
             menu_action,
             set_menu_open,
+            record_shortcut,
+            import_company_template,
+            company_attention,
+            adapter_options,
+            open_paperclip_path,
             save_remote_profile,
             duplicate_profile,
             delete_profile,
@@ -441,6 +503,8 @@ fn main() -> anyhow::Result<()> {
             server_info,
             restart_local_server,
             reinstall_server,
+            server_versions,
+            upgrade_server,
             read_server_config,
             write_server_config,
             reset_local_server,

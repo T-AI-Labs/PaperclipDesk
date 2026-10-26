@@ -32,15 +32,15 @@ pub struct ServerLayout {
 }
 
 impl ServerLayout {
-    /// The server is next to the exe (`scripts/install.ps1`), downloaded into the app's data, or, for a build run from the
-    /// repository, where `npm run prepare-server` staged it.
-    pub fn find(packages: &Path) -> Result<Self, String> {
-        let downloaded = crate::server_package::installed_dir(packages);
+    /// `version` downloaded into the app's data, else the server next to the exe (`scripts/install.ps1`), or, for a build
+    /// run from the repository, where `npm run prepare-server` staged it. The download comes first: it is the one the user chose.
+    pub fn find(packages: &Path, version: &str) -> Result<Self, String> {
+        let downloaded = crate::server_package::installed_dir(packages, version);
         let installed = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("app-server")));
         let staged = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|root| root.join("build"));
         let candidates = [
-            installed.as_ref().map(|root| (root.join("server"), root.join("node-bin").join("node.exe"), root.clone())),
             Some((downloaded.join("server"), downloaded.join("node-bin").join("node.exe"), downloaded.clone())),
+            installed.as_ref().map(|root| (root.join("server"), root.join("node-bin").join("node.exe"), root.clone())),
             staged.as_ref().map(|build| {
                 let bundle = build.join("server-bundle").join("win-x64");
                 (bundle.join("server"), build.join("node-bin").join("win-x64").join("node.exe"), bundle)
@@ -51,7 +51,14 @@ impl ServerLayout {
             .flatten()
             .find(|(server_dir, ..)| server_dir.join("dist").join("index.js").is_file())
             .map(|(server_dir, node, cwd)| Self { node: if node.is_file() { node } else { "node".into() }, server_dir, cwd })
-            .ok_or_else(|| i18n::f("Der Paperclip-Server {} ist noch nicht installiert.", &[&crate::server_package::VERSION]))
+            .ok_or_else(|| i18n::f("Der Paperclip-Server {} ist noch nicht installiert.", &[&version]))
+    }
+
+    /// The single-file bundle `prepare-server` writes starts several seconds sooner; a package without one starts from its modules.
+    fn entry(&self) -> PathBuf {
+        let dist = self.server_dir.join("dist");
+        let bundle = dist.join("index.bundle.mjs");
+        if bundle.is_file() { bundle } else { dist.join("index.js") }
     }
 
     pub fn version(&self) -> Option<String> {
@@ -96,14 +103,6 @@ pub fn is_same_process(left: Option<u32>, right: Option<u32>) -> bool {
     left.is_some() && left == right
 }
 
-pub fn should_kill_superseded_server(previous: Option<u32>, next: Option<u32>) -> bool {
-    previous.is_some() && next.is_some() && previous != next
-}
-
-pub fn should_restore_previous_server(previous: Option<u32>, attempted: Option<u32>, tracked: Option<u32>) -> bool {
-    previous.is_some() && is_same_process(tracked, attempted) && !is_same_process(previous, attempted)
-}
-
 /// Tools the server starts, such as the `claude` CLI, are often installed where a GUI process's PATH may not reach.
 fn enriched_path() -> OsString {
     let base = std::env::var_os("PATH").unwrap_or_default();
@@ -127,7 +126,7 @@ pub fn start_server(
     on_exit: impl FnOnce(Option<i32>) + Send + 'static,
 ) -> std::io::Result<u32> {
     let mut child = Command::new(&layout.node)
-        .arg(layout.server_dir.join("dist").join("index.js"))
+        .arg(layout.entry())
         .current_dir(&layout.cwd)
         .env("PATH", enriched_path())
         .env("NODE_ENV", "production")
@@ -299,17 +298,6 @@ mod tests {
         assert!(!is_same_process(Some(101), Some(202)));
         assert!(!is_same_process(Some(101), None));
         assert!(!is_same_process(None, None));
-    }
-
-    #[test]
-    fn the_previous_server_is_killed_after_a_swap_and_restored_after_a_failed_one() {
-        assert!(should_kill_superseded_server(Some(101), Some(202)));
-        assert!(!should_kill_superseded_server(Some(101), Some(101)));
-        assert!(!should_kill_superseded_server(None, Some(202)));
-
-        assert!(should_restore_previous_server(Some(101), Some(202), Some(202)));
-        assert!(!should_restore_previous_server(None, Some(202), Some(202)));
-        assert!(!should_restore_previous_server(Some(101), Some(202), Some(303)));
     }
 
     #[test]

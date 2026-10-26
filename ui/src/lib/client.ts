@@ -65,15 +65,15 @@ export interface OpenConnection {
 export type MenuEntry =
   | { kind: 'item'; id: string; label: string; enabled: boolean; checked: boolean | null }
   | { kind: 'separator' }
-  | { kind: 'submenu'; label: string; enabled: boolean; entries: MenuEntry[] }
+  | { kind: 'label'; label: string }
 
 export interface Menu {
   label: string
   entries: MenuEntry[]
 }
 
-export type LauncherView = 'chooser' | 'local-boot' | 'connecting' | 'error'
-export type LauncherPage = 'paperclip' | 'connect' | 'connections' | 'logs' | 'appearance' | 'system' | 'server'
+export type LauncherView = 'welcome' | 'chooser' | 'local-boot' | 'connecting' | 'error'
+export type LauncherPage = 'paperclip' | 'connect' | 'logs'
 export type BootStep = 'init' | 'database' | 'server' | 'ready'
 
 export interface BootStatus {
@@ -97,7 +97,15 @@ export interface Snapshot {
   currentProfileId: string | null
   /// In the order they were opened.
   openConnections: OpenConnection[]
+  /// The menus at the left of the menu bar, about the Paperclip in front.
   menu: Menu[]
+  /// What the connection chip at the right of the menu bar offers.
+  connectionMenu: MenuEntry[]
+  zoomPercent: number
+  /// The path of the Paperclip page in front, with its query and fragment; only while the address bar is turned on.
+  paperclipPath: string | null
+  /// Whether the menu bar lies above Paperclip right now; full screen hides it unless the user asked for it there.
+  menuBarShown: boolean
   state: ConnectionState
   profiles: ConnectionProfile[]
   localServerVersion: string | null
@@ -130,11 +138,21 @@ export interface Settings {
   /// Empties the app's and the server's logs when the app exits.
   clear_logs_on_exit: boolean
   check_updates_on_start: boolean
+  /// Shows the welcome page at every start; without it, only a start with nothing chosen to open shows it.
+  show_welcome: boolean
+  /// Whether the menu bar lies above Paperclip; the app's own pages always show it.
+  show_menu_bar: boolean
+  /// Whether the menu bar shows the path of the Paperclip page in front, as a field to go elsewhere.
+  show_address_bar: boolean
+  /// The key of each action that has one, e.g. 'view.fullscreen' → 'F11'.
+  shortcuts: Record<string, string>
   /// A language code, or 'System' for the language Windows runs in.
   language: string
+  /// The newer Paperclip server the user installed, or null for the one this app is tested with; only `upgradeServer` changes it.
+  server_version: string | null
 }
 
-/// What every settings page gets from the shell.
+/// What the settings menu and its panels get from the shell.
 export interface PageProps {
   settings: Settings
   saving: boolean
@@ -190,6 +208,19 @@ export const closeConnection = (key: string) => call<void>('close_connection', {
 export const menuAction = (id: string) => call<void>('menu_action', { id })
 /// While a menu is open above Paperclip, the host lets this webview cover the window.
 export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
+/// While on, the keys pressed in the window come back through `onShortcutRecorded` instead of starting actions.
+export const recordShortcut = (recording: boolean) => call<void>('record_shortcut', { recording })
+
+const overlayHolders = new Set<string>()
+
+/// Menus and panels that lie over Paperclip share the one request for room: the host is asked once the first opens and told when the last closes.
+export async function holdOverlay(holder: string, open: boolean) {
+  const before = overlayHolders.size > 0
+  if (open) overlayHolders.add(holder)
+  else overlayHolders.delete(holder)
+  const after = overlayHolders.size > 0
+  if (before !== after) await setMenuOpen(after)
+}
 export const saveRemoteProfile = (payload: RemoteProfilePayload) => call<Snapshot>('save_remote_profile', { payload })
 export const duplicateProfile = (profileId: string) => call<Snapshot>('duplicate_profile', { profileId })
 export const deleteProfile = (profileId: string) => call<Snapshot>('delete_profile', { profileId })
@@ -204,12 +235,17 @@ export const updateSettings = (settings: Settings) => call<Settings>('update_set
 export const getLog = (file: string | null, lines: number) => call<LogTail>('get_log', { file, lines })
 export const clearLog = (file: string) => call<void>('clear_log', { file })
 export const openDataFolder = () => call<void>('open_data_folder')
-export const openProjectLink = (link: 'repository' | 'report_issue') => call<void>('open_project_link', { link })
+export type ProjectLink = 'repository' | 'report_issue' | { template: string } | { template_source: string } | { server_release: string }
+export const openProjectLink = (link: ProjectLink) => call<void>('open_project_link', { link })
 export const showPage = (page: LauncherPage) => call<void>('show_page', { page })
 export const getAbout = () => call<About>('get_about')
 export const getServerInfo = () => call<ServerInfo>('server_info')
 export const restartLocalServer = () => call<void>('restart_local_server')
 export const reinstallServer = () => call<void>('reinstall_server')
+/// The server versions newer than the local one, newest first, from the list the project signs.
+export const serverVersions = () => call<string[]>('server_versions')
+/// Installs a newer server and starts it; resolves to where the data was copied, or null without a backup.
+export const upgradeServer = (version: string, backup: boolean) => call<string | null>('upgrade_server', { version, backup })
 export const readServerConfig = () => call<ServerConfig>('read_server_config')
 export const writeServerConfig = (file: ConfigFile, content: string) => call<void>('write_server_config', { file, content })
 /// Resolves to where the old data was moved, or null without a backup.
@@ -217,9 +253,89 @@ export const resetLocalServer = (keepConfig: boolean, backup: boolean) => call<s
 /// Both resolve to null when the user cancelled the file dialog.
 export const exportSettings = () => call<string | null>('export_settings')
 export const importSettings = () => call<Settings | null>('import_settings')
+/// A folder of Paperclip's catalog.
+export type TemplateSource = { catalog: string }
+
+export interface TemplateAgent {
+  slug: string
+  name: string
+  title: string | null
+  /// The slug of the agent this one reports to; null at the top.
+  reportsTo: string | null
+  skills: string[]
+  /// The adapter and model the package names; without an adapter Paperclip imports the agent as a command without AI.
+  adapterType?: string | null
+  model?: string | null
+}
+
+export interface TemplateSkill {
+  slug: string
+  name: string
+  description: string | null
+}
+
+export interface TemplateInput {
+  key: string
+  required: boolean
+}
+
+/// An adapter of the Paperclip in front; its models are empty when Paperclip has no company yet to list them for.
+export interface AdapterOption {
+  type: string
+  models: { id: string; label: string }[]
+}
+
+/// What an agent runs with instead of what its package names; an empty config keeps the adapter's default model.
+export interface AdapterOverride {
+  adapterType: string
+  adapterConfig: Record<string, unknown>
+}
+
+/// Imports a template as a new company in the Paperclip in front and switches to it; `adapters` go by agent slug.
+export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>, adapters: Record<string, AdapterOverride>) => call<void>('import_company_template', { source, name, secrets, adapters })
+export const adapterOptions = () => call<AdapterOption[]>('adapter_options')
+/// One entry of Paperclip's inbox; the texts are Paperclip's own.
+export interface AttentionItem {
+  id: string
+  kind: string | null
+  title: string
+  why: string | null
+  severity: 'critical' | 'high' | 'medium' | 'low' | null
+  at: string | null
+  /// A path of Paperclip's own, for `openPaperclipPath`.
+  href: string | null
+}
+
+export interface Attention {
+  company: string
+  total: number
+  items: AttentionItem[]
+}
+
+/// The inbox of the company in front; null while no company is open.
+export const companyAttention = () => call<Attention | null>('company_attention')
+export const openPaperclipPath = (path: string) => call<void>('open_paperclip_path', { path })
 
 export function onLauncherState(handler: (snapshot: Snapshot) => void): () => void {
   const unlisten = listen<Snapshot>('launcher:state', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// The settings after the host changed them itself, e.g. when a shortcut hid the menu bar.
+export function onSettings(handler: (settings: Settings) => void): () => void {
+  const unlisten = listen<Settings>('launcher:settings', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// A shortcut for an action of the shell, e.g. one that opens a panel.
+export function onShortcut(handler: (action: string) => void): () => void {
+  const unlisten = listen<string>('launcher:shortcut', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// The keys pressed while `recordShortcut` is on, spelled like "Ctrl+Shift+K".
+export function onShortcutRecorded(handler: (keys: string) => void): () => void {
+  const unlisten = listen<string>('launcher:shortcut-recorded', (event) => handler(event.payload))
   return () => void unlisten.then((stop) => stop())
 }
 

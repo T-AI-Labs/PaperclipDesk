@@ -1,44 +1,39 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Cable, CircleAlert, Download, Palette, Paperclip, Plug, RefreshCw, ScrollText, Server as ServerIcon, SlidersHorizontal } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { ArrowLeft, CircleAlert, Download, LoaderCircle, RefreshCw, ScrollText, X } from 'lucide-react'
+import { toast } from '@/lib/notifications'
 
 import { IconTile } from '@/components/icon-tile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
-import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, launcherState, onLauncherState, showPage, updateSettings } from '@/lib/client'
-import type { Tone } from '@/lib/tones'
+import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, holdOverlay, launcherState, onLauncherState, onSettings, onShortcut, showPage, updateSettings } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { useApplyColorScheme } from '@/lib/theme'
 import { type Message, setLanguage, t } from '@/i18n'
 import { useUpdater } from '@/lib/updater'
 import LoadingPanel from '@/LoadingPanel'
 import MenuBar from '@/shell/MenuBar'
-import Sidebar, { type NavPage } from '@/shell/Sidebar'
+import { SHELL_PANELS } from '@/shell/panels'
+import type { Panel } from '@/shell/SettingsMenu'
 
-import Appearance from './pages/Appearance'
 import Connect from './pages/Connect'
-import Connections from './pages/Connections'
 import Logs from './pages/Logs'
-import Server from './pages/Server'
-import System from './pages/System'
+import Remotes from './panels/Remotes'
+import Server from './panels/Server'
+import Shortcuts from './panels/Shortcuts'
+import Updates from './panels/Updates'
 
-/// Each page is opened by its entry in the menu bar; the window shows one at a time.
-const PAGES: Record<LauncherPage, { label: Message; icon: LucideIcon; tone: Tone; description: Message }> = {
-  paperclip: { label: 'Paperclip', icon: Paperclip, tone: 60, description: 'Paperclip' },
-  connect: { label: 'Verbindung', icon: Plug, tone: 0, description: 'Lokalen Server starten oder mit einem Remote verbinden' },
-  connections: { label: 'Verbindungen', icon: Cable, tone: -40, description: 'Was beim Start geöffnet wird, deine Remotes und neue Verbindungen' },
-  logs: { label: 'Protokoll', icon: ScrollText, tone: -80, description: 'Was der Paperclip-Server und die App schreiben, live' },
-  system: { label: 'System', icon: SlidersHorizontal, tone: -100, description: 'Start, Version und Datenordner' },
-  server: { label: 'Server', icon: ServerIcon, tone: 40, description: 'Version, Konfiguration und Zurücksetzen des lokalen Paperclip-Servers' },
-  appearance: { label: 'Darstellung', icon: Palette, tone: 100, description: 'Design, Akzentfarbe und Farbschema dieses Fensters' },
-}
+// The catalog and its snapshot are large and only needed once the panel opens.
+const Templates = lazy(() => import('./panels/Templates'))
 
-const SETTINGS_PAGES: readonly LauncherPage[] = ['system', 'appearance', 'connections', 'server']
+const PANEL_TITLES: Record<Panel, Message> = { server: 'Paperclip-Server', remotes: 'Verbindungen', updates: 'Updates', templates: 'Firma aus Vorlage', shortcuts: 'Tastenkürzel' }
 
-type Loaded = { snapshot: Snapshot; settings: Settings } | { error: string }
+/// Panels with tables wide enough to need the whole window below the menu bar.
+const FULL_VIEW: Panel[] = ['templates']
+
+type Loaded ={ snapshot: Snapshot; settings: Settings } | { error: string }
 
 async function fetchAll(): Promise<Loaded> {
   try {
@@ -54,6 +49,9 @@ export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [panel, setPanel] = useState<Panel | null>(null)
+  // A page the user opened shows at once; the host's next snapshot confirms it.
+  const [pending, setPending] = useState<LauncherPage | null>(null)
   const updater = useUpdater(settings?.check_updates_on_start)
 
   useApplyColorScheme(settings?.color_scheme ?? 'system', settings?.theme ?? 'klar', settings?.accent ?? 'default')
@@ -71,11 +69,17 @@ export default function App() {
 
   useEffect(() => {
     void load()
-    return onLauncherState(setSnapshot)
+    return onLauncherState((next) => {
+      setSnapshot(next)
+      setPending(null)
+    })
   }, [load])
 
+  useEffect(() => onSettings(setSettings), [])
+
+  const page = pending ?? snapshot?.page
   // Above Paperclip this webview shows the menu bar only; whatever else it covers stays see-through.
-  const onPaperclip = snapshot?.page === 'paperclip'
+  const onPaperclip = page === 'paperclip'
   useEffect(() => {
     document.documentElement.classList.toggle('see-through', onPaperclip)
   }, [onPaperclip])
@@ -93,7 +97,39 @@ export default function App() {
     }
   }
 
-  if (snapshot === null || settings === null) {
+  // The room above Paperclip is asked for before the menu that opened the panel gives its own back.
+  function openPanel(next: Panel) {
+    void holdOverlay('panel', true)
+    setPanel(next)
+  }
+
+  function closePanel() {
+    setPanel(null)
+    void holdOverlay('panel', false)
+  }
+
+  const fullPanel = panel !== null && FULL_VIEW.includes(panel) ? panel : null
+
+  // A page that fills the window has no overlay of its own to close it with Escape, unlike the sheet.
+  useEffect(() => {
+    if (!fullPanel) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-state=open][role=dialog], [data-radix-popper-content-wrapper]')) closePanel()
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [fullPanel])
+
+  useEffect(
+    () =>
+      onShortcut((action) => {
+        const next = SHELL_PANELS[action]
+        if (next) openPanel(next)
+      }),
+    [],
+  )
+
+  if (snapshot === null || settings === null || page === undefined) {
     if (loadError === null) return <LoadingPanel detail={t('Oberfläche wird geladen')} />
     return (
       <div className="grid h-screen place-items-center bg-background p-6 text-foreground">
@@ -112,75 +148,102 @@ export default function App() {
   }
 
   setLanguage(snapshot.language)
-  // While Paperclip is the main view the pages are invisible; the settings stay rendered, so opening them shows no empty frame.
-  const page = onPaperclip ? SETTINGS_PAGES[0] : snapshot.page
-  const current = PAGES[page]
   const props: PageProps = { settings, saving, save }
   const busy = snapshot.view === 'local-boot' || snapshot.view === 'connecting'
 
-  const settingsPages: NavPage[] = SETTINGS_PAGES.map((id) => ({ id, label: t(PAGES[id].label), icon: PAGES[id].icon, tone: PAGES[id].tone }))
-  const inSettings = SETTINGS_PAGES.includes(page)
-  const open = (id: string) => showPage(id as LauncherPage).catch((e: unknown) => toast.error(errorMessage(e)))
+  function open(next: LauncherPage) {
+    // Paperclip's view is the host's to show; drawn early, the shell would only turn see-through over nothing.
+    if (next !== 'paperclip') setPending(next)
+    showPage(next).catch((e: unknown) => {
+      setPending(null)
+      toast.error(errorMessage(e))
+    })
+  }
   const backLabel = snapshot.hasCurrentConnection ? t('Paperclip') : t('Verbindung')
-  const back = () => void open(snapshot.hasCurrentConnection ? 'paperclip' : 'connect')
-  const content = (
-    <>
-      {page === 'connect' && <Connect snapshot={snapshot} />}
-      {page === 'connections' && <Connections snapshot={snapshot} onChanged={setSnapshot} />}
-      {page === 'logs' && <Logs />}
-      {page === 'server' && <Server />}
-      {page === 'appearance' && <Appearance {...props} />}
-      {page === 'system' && <System {...props} updater={updater} />}
-    </>
-  )
+  const back = () => open(snapshot.hasCurrentConnection ? 'paperclip' : 'connect')
 
   return (
     <div className={cn('relative isolate flex h-screen flex-col overflow-hidden text-foreground', !onPaperclip && 'bg-background')}>
-      {/* Above Paperclip this webview is no taller than the menu bar, so a toast would land on it. */}
-      {!onPaperclip && <Toaster theme={settings.color_scheme} position="top-right" offset={{ top: 40, right: 8 }} visibleToasts={3} duration={5000} />}
+      {/* Above Paperclip this webview is no taller than the menu bar unless a panel is open, so a toast would land on the bar. */}
+      {(!onPaperclip || panel !== null) && <Toaster theme={settings.color_scheme} position="top-right" offset={{ top: 40, right: 8 }} visibleToasts={3} duration={5000} />}
       {!onPaperclip && <div aria-hidden data-theme={settings.theme} data-accent={settings.accent} className="app-backdrop" />}
 
-      <MenuBar menus={snapshot.menu} />
+      {snapshot.menuBarShown && (
+        <MenuBar
+          menus={snapshot.menu}
+          connectionMenu={snapshot.connectionMenu}
+          connectionName={snapshot.currentConnectionName}
+          zoomPercent={snapshot.zoomPercent}
+          connected={snapshot.hasCurrentConnection}
+          paperclipPath={snapshot.paperclipPath}
+          onPanel={openPanel}
+          // Going elsewhere from the menu leaves the company being planned; the page in front would hide where the user went.
+          onNavigate={() => fullPanel && closePanel()}
+          {...props}
+        />
+      )}
 
-      <div className={cn('flex min-h-0 min-w-0 flex-1', onPaperclip && 'invisible')}>
-        {inSettings && (
-          <Sidebar
-            pages={settingsPages}
-            page={page}
-            onOpen={(id) => void open(id)}
-            backLabel={backLabel}
-            onBack={back}
-            subtitle={snapshot.hasCurrentConnection ? (snapshot.currentConnectionName ?? '') : t('Nicht verbunden')}
-          />
-        )}
+      {fullPanel && (
+        <section aria-label={t(PANEL_TITLES[fullPanel])} className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+          <header className="flex h-12 shrink-0 items-center gap-3 border-b px-6">
+            <h1 className="flex-1 truncate font-heading text-base font-semibold tracking-tight">{t(PANEL_TITLES[fullPanel])}</h1>
+            <Button size="icon-sm" variant="ghost" aria-label={t('Schließen')} title={t('Schließen')} onClick={closePanel}>
+              <X />
+            </Button>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-4">
+            <Suspense fallback={<LoaderCircle className="size-4 animate-spin text-muted-foreground" />}>
+              <Templates snapshot={snapshot} onDone={closePanel} />
+            </Suspense>
+          </div>
+        </section>
+      )}
 
-        <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-          <header className="glass-surface z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
-            <IconTile icon={current.icon} tone={current.tone} />
-            {page === 'logs' && (
+      {!onPaperclip && (
+        <div className={cn('relative z-10 flex min-h-0 min-w-0 flex-1 flex-col', fullPanel && 'hidden')}>
+          {page === 'logs' && (
+            <header className="glass-surface z-20 flex h-12 shrink-0 items-center gap-3 border-b bg-background/70 px-6 backdrop-blur-md">
+              <IconTile icon={ScrollText} tone={-80} />
               <Button size="sm" variant="ghost" onClick={back}>
                 <ArrowLeft /> {backLabel}
               </Button>
-            )}
-            <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <h1 className="truncate font-heading text-sm font-semibold tracking-tight">{t(current.label)}</h1>
-              <p className="truncate text-[11px] text-muted-foreground">{t(current.description)}</p>
-            </div>
-            {updater.available && page !== 'system' && (
-              <Button size="sm" variant="outline" onClick={() => void open('system')}>
-                <Download /> {t('Update {version}', { version: updater.version })}
-              </Button>
-            )}
-            <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
-              {snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : busy ? t('Verbindet …') : t('Nicht verbunden')}
-            </Badge>
-          </header>
+              <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                <h1 className="truncate font-heading text-sm font-semibold tracking-tight">{t('Protokoll')}</h1>
+                <p className="truncate text-[11px] text-muted-foreground">{t('Was der Paperclip-Server und die App schreiben, live')}</p>
+              </div>
+              {updater.available && (
+                <Button size="sm" variant="outline" onClick={() => openPanel('updates')}>
+                  <Download /> {t('Update {version}', { version: updater.version })}
+                </Button>
+              )}
+              <Badge variant={snapshot.hasCurrentConnection ? 'default' : 'outline'}>
+                {snapshot.hasCurrentConnection ? t('Verbunden: {name}', { name: snapshot.currentConnectionName ?? '' }) : busy ? t('Verbindet …') : t('Nicht verbunden')}
+              </Badge>
+            </header>
+          )}
 
           <main key={page} className="relative z-10 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-            <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>{content}</div>
+            <div className={cn('flex flex-col gap-6 px-6 py-6', page === 'connect' && 'mx-auto max-w-4xl')}>
+              {page === 'connect' && <Connect snapshot={snapshot} onAddRemote={() => openPanel('remotes')} onPanel={openPanel} {...props} />}
+              {page === 'logs' && <Logs />}
+            </div>
           </main>
         </div>
-      </div>
+      )}
+
+      <Sheet open={panel !== null && !fullPanel} onOpenChange={(isOpen) => !isOpen && closePanel()}>
+        <SheetContent aria-describedby={undefined} className="gap-0 data-[side=right]:w-[min(36rem,100vw)] data-[side=right]:sm:max-w-none">
+          <SheetHeader className="border-b">
+            <SheetTitle>{panel && t(PANEL_TITLES[panel])}</SheetTitle>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4">
+            {panel === 'server' && <Server />}
+            {panel === 'remotes' && <Remotes snapshot={snapshot} onChanged={setSnapshot} />}
+            {panel === 'updates' && <Updates {...props} updater={updater} />}
+            {panel === 'shortcuts' && <Shortcuts snapshot={snapshot} {...props} />}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

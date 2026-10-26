@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Download, FileCog, LoaderCircle, RotateCcw, Server as ServerIcon, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowUpCircle, Download, ExternalLink, FileCog, LoaderCircle, RotateCcw, Server as ServerIcon, Trash2 } from 'lucide-react'
+import { toast } from '@/lib/notifications'
 
 import { SwitchRow } from '@/components/setting-row'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '@/components/ui/alert-dialog'
@@ -13,10 +13,13 @@ import {
   type ServerInfo,
   errorMessage,
   getServerInfo,
+  openProjectLink,
   readServerConfig,
   reinstallServer,
   resetLocalServer,
   restartLocalServer,
+  serverVersions,
+  upgradeServer,
   writeServerConfig,
 } from '@/lib/client'
 import { t } from '@/i18n'
@@ -88,6 +91,86 @@ function ConfigEditor() {
           ))}
         </Tabs>
       </CardContent>
+    </Card>
+  )
+}
+
+function Versions({ info, onDone }: { info: ServerInfo; onDone: () => void }) {
+  const [versions, setVersions] = useState<string[] | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const [backup, setBackup] = useState(true)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const [running, setRunning] = useState(false)
+
+  useEffect(() => {
+    serverVersions()
+      .then(setVersions)
+      .catch((e: unknown) => setFailed(errorMessage(e)))
+  }, [])
+
+  function upgrade(version: string) {
+    setRunning(true)
+    upgradeServer(version, backup)
+      .then((copy) => {
+        toast.success(copy ? t('Paperclip {version} wird installiert. Sicherung: {path}', { version, path: copy }) : t('Paperclip {version} wird installiert.', { version }))
+        setVersions((current) => current?.filter((newer) => newer.localeCompare(version, undefined, { numeric: true }) > 0) ?? null)
+      })
+      .catch((e: unknown) => toast.error(errorMessage(e)))
+      .finally(() => {
+        setRunning(false)
+        onDone()
+      })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ArrowUpCircle className="size-4 text-primary" /> {t('Server-Version')}
+        </CardTitle>
+        <CardDescription>{t('Neuere Versionen von Paperclip, signiert vom PaperclipDesk-Projekt. Die Daten des lokalen Servers kommen mit.')}</CardDescription>
+      </CardHeader>
+      <CardContent className="divide-y">
+        {failed !== null ? (
+          <p className="pb-3.5 text-xs text-destructive">{failed}</p>
+        ) : versions === null ? (
+          <p className="flex items-center gap-2 pb-3.5 text-xs text-muted-foreground">
+            <LoaderCircle className="size-3.5 animate-spin" /> {t('Suche nach neueren Versionen …')}
+          </p>
+        ) : versions.length === 0 ? (
+          <p className="pb-3.5 text-xs text-muted-foreground">{t('Es gibt keine neuere Version.')}</p>
+        ) : (
+          versions.map((version) => (
+            <div key={version} className="flex items-center justify-between gap-4 py-2.5 first:pt-0">
+              <span className="font-mono text-sm">{version}</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => void openProjectLink({ server_release: version }).catch((e: unknown) => toast.error(errorMessage(e)))}>
+                  <ExternalLink /> {t('Was ist neu')}
+                </Button>
+                <Button size="sm" disabled={running} onClick={() => setConfirming(version)}>
+                  {running ? <LoaderCircle className="animate-spin" /> : <Download />} {t('Installieren')}
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+        {versions !== null && versions.length > 0 && (
+          <SwitchRow id="upgrade-backup" label={t('Vorher sichern')} description={t('Kopiert die Daten des lokalen Servers neben den Datenordner, bevor der neue Server sie umbaut.')} checked={backup} onChange={setBackup} />
+        )}
+      </CardContent>
+
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent>
+          <AlertDialogTitle>{t('Paperclip {version} installieren?', { version: confirming ?? '' })}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('Der neue Server baut beim ersten Start die Datenbank um; danach startet keine ältere Version mehr auf diesen Daten. Diese App ist mit Version {pinned} getestet, mit einer neueren kann einzelnes nicht funktionieren.', { pinned: info.pinned_version })}
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('Abbrechen')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirming && upgrade(confirming)}>{t('Installieren')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
@@ -166,7 +249,7 @@ export default function Server() {
             <ServerIcon className="size-4 text-primary" /> {t('Paperclip-Server')}
           </CardTitle>
           <CardDescription>
-            {t('Installierte Version {version}. Diese App ist für Version {pinned} gebaut; ein neuerer Server kommt mit einem App-Update.', {
+            {t('Installierte Version {version}. Diese App ist mit Version {pinned} getestet.', {
               version: info?.version ?? '–',
               pinned: info?.pinned_version ?? '–',
             })}
@@ -187,6 +270,7 @@ export default function Server() {
         </CardContent>
       </Card>
 
+      {info && <Versions info={info} onDone={load} />}
       <ConfigEditor />
       {info && <Reset info={info} onDone={load} />}
     </div>

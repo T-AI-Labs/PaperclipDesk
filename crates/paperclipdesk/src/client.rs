@@ -1,38 +1,53 @@
 use crate::i18n;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tauri::webview::{NewWindowResponse, PageLoadEvent};
+use tauri::webview::{DownloadEvent, NewWindowResponse, PageLoadEvent};
 use tauri::webview::{Webview, WebviewBuilder};
 use tauri::window::{Window, WindowBuilder};
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
+use crate::companies;
 use crate::connection::http::UreqFetch;
 use crate::connection::preflight::{preflight_remote_connection, probe_session};
 use crate::connection::profiles::{ConnectionStore, RemoteProfileInput, connections_file_path, now_iso};
 use crate::connection::types::{BootstrapStatus, ConnectionMode, ConnectionProfile, ConnectionState, FailureReason, LOCAL_PROFILE_ID, RemotePreflightResult, SessionState};
 use crate::connection::validate::normalize_remote_url;
 use crate::connection::window_policy::{LOCAL_PARTITION, is_navigation_allowed, remote_partition, should_open_externally};
+use crate::instance;
 use crate::paths::DataPaths;
 use crate::server::{self, ServerLayout};
 use crate::server_package;
 use crate::settings::{self, Settings};
+use crate::shortcuts;
 
 /// The window of the app; it holds the shell and, once connected, Paperclip as webviews, one shown at a time.
 pub const WINDOW_LABEL: &str = "main";
-/// The webview with the app's own pages: connection and settings.
+/// The webview with the menu bar, the app's own pages and its settings.
 pub const LAUNCHER_LABEL: &str = "shell";
 pub const STATE_EVENT: &str = "launcher:state";
+/// The settings after the host changed them itself, e.g. a shortcut that hid the menu bar.
+const SETTINGS_EVENT: &str = "launcher:settings";
+/// A shortcut for an action the shell carries out, such as opening one of its panels.
+const SHORTCUT_EVENT: &str = "launcher:shortcut";
+/// The keys pressed while the user assigns a shortcut.
+const RECORDED_EVENT: &str = "launcher:shortcut-recorded";
 const PAGE_LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const SERVER_OUTPUT_LINES: usize = 200;
 /// The height of the menu bar, which the shell keeps visible above Paperclip; `MenuBar.tsx` fills it.
 const MENU_BAR_HEIGHT: f64 = 32.0;
+/// Paperclip's routes start with the company's prefix, and its UI keeps the selected company in local storage.
+const OPEN_COMPANY_PAGE: &str = "path => fetch('/api/companies').then(r => r.json()).then(companies => { const company = companies.find(c => c.id === localStorage.getItem('paperclip.selectedCompanyId')) ?? companies[0]; if (company) { history.pushState(null, '', `/${company.issuePrefix}/${path}`); dispatchEvent(new PopStateEvent('popstate')); } })";
+/// Paperclip opens its command palette on Ctrl+K at the document; its actions are told apart only by their English labels.
+const COMMAND_PALETTE: &str = "action => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })); if (action) setTimeout(() => document.querySelector(`[cmdk-item][data-value^=\"${action}\"]`)?.click(), 300); }";
+/// Paperclip keeps a light or dark mode chosen in its own menu; without one it follows the colour scheme the app gives the webview.
+const PAPERCLIP_THEME_KEY: &str = "paperclip.theme";
 const INSECURE_HTTP_NOT_CONFIRMED: &str = "HTTP-Remotes erfordern die Bestätigung, dass du eine unsichere Verbindung zulassen möchtest.";
 /// How long a dev build waits for Vite before it loads the page anyway.
 #[cfg(dev)]
@@ -40,26 +55,28 @@ const DEV_SERVER_WAIT: Duration = Duration::from_secs(60);
 #[cfg(dev)]
 const LOADING_PAGE: &str = "data:text/html;charset=utf-8,<!doctype html><html lang=de><head><meta charset=utf-8><title>PaperclipDesk</title><style>body{margin:0;height:100vh;display:grid;place-items:center;font-family:'Segoe UI Variable','Segoe UI',sans-serif;background:rgb(255,255,255);color:rgb(10,10,10)}.logo{width:56px;height:56px;border-radius:16px;background:rgb(23,23,23);display:grid;place-items:center;margin:0 auto 16px}.logo span{width:22px;height:22px;border-radius:50px;border:3px solid rgb(250,250,250);border-top-color:transparent;animation:spin .9s linear infinite}p{margin:0;text-align:center}.title{font-size:18px;font-weight:600}.detail{font-size:14px;color:rgb(115,115,115);margin-top:4px}@keyframes spin{to{transform:rotate(360deg)}}@media (prefers-color-scheme:dark){body{background:rgb(10,10,10);color:rgb(250,250,250)}.logo{background:rgb(229,229,229)}.logo span{border-color:rgb(23,23,23);border-top-color:transparent}.detail{color:rgb(161,161,161)}}</style></head><body><div><div class=logo><span></span></div><p class=title>PaperclipDesk startet …</p><p class=detail>Warte auf den Entwicklungsserver</p></div></body></html>";
 
+/// What the webviews were last laid out for: the one in front, the window's size, whether a menu is open and whether the bar is shown.
+type Layout = (String, u32, u32, bool, bool);
+
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub enum LauncherView {
+    /// Local or remote, offered on the first start and whenever the user wants to choose at every start.
+    Welcome,
+    /// The saved remotes.
     Chooser,
     LocalBoot,
     Connecting,
     Error,
 }
 
-/// The pages of the app's own window; each has its menu entry.
+/// The pages of the app's own window; the settings are no page, the shell shows them over whatever is in front.
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum LauncherPage {
     Paperclip,
     Connect,
-    Connections,
     Logs,
-    Appearance,
-    System,
-    Server,
 }
 
 #[derive(Serialize, Clone, Copy, PartialEq, Eq, Debug)]
@@ -139,6 +156,13 @@ pub struct Snapshot {
     current_profile_id: Option<String>,
     open_connections: Vec<OpenConnection>,
     menu: Vec<crate::menu::Menu>,
+    /// What the connection chip at the right of the menu bar offers.
+    connection_menu: Vec<crate::menu::Entry>,
+    zoom_percent: u32,
+    /// The path of the Paperclip page in front, with its query and fragment; only while the address bar is turned on.
+    paperclip_path: Option<String>,
+    /// Whether the menu bar is shown right now: as the setting says, or as F10 and the like asked for in full screen.
+    menu_bar_shown: bool,
     state: ConnectionState,
     profiles: Vec<ConnectionProfile>,
     local_server_version: Option<String>,
@@ -197,7 +221,14 @@ pub struct Client {
     /// Whether a menu of the shell's menu bar is open and needs room below the bar.
     menu_open: AtomicBool,
     shell_hwnd: AtomicIsize,
-    layout: Mutex<Option<(String, u32, u32, bool)>>,
+    layout: Mutex<Option<Layout>>,
+    /// While the user assigns a shortcut, keys go to the shell instead of starting actions.
+    recording_shortcut: AtomicBool,
+    /// Full screen hides the menu bar; this shows it there until full screen ends.
+    bar_in_full_screen: AtomicBool,
+    companies: Mutex<Option<companies::Known>>,
+    /// Bumped whenever the app itself moves Paperclip to another company, so a list read before that does not undo it.
+    companies_generation: AtomicU64,
 }
 
 impl Client {
@@ -209,7 +240,7 @@ impl Client {
             settings: Mutex::new(settings),
             handle,
             paths,
-            launcher: Mutex::new(Launcher { page: LauncherPage::Connect, view: LauncherView::Chooser, view_seq: 0, label: None, url: None, boot_status: None, connection_error: None }),
+            launcher: Mutex::new(Launcher { page: LauncherPage::Connect, view: LauncherView::Welcome, view_seq: 0, label: None, url: None, boot_status: None, connection_error: None }),
             launcher_opening: Mutex::default(),
             current: Mutex::default(),
             parked: Mutex::default(),
@@ -224,6 +255,10 @@ impl Client {
             menu_open: AtomicBool::new(false),
             shell_hwnd: AtomicIsize::new(0),
             layout: Mutex::default(),
+            recording_shortcut: AtomicBool::new(false),
+            bar_in_full_screen: AtomicBool::new(false),
+            companies: Mutex::default(),
+            companies_generation: AtomicU64::new(0),
         })
     }
 
@@ -232,23 +267,73 @@ impl Client {
     }
 
     fn layout(&self) -> Result<ServerLayout, String> {
-        ServerLayout::find(&self.paths.server_packages())
+        ServerLayout::find(&self.paths.server_packages(), &self.server_version())
+    }
+
+    /// The server version the local start runs: the newer one the user installed, or the one this build is tested with.
+    pub fn server_version(&self) -> String {
+        server_package::wanted(self.settings.lock().unwrap().server_version.as_deref())
+    }
+
+    /// A release build fetches the version it is tested with by the checksum built into it; a newer one comes from the signed list.
+    fn can_download_server(&self) -> bool {
+        self.server_version() != server_package::VERSION || server_package::pinned_package().is_some()
     }
 
     /// The installed server's version, or the one the app would download.
     pub fn local_server_version(&self) -> Option<String> {
         match self.layout() {
             Ok(layout) => layout.version(),
-            Err(_) => server_package::can_download().then(|| server_package::VERSION.to_owned()),
+            Err(_) => self.can_download_server().then(|| self.server_version()),
         }
     }
 
-    /// Fetches the server package on the first local start; the boot view shows how far it is.
+    /// The server versions newer than the one the local start runs, newest first.
+    pub fn newer_server_versions(&self) -> Result<Vec<String>, String> {
+        let current = self.server_version();
+        let mut newer: Vec<String> = server_package::catalog()?.into_iter().map(|package| package.version).filter(|version| server_package::is_newer(version, &current)).collect();
+        newer.sort_by(|left, right| if server_package::is_newer(left, right) { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater });
+        newer.dedup();
+        Ok(newer)
+    }
+
+    /// Switches the local server to a newer version from the signed list and starts it. The new server migrates the
+    /// database for good, so `backup` copies the data first; returns where the copy went.
+    pub fn upgrade_server(self: &Arc<Self>, version: &str, backup: bool) -> Result<Option<std::path::PathBuf>, String> {
+        if !server_package::is_newer(version, &self.server_version()) {
+            return Err(i18n::t("Nur neuere Server-Versionen lassen sich installieren.").to_owned());
+        }
+        if !server_package::catalog()?.iter().any(|package| package.version == version) {
+            return Err(i18n::f("Die Server-Version {} ist nicht verfügbar.", &[&version]));
+        }
+        self.stop_local();
+        let copy = if backup { instance::backup(&instance::instance_dir(&self.paths.paperclip_home), &chrono::Local::now().format("%Y%m%d-%H%M%S").to_string())? } else { None };
+        let settings = {
+            let mut settings = self.settings.lock().unwrap();
+            settings.server_version = Some(version.to_owned());
+            settings.clone()
+        };
+        settings::save(&settings::file_path(&self.paths.user_data), &settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SETTINGS_EVENT, &settings) {
+            tracing::warn!("sending the settings: {e}");
+        }
+        let client = Arc::clone(self);
+        std::thread::spawn(move || client.boot_local(true));
+        Ok(copy)
+    }
+
+    /// Fetches the server package the local start needs; the boot view shows how far it is.
     fn install_server(&self, boot_id: u64) -> Result<(), String> {
+        let version = self.server_version();
+        let package = match server_package::pinned_package().filter(|package| package.version == version) {
+            Some(package) => package,
+            None => server_package::catalog()?.into_iter().find(|package| package.version == version).ok_or_else(|| i18n::f("Die Server-Version {} ist nicht verfügbar.", &[&version]))?,
+        };
         let megabytes = |bytes: u64| bytes / 1_048_576;
         let shown = AtomicU64::new(u64::MAX);
         server_package::install(
             &self.paths.server_packages(),
+            &package,
             |done, total| {
                 let (step, detail) = match total {
                     Some(total) if total > 0 => (done * 100 / total, i18n::f("Paperclip-Server wird heruntergeladen … {} von {} MB", &[&megabytes(done), &megabytes(total)])),
@@ -265,6 +350,8 @@ impl Client {
 
     pub fn snapshot(&self) -> Snapshot {
         let menu = crate::menu::build(self);
+        let connection_menu = crate::menu::connection_entries(self);
+        let paperclip_path = self.paperclip_webview().filter(|_| self.settings.lock().unwrap().show_address_bar).and_then(|webview| webview.url().ok()).map(|address| address[url::Position::BeforePath..].to_owned());
         let launcher = self.launcher.lock().unwrap();
         let store = self.store.lock().unwrap();
         let current = self.current.lock().unwrap();
@@ -295,6 +382,10 @@ impl Client {
                 })
                 .collect(),
             menu,
+            connection_menu,
+            zoom_percent: self.zoom_percent(),
+            paperclip_path,
+            menu_bar_shown: self.menu_bar_shown(),
             state: store.state().clone(),
             profiles: store.list_profiles(),
             local_server_version: self.local_server_version(),
@@ -419,12 +510,24 @@ impl Client {
         let on_paperclip = self.launcher.lock().unwrap().page == LauncherPage::Paperclip;
         match (self.paperclip_webview().is_some(), on_paperclip) {
             (true, true) => self.show_paperclip(),
-            (false, true) => self.show_launcher(LauncherView::Chooser, None, None),
+            (false, true) => self.show_launcher(LauncherView::Welcome, None, None),
             _ => self.send_state(),
         }
     }
 
     /// The title bar follows the app's colour scheme instead of only Windows' own.
+    /// Makes every open Paperclip follow the app's colour scheme again; a page that has a mode of its own reloads without it.
+    pub fn reset_paperclip_theme(&self) {
+        let script = format!("try {{ if (localStorage.getItem('{PAPERCLIP_THEME_KEY}') !== null) {{ localStorage.removeItem('{PAPERCLIP_THEME_KEY}'); location.reload() }} }} catch {{}}");
+        for (label, webview) in self.handle.webviews() {
+            if label.starts_with("paperclip-")
+                && let Err(e) = webview.eval(&script)
+            {
+                tracing::warn!("resetting Paperclip's colour scheme in {label}: {e}");
+            }
+        }
+    }
+
     pub fn apply_color_scheme(&self) {
         let theme = match self.settings.lock().unwrap().color_scheme.as_str() {
             "dark" => Some(tauri::Theme::Dark),
@@ -462,20 +565,21 @@ impl Client {
         let shown = paperclip.as_ref().filter(|_| on_paperclip).map_or_else(|| LAUNCHER_LABEL.to_owned(), |webview| webview.label().to_owned());
         // An open menu needs room below the bar: the shell then lies over Paperclip, see-through wherever it draws nothing.
         let menu_open = on_paperclip && self.menu_open.load(Ordering::SeqCst);
-        let layout = (shown, size.width, size.height, menu_open);
+        let bar_shown = self.menu_bar_shown();
+        let layout = (shown, size.width, size.height, menu_open, bar_shown);
         let mut applied = self.layout.lock().unwrap();
         if applied.as_ref() == Some(&layout) {
             return;
         }
         // Showing and resizing a webview that already sits right makes it flicker.
-        let only_menu = applied.as_ref().is_some_and(|applied| (&applied.0, applied.1, applied.2) == (&layout.0, layout.1, layout.2));
-        let bar = if on_paperclip { ((MENU_BAR_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height) } else { 0 };
+        let only_menu = applied.as_ref().is_some_and(|applied| (&applied.0, applied.1, applied.2, applied.4) == (&layout.0, layout.1, layout.2, layout.4));
+        let bar = if on_paperclip && bar_shown { ((MENU_BAR_HEIGHT * window.scale_factor().unwrap_or(1.0)).round() as u32).min(size.height) } else { 0 };
         let shell_height = if on_paperclip && !menu_open { bar } else { size.height };
         for (webview, top, height) in [(self.handle.get_webview(LAUNCHER_LABEL), 0, shell_height), (paperclip.filter(|_| !only_menu), bar, if on_paperclip { size.height - bar } else { 0 })] {
             let Some(webview) = webview else { continue };
             if height > 0 {
-                let _ = webview.set_position(tauri::PhysicalPosition::new(0, top));
-                let _ = webview.set_size(tauri::PhysicalSize::new(size.width, height));
+                // Position and size in one go: set apart, the size can get lost when the position changes as well.
+                let _ = webview.set_bounds(tauri::Rect { position: tauri::PhysicalPosition::new(0, top).into(), size: tauri::PhysicalSize::new(size.width, height).into() });
                 let _ = webview.show();
             } else {
                 let _ = webview.hide();
@@ -500,6 +604,10 @@ impl Client {
     /// The shell opened or closed a menu of its menu bar; once it is closed, the keyboard is Paperclip's again.
     pub fn set_menu_open(&self, open: bool) {
         self.menu_open.store(open, Ordering::SeqCst);
+        // The user may have switched the company in Paperclip itself since the list was read.
+        if open {
+            self.refresh_companies();
+        }
         self.relayout();
         if !open
             && self.launcher.lock().unwrap().page == LauncherPage::Paperclip
@@ -507,6 +615,78 @@ impl Client {
         {
             let _ = paperclip.set_focus();
         }
+    }
+
+    /// The shell assigns a shortcut and wants the next keys instead of their actions.
+    pub fn record_shortcut(&self, recording: bool) {
+        self.recording_shortcut.store(recording, Ordering::SeqCst);
+    }
+
+    /// A key went down in one of the webviews; true when it is the app's, so the page does not see it. Runs on the main thread.
+    pub fn pressed(self: &Arc<Self>, keys: &str, repeated: bool) -> bool {
+        if self.recording_shortcut.load(Ordering::SeqCst) {
+            if !repeated && let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, RECORDED_EVENT, keys) {
+                tracing::warn!("sending the recorded keys: {e}");
+            }
+            return true;
+        }
+        let Some(action) = shortcuts::action_for(&self.settings.lock().unwrap().shortcuts, keys).map(str::to_owned) else { return false };
+        if repeated {
+            return true;
+        }
+        if action == shortcuts::TOGGLE_MENU_BAR {
+            let client = Arc::clone(self);
+            std::thread::spawn(move || client.toggle_menu_bar());
+        } else if action.starts_with("shell.") {
+            if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SHORTCUT_EVENT, &action) {
+                tracing::warn!("sending a shortcut to the shell: {e}");
+            }
+        } else {
+            crate::menu::handle(self, &action);
+        }
+        true
+    }
+
+    /// Whether the menu bar is shown: in full screen only when asked for there, otherwise as the setting says.
+    fn menu_bar_shown(&self) -> bool {
+        if self.window().and_then(|window| window.is_fullscreen().ok()).unwrap_or(false) {
+            return self.bar_in_full_screen.load(Ordering::SeqCst);
+        }
+        self.settings.lock().unwrap().show_menu_bar
+    }
+
+    /// Enters or leaves full screen; either way the menu bar goes back to what the setting says.
+    pub fn toggle_full_screen(&self) {
+        let Some(window) = self.window() else { return };
+        self.bar_in_full_screen.store(false, Ordering::SeqCst);
+        if let Err(e) = window.is_fullscreen().and_then(|fullscreen| window.set_fullscreen(!fullscreen)) {
+            tracing::warn!("switching full screen: {e}");
+        }
+        self.relayout();
+        self.send_state();
+    }
+
+    /// Hides the menu bar or shows it again. The setting outlives the app; in full screen the bar only shows until full screen ends.
+    fn toggle_menu_bar(&self) {
+        if self.window().and_then(|window| window.is_fullscreen().ok()).unwrap_or(false) {
+            self.bar_in_full_screen.fetch_xor(true, Ordering::SeqCst);
+            self.relayout();
+            self.send_state();
+            return;
+        }
+        let settings = {
+            let mut settings = self.settings.lock().unwrap();
+            settings.show_menu_bar = !settings.show_menu_bar;
+            settings.clone()
+        };
+        if let Err(e) = settings::save(&settings::file_path(&self.paths.user_data), &settings) {
+            tracing::warn!("saving the settings: {e}");
+        }
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SETTINGS_EVENT, &settings) {
+            tracing::warn!("sending the settings: {e}");
+        }
+        self.relayout();
+        self.send_state();
     }
 
     /// Opens the app's own window on one of its pages.
@@ -547,6 +727,10 @@ impl Client {
     fn open_launcher_window(&self) -> tauri::Result<()> {
         let _opening = self.launcher_opening.lock().unwrap();
         if let Some(window) = self.window() {
+            // Tauri's set_focus takes the foreground by force, even from a game in full screen, so a boot that ends in the background only flashes the taskbar button.
+            if !app_in_front() {
+                return window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+            }
             window.unminimize()?;
             window.show()?;
             return window.set_focus();
@@ -556,6 +740,9 @@ impl Client {
         // Its own browser profile under the app's data, so a run with moved data shares nothing with an installed one.
         let profile = self.paths.webview_data.join("launcher");
         add_shell(&window, config.url.clone(), profile)?;
+        if let Some(shell) = self.handle.get_webview(LAUNCHER_LABEL) {
+            shortcuts::watch(&shell, self.handle.clone());
+        }
         self.shell_hwnd.store(webview_hwnd(&window), Ordering::SeqCst);
         self.apply_color_scheme();
         self.relayout();
@@ -569,6 +756,97 @@ impl Client {
         if let Some(paperclip) = self.paperclip_webview() {
             let _ = paperclip.set_focus();
         }
+        self.refresh_companies();
+    }
+
+    /// Reads the companies of the connection in front again; the menu bar shows them once the page has answered.
+    fn refresh_companies(&self) {
+        self.read_companies(false);
+    }
+
+    /// Paperclip moved to another route or loaded its page anew, e.g. after the user signed in or picked a company there.
+    fn follow_route(&self, view: &str) {
+        if self.main_label.lock().unwrap().as_deref() == Some(view) {
+            self.read_companies(true);
+            if self.settings.lock().unwrap().show_address_bar {
+                // Off the main thread, which the snapshot needs for reading the page's URL.
+                let client = Arc::clone(&self.handle.state::<Arc<Client>>());
+                std::thread::spawn(move || client.send_state());
+            }
+        }
+    }
+
+    fn read_companies(&self, unless_on_same_company: bool) {
+        let client = Arc::clone(&self.handle.state::<Arc<Client>>());
+        std::thread::spawn(move || {
+            let Some(webview) = client.paperclip_webview() else { return };
+            if unless_on_same_company && client.known_companies().is_some_and(|known| companies::stays_on(&webview, &known)) {
+                return;
+            }
+            let generation = client.companies_generation.load(Ordering::SeqCst);
+            let known = companies::read(&webview);
+            let changed = {
+                let mut stored = client.companies.lock().unwrap();
+                let current = client.companies_generation.load(Ordering::SeqCst) == generation && stored.as_ref() != Some(&known);
+                if current {
+                    *stored = Some(known);
+                }
+                current
+            };
+            if changed {
+                client.send_state();
+            }
+        });
+    }
+
+    /// The companies of the connection in front, once they were read from its view.
+    pub fn known_companies(&self) -> Option<companies::Known> {
+        let view = self.main_label.lock().unwrap().clone()?;
+        self.companies.lock().unwrap().clone().filter(|known| known.view == view)
+    }
+
+    /// Imports a template as a new company and switches to it once Paperclip has made it.
+    pub fn import_template(&self, source: &companies::TemplateSource, name: Option<&str>, secrets: &HashMap<String, String>, adapters: &HashMap<String, companies::AdapterOverride>) -> Result<(), String> {
+        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
+        let id = companies::import(&webview, source, name, secrets, adapters)?;
+        let known = companies::read(&webview);
+        let company = known.companies.iter().flatten().find(|company| company.id == id).cloned();
+        *self.companies.lock().unwrap() = Some(known);
+        if let Some(company) = company {
+            companies::reopen(&webview, &company);
+            self.mark_current_company(company.issue_prefix);
+        }
+        Ok(())
+    }
+
+    /// The adapters and models the Paperclip in front offers for a new company's agents.
+    pub fn adapter_options(&self) -> Result<Vec<companies::AdapterOption>, String> {
+        let webview = self.paperclip_webview().ok_or_else(|| i18n::t("Keine Paperclip-Verbindung ist offen.").to_owned())?;
+        // Paperclip lists models per company; on a server without one yet, the list has adapters only.
+        let known = self.known_companies().or_else(|| Some(companies::read(&webview)));
+        let company = known.as_ref().and_then(|known| known.current_company().or_else(|| known.companies.as_ref()?.first()));
+        companies::adapters(&webview, company)
+    }
+
+    /// Switches Paperclip to one of the companies the menu lists.
+    pub fn switch_company(&self, id: &str) {
+        let Some(company) = self.known_companies().and_then(|known| known.companies?.into_iter().find(|company| company.id == id)) else { return };
+        if !self.reopen_current_connection_window() {
+            return;
+        }
+        if let Some(webview) = self.paperclip_webview()
+            && companies::switch(&webview, &company)
+        {
+            self.mark_current_company(company.issue_prefix);
+        }
+    }
+
+    fn mark_current_company(&self, prefix: String) {
+        self.companies_generation.fetch_add(1, Ordering::SeqCst);
+        if let Some(known) = self.companies.lock().unwrap().as_mut() {
+            known.current = Some(prefix);
+        }
+        self.send_state();
     }
 
     fn boot_status(&self, step: BootStep, detail: &str, progress: u8) {
@@ -609,6 +887,8 @@ impl Client {
             .background_color(tauri::window::Color(10, 10, 10, 255))
             .data_directory(self.paths.webview_data.join(&connection.partition))
             .zoom_hotkeys_enabled(true)
+            // Before Paperclip reads it, so the colour scheme from the gear holds for Paperclip as well.
+            .initialization_script(format!("try {{ localStorage.removeItem('{PAPERCLIP_THEME_KEY}') }} catch {{}}"))
             .on_navigation(move |target| {
                 if is_navigation_allowed(target.as_str(), &navigation_origin) {
                     return true;
@@ -620,13 +900,18 @@ impl Client {
                 open_externally(target.as_str(), &popup_origin);
                 NewWindowResponse::Deny
             })
-            .on_page_load(move |_webview, payload| {
+            .on_download(save_download)
+            .on_page_load(move |webview, payload| {
                 if payload.event() == PageLoadEvent::Finished {
                     let _ = loaded.send(());
+                    webview.state::<Arc<Client>>().follow_route(webview.label());
                 }
             });
         let size = window.inner_size()?.to_logical::<f64>(window.scale_factor()?);
         let webview = window.add_child(builder, LogicalPosition::new(0.0, 0.0), LogicalSize::new(size.width.max(1.0), size.height.max(1.0)))?;
+        let handle = self.handle.clone();
+        companies::watch_routes(&webview, move || handle.state::<Arc<Client>>().follow_route(&label));
+        shortcuts::watch(&webview, self.handle.clone());
         webview.hide()?;
         Ok((webview, load_finished))
     }
@@ -660,7 +945,7 @@ impl Client {
         let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
     }
 
-    /// Shows the connection's webview again, e.g. after the user went to the settings.
+    /// Shows the connection's webview again, e.g. after the user went to the log.
     pub fn reopen_current_connection_window(&self) -> bool {
         if self.paperclip_webview().is_some() {
             self.show_paperclip();
@@ -690,14 +975,17 @@ impl Client {
         opened
     }
 
-    /// A second start of the app lands here.
+    /// A second start of the app lands here; the user started it to see it, so it comes forward.
     pub fn focus_existing(&self) {
         if self.paperclip_webview().is_some() {
             self.reopen_current_connection_window();
-        } else if self.window().is_some() {
-            let _ = self.open_launcher_window();
-        } else {
-            self.show_launcher(LauncherView::Chooser, None, None);
+        } else if self.window().is_none() {
+            self.show_launcher(LauncherView::Welcome, None, None);
+        }
+        if let Some(window) = self.window() {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
         }
     }
 
@@ -719,14 +1007,14 @@ impl Client {
         server::write_pid_file(&self.paths.user_data, None);
     }
 
-    /// Stops a server whose boot failed or was overtaken, and tracks the one that ran before it again.
-    fn abandon_attempt(&self, attempted: Option<u32>, previous: Option<u32>) {
+    /// Stops a server whose boot failed or was overtaken.
+    fn abandon_attempt(&self, attempted: Option<u32>) {
         let tracked = *self.server_pid.lock().unwrap();
         let Some(pid) = attempted.filter(|_| server::is_same_process(tracked, attempted)) else {
             return;
         };
         // Untracked first, so the exit that follows is not taken for a crash.
-        self.track_server(previous.filter(|_| server::should_restore_previous_server(previous, attempted, tracked)));
+        self.track_server(None);
         server::kill_process_tree(pid);
     }
 
@@ -790,7 +1078,6 @@ impl Client {
         let boot_id = self.next_boot();
         self.stop_monitor();
         let is_local = |connection: &CurrentConnection| connection.mode == ConnectionMode::LocalEmbedded;
-        let running_local = self.is_open(is_local);
         let in_front = !force_restart && self.bring_to_front(is_local);
         let current = self.current.lock().unwrap().clone();
 
@@ -806,11 +1093,18 @@ impl Client {
             return;
         }
 
-        let previous_server = if running_local { *self.server_pid.lock().unwrap() } else { None };
+        // A second server would take over the first one's PostgreSQL, and that dies with the first one. start_local ends what it leaves behind.
+        let running = *self.server_pid.lock().unwrap();
+        if let Some(pid) = running {
+            self.close_open(is_local);
+            // Untracked first, so the exit that follows is not taken for a crash.
+            self.track_server(None);
+            server::kill_process_tree(pid);
+        }
         self.show_launcher(LauncherView::LocalBoot, None, None);
         let mut attempted = None;
-        if let Err(error) = self.start_local(boot_id, previous_server, &mut attempted) {
-            self.abandon_attempt(attempted, previous_server);
+        if let Err(error) = self.start_local(boot_id, &mut attempted) {
+            self.abandon_attempt(attempted);
             if !self.superseded(boot_id) {
                 self.fail(i18n::t("Lokales Paperclip konnte nicht gestartet werden"), error);
             }
@@ -820,11 +1114,11 @@ impl Client {
     /// Gives up the connection that is being made; the boot notices at its next step and cleans up after itself.
     pub fn cancel_boot(&self) {
         self.next_boot();
-        self.navigate(LauncherView::Chooser, None, None);
+        self.navigate(LauncherView::Welcome, None, None);
         self.send_state();
     }
 
-    fn start_local(self: &Arc<Self>, boot_id: u64, previous_server: Option<u32>, attempted: &mut Option<u32>) -> Result<(), String> {
+    fn start_local(self: &Arc<Self>, boot_id: u64, attempted: &mut Option<u32>) -> Result<(), String> {
         self.boot_status(BootStep::Init, i18n::t("Umgebung wird vorbereitet …"), 5);
         let layout = match self.layout() {
             Ok(layout) => layout,
@@ -833,9 +1127,7 @@ impl Client {
                 self.layout()?
             }
         };
-        if previous_server.is_none() && self.server_pid.lock().unwrap().is_none() {
-            server::kill_stale_postgres(&layout);
-        }
+        server::kill_stale_postgres(&layout);
         let port = server::find_free_port(server::PREFERRED_PORT)?;
         if self.superseded(boot_id) {
             return Ok(());
@@ -924,7 +1216,7 @@ impl Client {
             None
         })?;
         if self.superseded(boot_id) {
-            self.abandon_attempt(*attempted, previous_server);
+            self.abandon_attempt(*attempted);
             return Ok(());
         }
 
@@ -943,11 +1235,12 @@ impl Client {
             std::thread::sleep(Duration::from_millis(500));
         }
         if self.superseded(boot_id) {
-            self.abandon_attempt(*attempted, previous_server);
+            self.abandon_attempt(*attempted);
             return Ok(());
         }
 
         self.boot_status(BootStep::Server, i18n::t("Server ist bereit"), 70);
+        instance::turn_streamlined_ui_off_once(&instance::instance_dir(&self.paths.paperclip_home), &probe_origin);
         self.boot_status(BootStep::Ready, i18n::t("Oberfläche wird geladen …"), 80);
 
         let start_url = format!("http://localhost:{port}");
@@ -965,15 +1258,12 @@ impl Client {
         let window = self.open_main_window(&connection)?;
         if self.superseded(boot_id) {
             let _ = window.close();
-            self.abandon_attempt(*attempted, previous_server);
+            self.abandon_attempt(*attempted);
             return Ok(());
         }
 
         let allowed_origin = connection.allowed_origin.clone();
         self.put_in_front(connection, &window);
-        if let Some(previous) = previous_server.filter(|_| server::should_kill_superseded_server(previous_server, Some(pid))) {
-            server::kill_process_tree(previous);
-        }
         self.store.lock().unwrap().record_local_connection(&now_iso());
         self.boot_status(BootStep::Ready, i18n::t("Bereit!"), 100);
         self.start_monitor(format!("http://127.0.0.1:{port}"), allowed_origin);
@@ -1136,8 +1426,9 @@ impl Client {
             let front = order.remove(front);
             order.push(front);
         }
-        let Some(first) = order.first() else {
-            return self.show_launcher(LauncherView::Chooser, None, None);
+        let welcome = self.settings.lock().unwrap().show_welcome;
+        let Some(first) = order.first().filter(|_| !welcome) else {
+            return self.show_launcher(LauncherView::Welcome, None, None);
         };
         let remote_url = self.store.lock().unwrap().profile(first).and_then(|profile| profile.remote_url);
         match remote_url {
@@ -1173,13 +1464,13 @@ impl Client {
 
     /// Whether the server in use is the downloaded package, which the app can fetch again.
     pub fn can_reinstall_server(&self) -> bool {
-        server_package::can_download() && self.layout().map_or(true, |layout| layout.cwd == server_package::installed_dir(&self.paths.server_packages()))
+        self.can_download_server() && self.layout().map_or(true, |layout| layout.cwd == server_package::installed_dir(&self.paths.server_packages(), &self.server_version()))
     }
 
     /// Downloads the server package again and starts it.
     pub fn reinstall_server(self: &Arc<Self>) {
         self.stop_local();
-        let package = server_package::installed_dir(&self.paths.server_packages());
+        let package = server_package::installed_dir(&self.paths.server_packages(), &self.server_version());
         if package.exists()
             && let Err(e) = std::fs::remove_dir_all(&package)
         {
@@ -1214,6 +1505,75 @@ impl Client {
 
     pub fn zoom_percent(&self) -> u32 {
         (*self.zoom.lock().unwrap() * 100.0).round() as u32
+    }
+
+    /// Brings Paperclip to the front on one of its pages, `path` taken relative to the company selected there.
+    pub fn open_company_page(&self, path: &str) {
+        self.eval_in_front(&format!("({OPEN_COMPANY_PAGE})({})", serde_json::Value::from(path)));
+    }
+
+    /// Brings Paperclip to the front on `path`, a path of its own that already names the company, as its inbox gives it.
+    pub fn open_paperclip_path(&self, path: &str) -> Result<(), String> {
+        // Only a path on Paperclip's own origin: `//host` would be another site, and a scheme is no path.
+        if !path.starts_with('/') || path.starts_with("//") || path.contains('\\') {
+            return Err(i18n::t("Diese Seite gibt es in Paperclip nicht.").to_owned());
+        }
+        self.eval_in_front(&format!("history.pushState(null, '', {}); dispatchEvent(new PopStateEvent('popstate'))", serde_json::Value::from(path)));
+        Ok(())
+    }
+
+    /// What waits for the user in the company in front, read through Paperclip's page like its own inbox.
+    pub fn attention(&self) -> Result<Option<companies::Attention>, String> {
+        let Some(webview) = self.paperclip_webview() else { return Ok(None) };
+        let Some(company) = self.known_companies().and_then(|known| known.current_company().cloned()) else { return Ok(None) };
+        companies::attention(&webview, &company).map(Some)
+    }
+
+    /// Brings Paperclip to the front with its command palette open, and picks `action` there if it is given and found.
+    pub fn open_command_palette(&self, action: Option<&str>) {
+        self.eval_in_front(&format!("({COMMAND_PALETTE})({})", serde_json::Value::from(action)));
+    }
+
+    fn eval_in_front(&self, script: &str) {
+        if !self.reopen_current_connection_window() {
+            return;
+        }
+        let script = format!("({})().then(() => {{ {script} }})", companies::CLOSE_DIALOGS);
+        if let Some(Err(e)) = self.paperclip_webview().map(|webview| webview.eval(&script)) {
+            tracing::warn!("running a menu action in Paperclip: {e}");
+        }
+    }
+}
+
+/// A download from Paperclip goes to a folder of its own first, and is then saved where the user says: a dialog must not block the
+/// webview while the download starts.
+fn save_download(webview: Webview, event: DownloadEvent<'_>) -> bool {
+    match event {
+        DownloadEvent::Requested { destination, .. } => {
+            let name = destination.file_name().map_or_else(|| "download".into(), ToOwned::to_owned);
+            let folder = std::env::temp_dir().join("PaperclipDesk").join(uuid::Uuid::new_v4().to_string());
+            *destination = folder.join(name);
+            std::fs::create_dir_all(&folder).is_ok()
+        }
+        DownloadEvent::Finished { path: Some(path), success: true, .. } => {
+            std::thread::spawn(move || keep_download(&webview, &path));
+            true
+        }
+        _ => true,
+    }
+}
+
+fn keep_download(webview: &Webview, download: &std::path::Path) {
+    let name = download.file_name().unwrap_or_default().to_string_lossy();
+    let target = webview.dialog().file().set_file_name(name).set_parent(&webview.window()).blocking_save_file().and_then(|target| target.into_path().ok());
+    if let Some(target) = target
+        && let Err(e) = std::fs::copy(download, &target)
+    {
+        tracing::warn!("saving the download {} to {}: {e}", download.display(), target.display());
+        return;
+    }
+    if let Some(folder) = download.parent() {
+        let _ = std::fs::remove_dir_all(folder);
     }
 }
 
@@ -1260,6 +1620,14 @@ fn remote_error_title(result: &RemotePreflightResult) -> &'static str {
         Some(FailureReason::AuthNotReady) => i18n::t("Anmeldung des Remotes nicht bereit"),
         _ => i18n::t("Remote ließ sich nicht prüfen"),
     }
+}
+
+/// Whether the window in front belongs to this app, e.g. its main window or one of its dialogs.
+fn app_in_front() -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+    let mut owner = 0;
+    unsafe { GetWindowThreadProcessId(GetForegroundWindow(), &mut owner) };
+    owner == std::process::id()
 }
 
 /// The window of the webview on top, which right after the shell was added is the shell's.

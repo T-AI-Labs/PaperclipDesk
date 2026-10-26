@@ -12,10 +12,12 @@
 </p>
 
 <p align="center">
+  <a href="#what-paperclip-does">What Paperclip does</a> ·
+  <a href="#ai-companies">AI companies</a> ·
   <a href="#install"><strong>Install</strong></a> ·
   <a href="#local-or-remote">Local or remote</a> ·
-  <a href="#settings">Settings</a> ·
-  <a href="#the-menu">Menu</a> ·
+  <a href="#the-menu-bar">Menu bar</a> ·
+  <a href="#the-gear">Settings</a> ·
   <a href="#troubleshooting">Troubleshooting</a> ·
   <a href="#building-from-source">Build</a> ·
   <a href="#license">License</a>
@@ -25,19 +27,56 @@
 
 <p align="center"><sub>The Paperclip dashboard in PaperclipDesk. The menu bar on top belongs to the app, everything below is Paperclip itself.</sub></p>
 
+## What Paperclip does
+
+[Paperclip](https://docs.paperclip.ing/) runs a company whose employees are AI agents. You set the goal and act as its board; the agents plan, split and do the work, and come to you for the decisions that matter.
+
+| | |
+| --- | --- |
+| **A company with one goal** | Each company is a self-contained AI organization: a goal, a team of agents, a task board and a budget. You can run several companies side by side. |
+| **Agents as employees** | The first agent is the CEO. It reads the goal, proposes a strategy and, once you approve it, creates tasks and hires further agents such as engineers, writers or reviewers. |
+| **An org chart** | Agents report to a manager, the CEO reports to you. Work and delegation follow these lines. |
+| **Tasks on a board** | The work lives as issues in projects, with statuses, assignees, comments and reviews. You can create and assign tasks yourself at any time. |
+| **Work in heartbeats** | Agents do not run all the time. They wake on a schedule, on a new assignment or when you click **Run now**, do their work, report and sleep again. Every run is recorded. |
+| **Budgets** | Each agent and the company get a monthly budget. An agent that reaches its limit pauses until you raise it. |
+| **You stay the board** | Hires, strategies and budget overrides wait in an approval queue for your yes, no or request for changes. You can pause or terminate any agent. |
+| **Your choice of AI** | Adapters connect agents to Claude, Codex, Gemini, a local command or your own HTTP service. Skills teach them how to work, connectors give them access to outside services. |
+
+PaperclipDesk adds a menu for the company in front: switch between companies, manage them, open their settings, or start a new company from a ready-made template of [Paperclip's catalog](https://github.com/paperclipai/companies), see [AI companies](#ai-companies). Everything else is Paperclip's own interface; its [documentation](https://docs.paperclip.ing/) explains it in depth.
+
+## AI companies
+
+PaperclipDesk is there to set up AI companies quickly and to run them well. Paperclip runs the company; the app gets it started.
+
+### A company from a template
+
+**Company from template …** in the **Company** menu, or on the welcome page, opens the ready-made companies of [Paperclip's catalog](https://github.com/paperclipai/companies) over the whole window, before any server runs. The templates are a table that searches down to their agents and skills, sorts by any column (the stars of the project each one was made from, recent update, name, number of agents, skills, teams or levels) and filters by category, size and contents. Each template shows its goals, agents, hierarchy, teams and skills before the import.
+
+Before the company is created, you choose which AI its agents work with: a standard for all, e.g. Claude Code with your subscription and a Sonnet model, and any agent set apart; an agent whose template names no adapter would otherwise come in as a plain command without AI. Only then does the app start the local server, and Paperclip creates the company and switches to it.
+
+<p align="center"><img src="assets/templates.png" alt="The template page with the table of ready-made companies, their category, agents, skills, teams, levels, stars and last update" width="100%"></p>
+
+<p align="center"><img src="assets/template-details.png" alt="A template opened with its goals, its agents as a table and the import with the name of the new company and the AI of its agents" width="100%"></p>
+
+### Coming next: the company wizard
+
+A wizard puts a new company together instead of taking a template whole. It starts from a name, a purpose and goals, takes agents of any template or of your own, sets whom each one reports to with the org chart beside it, and adds or removes skills; Paperclip checks the result before it creates the company. An optional AI assistant proposes the whole company from a description and asks back when something essential is missing. It runs through your own Claude Code and its subscription and gets only what you wrote and the template catalog. The wizard is in development and not part of a release yet.
+
 ## TL;DR
 
 - **No terminal, no browser tab.** PaperclipDesk downloads the [Paperclip](https://docs.paperclip.ing/) server, starts it with its database and ends it when you close the window.
-- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them in the **Connect** menu. Each connection keeps its own login.
-- **Everything in one window.** Paperclip is the main view; settings, the connection page and the log open in the same window.
-- **You stay in control of the server.** See its version, edit its configuration, reinstall it, or reset it with a backup of the old data.
+- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them with the connection button at the right of the menu bar. Each connection keeps its own login.
+- **An AI company in minutes.** Pick a ready-made company of Paperclip's catalog, look at its agents, hierarchy and skills, choose the AI they work with and create it. A wizard that puts a company together, with an AI assistant, is coming next.
+- **Paperclip's actions in a real menu bar.** Switch companies, create issues and agents, and jump to the inbox, approvals or costs from the menu bar.
+- **Settings without leaving Paperclip.** The gear at the right of the menu bar holds the view, the appearance and the app's options, and opens panels over Paperclip for the local server and your remotes.
+- **You stay in control of the server.** See its version, edit its configuration, restart or reinstall it, or reset it with a backup of the old data.
 - **Your data stays on your PC.** No account, no telemetry.
 
 ## Install
 
 1. Download the latest installer from the [Releases page](https://github.com/T-AI-Labs/PaperclipDesk/releases/latest) and run it.
 2. Start **PaperclipDesk** from the Start menu.
-3. Choose **Local** to run Paperclip on this PC, or **Remote** to connect to an existing one.
+3. The welcome page suggests **Start local** to run Paperclip on this PC; the other card connects to a Paperclip that already runs elsewhere. Tick **Start the chosen connection automatically from now on** to skip the page next time.
 
 PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads the Paperclip server, about 530 MB. After that the app updates itself.
 
@@ -52,26 +91,53 @@ PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads t
 
 Before it connects, PaperclipDesk checks a remote: that it answers, that it really is a Paperclip, and that its sign-in is ready. A remote over plain `http://` is only opened after you confirmed that you accept an unencrypted connection.
 
-<p align="center"><img src="assets/connection-page.png" alt="The connection page with a card for the local server, one for a saved remote and one to add a remote" width="100%"></p>
+<p align="center"><img src="assets/connection-page.png" alt="The page for remote connections with a card for a saved remote and one to add a remote" width="100%"></p>
 
-The connection page shows every connection as a card: the local server and each saved remote, with its state and a button to open it. Opening another connection keeps the ones you have open. The **Connect** menu lists **Local** and your remotes with a tick at the open ones: an entry opens its connection or brings it to the front. The cross on a card closes a connection. Under **Settings → Connections** you choose which connections open when the app starts; with none chosen it shows the connection page.
+The page for remote connections shows each saved remote as a card, with its state and a button to connect, and a card to add a remote. Opening another connection keeps the ones you have open.
 
-## Settings
+The **connection button** at the right of the menu bar names the connection in front. Its menu lists **Local** and your recent remotes with a tick at the open ones: an entry opens its connection or brings it to the front; **Local** starts the local server. **Edit remotes …** opens a panel where you edit, duplicate or delete your remotes, add a new one, and choose under **Open at start** which connections open when the app starts. **Manage remote connections …** at the bottom shows the page for remote connections.
 
-**PaperclipDesk → Settings** opens them in the same window. A back button returns you to Paperclip.
+With no connection chosen to open at start, the app starts on the welcome page, which offers the local server and your remotes. **Show this page at every start** on that page, or **Welcome page at every start** in the gear, shows it even when connections are chosen to open at start.
 
-<p align="center"><img src="assets/settings.png" alt="The Server page of the settings, with the server version, the configuration editor and the reset" width="100%"></p>
+## The menu bar
 
-| Category | What you find there |
+The menus at the left are about the Paperclip in front; Paperclip's own pages open from them.
+
+| Menu | Entries |
 | --- | --- |
-| **System** | The language, updates, export and import of your settings, and whether logs are cleared when the app exits |
-| **Appearance** | 31 designs, light and dark mode, and an accent color |
-| **Connections** | The connections opened at start, your saved remotes to edit, duplicate or delete, and the check of a new remote |
-| **Server** | The version of the local Paperclip server, restart and reinstall, an editor for its `config.json` and `.env`, and the reset |
+| **Company** | Your companies with a tick at the one in front, **Manage companies …**, **Company settings** and **Company from template …**, see [A company from a template](#a-company-from-a-template) |
+| **New** | **New issue …**, **New agent …**, **Search …** |
+| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Review queue**, **Learnings**, **Agents**, **Approvals**, **Costs** |
+| **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
+
+At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages.
+
+## The gear
+
+The gear opens the settings as a menu, with a search field on top.
+
+| Section | What you find there |
+| --- | --- |
+| **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
+| **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs |
+| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, and **Back up settings** to export or import them |
+| | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
+
+<p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
+
+**Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, offers newer versions of Paperclip from a list the project signs and copies the data first if you keep the backup on, restarts or reinstalls the server, has an editor for its `config.json` and `.env`, and resets it. The first time the app starts a local server, it turns Paperclip's experimental **Streamlined UI** off; you can turn it on again in Paperclip's instance settings, and the app leaves it so.
+
+<p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the installed version, a newer version to install, the configuration editor and the reset" width="100%"></p>
+
+### The menu bar and keyboard shortcuts
+
+**Show menu bar** in the gear hides the bar, so Paperclip or the app's own page gets the whole window; **F10** brings it back. In full screen (**F11**) the bar hides by itself and F10 shows it there until you leave full screen.
+
+**Gear → Keyboard shortcuts …** lists every action of the menus with its key. Search by name or key, click the keyboard button of an action and press the new keys; a key that belonged to another action moves over. Keys need Ctrl or Alt, except F keys, and Ctrl+A, C, V, X, Y and Z stay with text editing. Shortcuts work while the PaperclipDesk window has the focus, also inside Paperclip.
 
 ### Resetting the local server
 
-**Settings → Server → Reset** stops the local server and empties its data: organizations, database and secrets. Two switches, both on by default, keep you safe:
+**Gear → Local server … → Reset local server** stops the local server and empties its data: companies, database and secrets. Two switches, both on by default, keep you safe:
 
 - **Keep a backup** moves the old data aside instead of deleting it.
 - **Keep the configuration** carries `config.json` and `.env` over.
@@ -82,15 +148,6 @@ Connections to remotes are not affected.
 
 **Help → Log** follows the server's and the app's log live. Filter by level, search, format the server's JSON lines, or collapse every entry to its first line. A button clears the log shown.
 
-## The menu
-
-| Menu | Entries |
-| --- | --- |
-| **PaperclipDesk** | Settings, Check for updates, Quit |
-| **Connect** | Local, your recent and your open remotes, All connections, Edit remotes |
-| **View** | Reload, Zoom from 50 % to 200 %, Full screen |
-| **Help** | Paperclip documentation, Project on GitHub, Report a problem, Third-party licenses, Log, Open data folder, Developer tools, the Paperclip version, and About PaperclipDesk |
-
 ## Troubleshooting
 
 | What you see | What to do |
@@ -98,8 +155,8 @@ Connections to remotes are not affected.
 | **Local Paperclip could not be started** | Read the message, then **Help → Log** for the server's own output. **Try again** starts it once more. |
 | The first local start takes long | It downloads the server and creates the database. Later starts are much faster. |
 | A remote is refused | The message names the reason: not reachable, a certificate problem, not a Paperclip, or a sign-in that is not set up yet. |
-| Paperclip looks stuck | **View → Reload**. If that does not help, **Settings → Server → Restart**. |
-| You want to start over | **Settings → Server → Reset**, with the backup switch on. |
+| Paperclip looks stuck | **Gear → View → Reload**. If that does not help, **Gear → Local server … → Restart**. |
+| You want to start over | **Gear → Local server … → Reset local server**, with the backup switch on. |
 
 If nothing helps, [open an issue](https://github.com/T-AI-Labs/PaperclipDesk/issues) and attach the relevant part of the log.
 

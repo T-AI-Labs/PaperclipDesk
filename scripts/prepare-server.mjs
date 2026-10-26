@@ -175,6 +175,7 @@ promoteServerRuntimeDependencies(serverPkgDir, bundleServerDir);
 // node_modules/.bin stays: the local adapters start their ACP servers (claude-agent-acp, codex-acp) from it.
 
 validateMigrations(bundleServerDir);
+await import("./bundle-server.mjs");
 
 const NODE_VERSION = "v24.21.0";
 const nodeBinDir = path.join(projectRoot, "build", "node-bin");

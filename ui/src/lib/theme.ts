@@ -19,7 +19,7 @@ export type ThemePreset =
 
 export type Accent = 'default' | 'mono' | 'blue' | 'navy' | 'sky' | 'green' | 'orange' | 'teal'
 
-/// From everyday to playful, the order the „Darstellung“ page shows them in, without categories.
+/// From everyday to playful, the order the Design submenu shows them in, without categories.
 export const THEMES: { value: ThemePreset; label: string; description: string }[] = [
   { value: 'klar', label: 'Klar', description: 'Reines Weiß, schwarze Knöpfe, runde Ecken – Standard' },
   { value: 'vercel', label: 'Vercel', description: 'Reines Schwarz-Weiß, scharfe Ecken' },
