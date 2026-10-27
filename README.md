@@ -15,12 +15,6 @@
   <a href="#what-paperclip-does">What Paperclip does</a> ·
   <a href="#ai-companies">AI companies</a> ·
   <a href="#install"><strong>Install</strong></a> ·
-  <a href="#local-or-remote">Local or remote</a> ·
-  <a href="#the-menu-bar">Menu bar</a> ·
-  <a href="#the-gear">Settings</a> ·
-  <a href="#troubleshooting">Troubleshooting</a> ·
-  <a href="#building-from-source">Build</a> ·
-  <a href="#license">License</a>
 </p>
 
 <p align="center"><img src="assets/paperclipdesk.png" alt="The Paperclip dashboard inside the PaperclipDesk window" width="100%"></p>
