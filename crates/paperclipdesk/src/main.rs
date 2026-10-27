@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod alerts;
 mod client;
 mod companies;
 mod connection;
@@ -12,6 +13,7 @@ mod server;
 mod server_package;
 mod settings;
 mod shortcuts;
+mod tray;
 mod updater;
 
 use std::collections::HashMap;
@@ -49,7 +51,7 @@ fn init_logging(log_dir: &Path) -> anyhow::Result<WorkerGuard> {
     let (file_writer, guard) = tracing_appender::non_blocking(file);
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     let stderr = cfg!(debug_assertions).then(|| tracing_subscriber::fmt::layer().with_writer(std::io::stderr));
-    tracing_subscriber::registry().with(filter).with(tracing_subscriber::fmt::layer().with_ansi(false).with_writer(file_writer)).with(stderr).init();
+    tracing_subscriber::registry().with(filter).with(tracing_subscriber::fmt::layer().with_ansi(false).with_writer(file_writer)).with(stderr).with(alerts::FromLog).init();
     Ok(guard)
 }
 
@@ -93,6 +95,13 @@ async fn activate_connection(client: Shared<'_>, key: String) -> Result<(), Stri
 #[tauri::command]
 async fn close_connection(client: Shared<'_>, key: String) -> Result<(), String> {
     client.close_connection(&key);
+    Ok(())
+}
+
+/// Sets Paperclip's zoom to `percent`, as typed in the gear; it stays between 30 % and 300 %.
+#[tauri::command]
+async fn set_zoom(client: Shared<'_>, percent: u32) -> Result<(), String> {
+    client.set_zoom(f64::from(percent) / 100.0);
     Ok(())
 }
 
@@ -215,12 +224,19 @@ async fn update_settings(client: Shared<'_>, mut settings: Settings) -> Result<S
     if scheme_changed {
         client.reset_paperclip_theme();
     }
-    // The menu bar is in the app's language too.
+    // The menu bar and the tray are in the app's language too.
     i18n::set(&settings.language);
+    tray::sync(client.handle(), settings.show_tray);
     client.apply_color_scheme();
     client.relayout();
     client.send_state();
     Ok(settings)
+}
+
+/// What went wrong since the app started, for the bell of a shell that loaded after it.
+#[tauri::command]
+async fn recent_alerts() -> Result<Vec<alerts::Alert>, String> {
+    Ok(alerts::recent())
 }
 
 #[tauri::command]
@@ -397,6 +413,7 @@ async fn import_settings(client: Shared<'_>) -> Result<Option<Settings>, String>
         settings::save(&settings::file_path(&client.paths.user_data), &import.settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
         *client.settings.lock().unwrap() = import.settings.clone();
         i18n::set(&import.settings.language);
+        tray::sync(client.handle(), import.settings.show_tray);
         client.apply_color_scheme();
 
         let known: Vec<String> = remote_profiles(&client).into_iter().map(|(_, remote_url, _)| remote_url).collect();
@@ -461,9 +478,11 @@ fn main() -> anyhow::Result<()> {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updater::PendingUpdate::default())
         .setup(move |app| {
+            alerts::connect(app.handle().clone());
             let client = Client::new(app.handle().clone(), paths);
             app.manage(Arc::clone(&client));
             client.start();
+            tray::sync(app.handle(), client.settings.lock().unwrap().show_tray);
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -477,6 +496,7 @@ fn main() -> anyhow::Result<()> {
             activate_connection,
             close_connection,
             menu_action,
+            set_zoom,
             set_menu_open,
             record_shortcut,
             import_company_template,
@@ -494,6 +514,7 @@ fn main() -> anyhow::Result<()> {
             return_to_current_session,
             get_settings,
             update_settings,
+            recent_alerts,
             get_log,
             clear_log,
             open_data_folder,

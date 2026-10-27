@@ -144,6 +144,10 @@ export interface Settings {
   show_menu_bar: boolean
   /// Whether the menu bar shows the path of the Paperclip page in front, as a field to go elsewhere.
   show_address_bar: boolean
+  /// Whether an error pops up at the top right; it goes into the bell either way.
+  error_popups: boolean
+  /// Whether the app has an icon in the notification area of the taskbar.
+  show_tray: boolean
   /// The key of each action that has one, e.g. 'view.fullscreen' → 'F11'.
   shortcuts: Record<string, string>
   /// A language code, or 'System' for the language Windows runs in.
@@ -206,6 +210,8 @@ export const setOpenAtStart = (profileId: string, open: boolean) => call<Snapsho
 export const activateConnection = (key: string) => call<void>('activate_connection', { key })
 export const closeConnection = (key: string) => call<void>('close_connection', { key })
 export const menuAction = (id: string) => call<void>('menu_action', { id })
+/// Any whole percentage; the host keeps it between 30 and 300.
+export const setZoom = (percent: number) => call<void>('set_zoom', { percent })
 /// While a menu is open above Paperclip, the host lets this webview cover the window.
 export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
 /// While on, the keys pressed in the window come back through `onShortcutRecorded` instead of starting actions.
@@ -330,6 +336,20 @@ export function onSettings(handler: (settings: Settings) => void): () => void {
 /// A shortcut for an action of the shell, e.g. one that opens a panel.
 export function onShortcut(handler: (action: string) => void): () => void {
   const unlisten = listen<string>('launcher:shortcut', (event) => handler(event.payload))
+  return () => void unlisten.then((stop) => stop())
+}
+
+/// Something that went wrong in the app or its local server: an error, or a warning that only goes into the bell.
+export interface Alert {
+  text: string
+  at: number
+  error: boolean
+}
+
+export const recentAlerts = () => call<Alert[]>('recent_alerts')
+
+export function onAlert(handler: (alert: Alert) => void): () => void {
+  const unlisten = listen<Alert>('launcher:alert', (event) => handler(event.payload))
   return () => void unlisten.then((stop) => stop())
 }
 

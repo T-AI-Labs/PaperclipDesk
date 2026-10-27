@@ -80,6 +80,8 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `ui/src/panels/Templates.tsx`, `TemplateDetails.tsx`, `templates.json`, `icons.json` | The template page and the snapshots `npm run catalog` writes: Paperclip's catalog and the avatars of its sources; the page fills the window and runs before a connection, `NeedsPaperclip.tsx` starts the local server once the import needs it |
 | `ui/src/components/data-table.tsx` | The table with search, filters and sorting the template page uses |
 | `ui/src/shell/NotificationBell.tsx`, `ui/src/lib/notifications.ts` | The bell: Paperclip's inbox of the company in front, and every toast the app showed; import `toast` from `notifications.ts`, not from sonner |
+| `crates/paperclipdesk/src/alerts.rs` | Errors and warnings of the app's own log and errors of the server's output, sent to the shell for the bell and, for errors, a toast the user can turn off |
+| `crates/paperclipdesk/src/tray.rs` | The icon in the notification area and its menu, switched by `show_tray` |
 | `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process, the download of its package and the signed list of newer versions |
 | `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
@@ -102,7 +104,9 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
    `server-versions.json`, a list it accepts only with a signature of the key in `server-catalog.pub`.
 5. **The local server must not outlive the app**, and neither may its PostgreSQL. A worker left behind holds the
    database's shared memory and the next start fails; `kill_stale_postgres` ends what belongs to this app's own server.
-6. **User data is never deleted silently.** A reset asks first and offers a backup.
+6. **User data is never deleted silently.** A reset asks first and offers a backup. Uninstalling removes all of the app's
+   data, the folders below except a Paperclip CLI's `~/.paperclip` (`windows/hooks.nsh`); an update runs the uninstaller
+   with `/UPDATE` and keeps everything.
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
    opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
 8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package and

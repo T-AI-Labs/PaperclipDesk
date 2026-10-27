@@ -120,11 +120,11 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Nenhuma conexão do Paperclip está aberta.",
     "Essa página não existe no Paperclip.",
     "Metas",
-    "Fila de revisão",
-    "Aprendizados",
     "Não foi possível carregar a lista de versões do servidor: {}",
     "A lista de versões do servidor não está assinada corretamente.",
     "A versão {} do servidor não está disponível.",
     "Só é possível instalar versões mais recentes do servidor.",
     "Não foi possível fazer backup dos dados do servidor: {}",
+    "Mostrar Paperclip",
+    "Configurações …",
 ];

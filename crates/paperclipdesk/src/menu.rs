@@ -75,8 +75,8 @@ pub enum Entry {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct Menu {
-    label: String,
-    entries: Vec<Entry>,
+    pub label: String,
+    pub entries: Vec<Entry>,
 }
 
 fn item(id: &str, label: &str) -> Entry {
@@ -120,10 +120,8 @@ pub fn build(client: &Client) -> Vec<Menu> {
         page("dashboard", i18n::t("Dashboard")),
         page("inbox", i18n::t("Posteingang")),
         page("issues", i18n::t("Aufgaben")),
-        // Paperclip links its goals only behind an experimental setting, and these two of its pipelines nowhere.
+        // Paperclip links its goals only behind an experimental setting; the page itself works without it.
         page("goals", i18n::t("Ziele")),
-        page("review-queue", i18n::t("Review-Warteschlange")),
-        page("learnings", i18n::t("Erkenntnisse")),
         label(i18n::t("Team")),
         page("agents", i18n::t("Agenten")),
         page("approvals", i18n::t("Genehmigungen")),

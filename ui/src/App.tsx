@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, CircleAlert, Download, LoaderCircle, RefreshCw, ScrollText, X } from 'lucide-react'
-import { toast } from '@/lib/notifications'
+import { record, toast } from '@/lib/notifications'
 
 import { IconTile } from '@/components/icon-tile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
-import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, holdOverlay, launcherState, onLauncherState, onSettings, onShortcut, showPage, updateSettings } from '@/lib/client'
+import { type LauncherPage, type PageProps, type Settings, type Snapshot, errorMessage, getSettings, holdOverlay, launcherState, onAlert, onLauncherState, onSettings, onShortcut, recentAlerts, showPage, updateSettings } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { useApplyColorScheme } from '@/lib/theme'
 import { type Message, setLanguage, t } from '@/i18n'
@@ -54,7 +54,7 @@ export default function App() {
   const [pending, setPending] = useState<LauncherPage | null>(null)
   const updater = useUpdater(settings?.check_updates_on_start)
 
-  useApplyColorScheme(settings?.color_scheme ?? 'system', settings?.theme ?? 'klar', settings?.accent ?? 'default')
+  useApplyColorScheme(settings?.color_scheme ?? 'system', settings?.theme ?? 'fluent', settings?.accent ?? 'default')
 
   const load = useCallback(
     () =>
@@ -119,6 +119,22 @@ export default function App() {
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
   }, [fullPanel])
+
+  // What went wrong before this page loaded goes quietly into the bell; what goes wrong now pops up unless turned off.
+  useEffect(() => {
+    recentAlerts()
+      .then((alerts) => alerts.forEach((alert) => record(alert.error ? 'error' : 'warning', alert.text, alert.at)))
+      .catch(() => undefined)
+  }, [])
+  const errorPopups = settings?.error_popups ?? true
+  useEffect(
+    () =>
+      onAlert((alert) => {
+        if (!alert.error || !errorPopups) return record(alert.error ? 'error' : 'warning', alert.text, alert.at)
+        toast.error(alert.text, { action: { label: t('Protokoll'), onClick: () => void showPage('logs').catch((e: unknown) => toast.error(errorMessage(e))) } })
+      }),
+    [errorPopups],
+  )
 
   useEffect(
     () =>

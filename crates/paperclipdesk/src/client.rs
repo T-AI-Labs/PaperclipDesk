@@ -396,9 +396,11 @@ impl Client {
 
     /// Tells the app's window what changed.
     pub fn send_state(&self) {
-        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, STATE_EVENT, self.snapshot()) {
+        let snapshot = self.snapshot();
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, STATE_EVENT, &snapshot) {
             tracing::warn!("sending the launcher state: {e}");
         }
+        crate::tray::follow(&self.handle, &snapshot.menu);
         self.relayout();
     }
 
@@ -638,13 +640,18 @@ impl Client {
             let client = Arc::clone(self);
             std::thread::spawn(move || client.toggle_menu_bar());
         } else if action.starts_with("shell.") {
-            if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SHORTCUT_EVENT, &action) {
-                tracing::warn!("sending a shortcut to the shell: {e}");
-            }
+            self.shell_action(&action);
         } else {
             crate::menu::handle(self, &action);
         }
         true
+    }
+
+    /// Hands the shell an action it carries out itself, such as opening a panel.
+    pub fn shell_action(&self, action: &str) {
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SHORTCUT_EVENT, action) {
+            tracing::warn!("sending an action to the shell: {e}");
+        }
     }
 
     /// Whether the menu bar is shown: in full screen only when asked for there, otherwise as the setting says.
@@ -1163,6 +1170,9 @@ impl Client {
                 if let Some(file) = log.lock().unwrap().as_mut() {
                     let _ = writeln!(file, "{line}");
                 }
+                if let Some(error) = crate::alerts::server_error(line) {
+                    crate::alerts::raise(&error, true);
+                }
                 if (line.contains("PostgreSQL ready") || line.contains("migration")) && !progress.database_ready.swap(true, Ordering::SeqCst) {
                     client.advance(boot_id, &progress, BootStep::Database, i18n::t("Migrationen laufen …"), 35);
                 }
@@ -1183,7 +1193,12 @@ impl Client {
                 client.track_server(None);
                 client.stop_monitor();
                 let tail = progress.tail(30);
-                tracing::error!("server exited unexpectedly (code={code:?})\n{tail}");
+                // While it starts, the failed start reports it; afterwards the user should hear of it even with the window in the background.
+                if client.local_connected() {
+                    tracing::error!("{} (code={code:?})\n{tail}", i18n::t("Der eingebettete Paperclip-Server wurde unerwartet beendet."));
+                } else {
+                    tracing::warn!("server exited unexpectedly (code={code:?})\n{tail}");
+                }
                 client.prompt_to_recover(
                     i18n::t("Der eingebettete Paperclip-Server wurde unerwartet beendet."),
                     &format!("{}\n\n{tail}", i18n::f("Exit-Code: {}\n\nProtokoll: {}", &[&exit_code(code), &log_path.display()])),

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { type ExternalToast, toast as sonner } from 'sonner'
 
-export type NotificationKind = 'success' | 'error' | 'info'
+export type NotificationKind = 'success' | 'error' | 'warning' | 'info'
 
 /// A message the app showed as a toast, kept for the bell after the toast is gone.
 export interface AppNotification {
@@ -25,9 +25,15 @@ function changed() {
   for (const listener of listeners) listener()
 }
 
-function shown(kind: NotificationKind, message: string, options?: ExternalToast) {
-  notifications = [{ id: nextId++, kind, text: message, at: Date.now() }, ...notifications].slice(0, KEPT)
+/// Keeps a message for the bell without showing it as a toast.
+export function record(kind: NotificationKind, text: string, at = Date.now()) {
+  if (notifications.some((known) => known.text === text && known.at === at)) return
+  notifications = [{ id: nextId++, kind, text, at }, ...notifications].sort((a, b) => b.at - a.at).slice(0, KEPT)
   changed()
+}
+
+function shown(kind: Exclude<NotificationKind, 'warning'>, message: string, options?: ExternalToast) {
+  record(kind, message)
   return sonner[kind](message, options)
 }
 

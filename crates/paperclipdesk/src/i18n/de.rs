@@ -121,11 +121,11 @@ pub const MESSAGES: [&str; 128] = [
     "Keine Paperclip-Verbindung ist offen.",
     "Diese Seite gibt es in Paperclip nicht.",
     "Ziele",
-    "Review-Warteschlange",
-    "Erkenntnisse",
     "Die Liste der Server-Versionen ließ sich nicht laden: {}",
     "Die Liste der Server-Versionen ist nicht richtig signiert.",
     "Die Server-Version {} ist nicht verfügbar.",
     "Nur neuere Server-Versionen lassen sich installieren.",
     "Die Server-Daten ließen sich nicht sichern: {}",
+    "Paperclip anzeigen",
+    "Einstellungen …",
 ];

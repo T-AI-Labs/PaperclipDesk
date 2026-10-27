@@ -80,6 +80,8 @@ A wizard puts a new company together instead of taking a template whole. It star
 
 PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads the Paperclip server, about 530 MB. After that the app updates itself.
 
+Uninstalling PaperclipDesk from the Windows settings removes everything it kept: its settings, the remotes, the logs, the local server with its companies and backups, the browser profiles and the downloaded server. A Paperclip CLI installation in `~/.paperclip` that the app shared stays. Updates keep everything.
+
 ## Local or remote
 
 | | Local | Remote |
@@ -107,10 +109,10 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 | --- | --- |
 | **Company** | Your companies with a tick at the one in front, **Manage companies …**, **Company settings** and **Company from template …**, see [A company from a template](#a-company-from-a-template) |
 | **New** | **New issue …**, **New agent …**, **Search …** |
-| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Review queue**, **Learnings**, **Agents**, **Approvals**, **Costs** |
+| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Agents**, **Approvals**, **Costs** |
 | **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
 
-At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages.
+At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages, its errors and warnings and those of the local server among them. An error also pops up at the top right with its cause and a button to the log, unless **Show errors as notifications** in the gear is off.
 
 ## The gear
 
@@ -119,9 +121,11 @@ The gear opens the settings as a menu, with a search field on top.
 | Section | What you find there |
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
-| **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs |
-| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, and **Back up settings** to export or import them |
+| **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs, WinUI 3 by default |
+| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Show errors as notifications**, **Icon in the notification area**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
+
+The icon in the notification area, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, the **Company**, **New** and **Go to** menus of the menu bar, **Settings …**, which opens the gear, and **Quit**.
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
 
