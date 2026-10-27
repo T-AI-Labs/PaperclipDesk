@@ -120,8 +120,6 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Nessuna connessione Paperclip è aperta.",
     "Questa pagina non esiste in Paperclip.",
     "Obiettivi",
-    "Coda di revisione",
-    "Apprendimenti",
     "Impossibile caricare l’elenco delle versioni del server: {}",
     "L’elenco delle versioni del server non è firmato correttamente.",
     "La versione {} del server non è disponibile.",

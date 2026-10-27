@@ -120,8 +120,6 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "没有打开的 Paperclip 连接。",
     "Paperclip 中没有这个页面。",
     "目标",
-    "审阅队列",
-    "经验总结",
     "无法加载服务器版本列表：{}",
     "服务器版本列表的签名不正确。",
     "服务器版本 {} 不可用。",
