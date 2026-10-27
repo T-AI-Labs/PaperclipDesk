@@ -385,4 +385,5 @@ export const es: Catalogue = [
   'Instalando Paperclip {version}.',
   'Icono en el área de notificación',
   'Mostrar errores como notificaciones',
+  'Zoom en porcentaje, de {min} a {max}',
 ]

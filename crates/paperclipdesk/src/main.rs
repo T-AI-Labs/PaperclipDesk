@@ -98,6 +98,13 @@ async fn close_connection(client: Shared<'_>, key: String) -> Result<(), String>
     Ok(())
 }
 
+/// Sets Paperclip's zoom to `percent`, as typed in the gear; it stays between 30 % and 300 %.
+#[tauri::command]
+async fn set_zoom(client: Shared<'_>, percent: u32) -> Result<(), String> {
+    client.set_zoom(f64::from(percent) / 100.0);
+    Ok(())
+}
+
 /// The user picked an entry of the menu bar.
 #[tauri::command]
 async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
@@ -489,6 +496,7 @@ fn main() -> anyhow::Result<()> {
             activate_connection,
             close_connection,
             menu_action,
+            set_zoom,
             set_menu_open,
             record_shortcut,
             import_company_template,

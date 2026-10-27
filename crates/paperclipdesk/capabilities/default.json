@@ -12,6 +12,7 @@
     "allow-activate-connection",
     "allow-close-connection",
     "allow-menu-action",
+    "allow-set-zoom",
     "allow-set-menu-open",
     "allow-record-shortcut",
     "allow-import-company-template",

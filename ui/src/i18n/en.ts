@@ -385,4 +385,5 @@ export const en: Catalogue = [
   'Installing Paperclip {version}.',
   'Icon in the notification area',
   'Show errors as notifications',
+  'Zoom in percent, {min} to {max}',
 ]

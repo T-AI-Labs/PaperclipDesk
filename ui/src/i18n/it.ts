@@ -385,4 +385,5 @@ export const it: Catalogue = [
   'Installazione di Paperclip {version}.',
   'Icona nell’area di notifica',
   'Mostra gli errori come notifiche',
+  'Zoom in percentuale, da {min} a {max}',
 ]

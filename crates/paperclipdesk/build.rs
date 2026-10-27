@@ -20,6 +20,7 @@ fn main() {
         "activate_connection",
         "close_connection",
         "menu_action",
+        "set_zoom",
         "set_menu_open",
         "record_shortcut",
         "import_company_template",

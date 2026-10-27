@@ -385,4 +385,5 @@ export const ja: Catalogue = [
   'Paperclip {version} をインストールしています。',
   '通知領域にアイコンを表示',
   'エラーを通知で表示',
+  'ズーム（パーセント、{min}〜{max}）',
 ]

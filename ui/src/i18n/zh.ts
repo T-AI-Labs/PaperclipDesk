@@ -385,4 +385,5 @@ export const zh: Catalogue = [
   '正在安装 Paperclip {version}。',
   '在通知区域显示图标',
   '以通知显示错误',
+  '缩放百分比，{min} 到 {max}',
 ]

@@ -210,6 +210,8 @@ export const setOpenAtStart = (profileId: string, open: boolean) => call<Snapsho
 export const activateConnection = (key: string) => call<void>('activate_connection', { key })
 export const closeConnection = (key: string) => call<void>('close_connection', { key })
 export const menuAction = (id: string) => call<void>('menu_action', { id })
+/// Any whole percentage; the host keeps it between 30 and 300.
+export const setZoom = (percent: number) => call<void>('set_zoom', { percent })
 /// While a menu is open above Paperclip, the host lets this webview cover the window.
 export const setMenuOpen = (open: boolean) => call<void>('set_menu_open', { open })
 /// While on, the keys pressed in the window come back through `onShortcutRecorded` instead of starting actions.

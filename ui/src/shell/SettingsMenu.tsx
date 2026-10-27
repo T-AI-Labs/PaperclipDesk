@@ -17,7 +17,7 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from '@/components/ui/menubar'
-import { type PageProps, errorMessage, exportSettings, importSettings, menuAction } from '@/lib/client'
+import { type PageProps, errorMessage, exportSettings, importSettings, menuAction, setZoom } from '@/lib/client'
 import { ACCENTS, type ColorScheme, THEMES, type ThemePreset } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { LANGUAGES, t } from '@/i18n'
@@ -43,6 +43,8 @@ const SCHEMES: { value: ColorScheme; label: 'System' | 'Hell' | 'Dunkel' }[] = [
 ]
 
 const failed = (e: unknown) => toast.error(errorMessage(e))
+const MIN_ZOOM = 30
+const MAX_ZOOM = 300
 // A control inside a row must not close the menu, nor hand its click to the row.
 const keepOpen = (event: Event) => event.preventDefault()
 
@@ -64,6 +66,39 @@ function Segment({ active, disabled, onClick, label, children }: { active?: bool
     >
       {children}
     </button>
+  )
+}
+
+/// The zoom as a number to type, applied on Enter or when the field is left; Escape keeps the zoom as it is.
+function ZoomInput({ percent, disabled }: { percent: number; disabled: boolean }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  function apply() {
+    const typed = Number.parseInt(draft ?? '', 10)
+    setDraft(null)
+    if (Number.isFinite(typed) && typed !== percent) void setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, typed))).catch(failed)
+  }
+  return (
+    <label className="flex h-6 items-center rounded-md border px-1.5 text-xs focus-within:ring-2 focus-within:ring-ring/50" title={t('Zoom in Prozent, {min} bis {max}', { min: MIN_ZOOM, max: MAX_ZOOM })}>
+      <input
+        value={draft ?? String(percent)}
+        disabled={disabled}
+        inputMode="numeric"
+        aria-label={t('Zoom in Prozent, {min} bis {max}', { min: MIN_ZOOM, max: MAX_ZOOM })}
+        onChange={(event) => setDraft(event.target.value.replace(/\D/g, '').slice(0, 3))}
+        onBlur={apply}
+        // The menu jumps to an entry by its first letter and closes on Escape; here keys belong to the field.
+        onKeyDown={(event) => {
+          event.stopPropagation()
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') {
+            setDraft(null)
+            event.currentTarget.blur()
+          }
+        }}
+        className="w-7 bg-transparent text-right tabular-nums outline-none disabled:opacity-50"
+      />
+      %
+    </label>
   )
 }
 
@@ -98,9 +133,7 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
               <Segment label={t('Verkleinern')} disabled={!connected} onClick={command('view.zoom_out')}>
                 <Minus className="size-3" />
               </Segment>
-              <Segment label={t('Zoom zurücksetzen')} disabled={!connected} onClick={command('view.zoom_reset')}>
-                {zoomPercent} %
-              </Segment>
+              <ZoomInput percent={zoomPercent} disabled={!connected} />
               <Segment label={t('Vergrößern')} disabled={!connected} onClick={command('view.zoom_in')}>
                 <Plus className="size-3" />
               </Segment>

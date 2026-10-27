@@ -384,6 +384,7 @@ export const de = [
   'Paperclip {version} wird installiert.',
   'Symbol im Infobereich',
   'Fehler als Meldung anzeigen',
+  'Zoom in Prozent, {min} bis {max}',
 ] as const
 
 export type Message = (typeof de)[number]
