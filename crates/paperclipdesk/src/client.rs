@@ -638,13 +638,18 @@ impl Client {
             let client = Arc::clone(self);
             std::thread::spawn(move || client.toggle_menu_bar());
         } else if action.starts_with("shell.") {
-            if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SHORTCUT_EVENT, &action) {
-                tracing::warn!("sending a shortcut to the shell: {e}");
-            }
+            self.shell_action(&action);
         } else {
             crate::menu::handle(self, &action);
         }
         true
+    }
+
+    /// Hands the shell an action it carries out itself, such as opening a panel.
+    pub fn shell_action(&self, action: &str) {
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, SHORTCUT_EVENT, action) {
+            tracing::warn!("sending an action to the shell: {e}");
+        }
     }
 
     /// Whether the menu bar is shown: in full screen only when asked for there, otherwise as the setting says.

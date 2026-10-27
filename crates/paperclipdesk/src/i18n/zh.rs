@@ -127,4 +127,6 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "服务器版本 {} 不可用。",
     "只能安装更新的服务器版本。",
     "无法备份服务器数据：{}",
+    "显示 Paperclip",
+    "设置 …",
 ];

@@ -383,4 +383,5 @@ export const en: Catalogue = [
   'The new server converts the database on its first start; after that, no older version starts on this data. This app is tested with version {pinned}; with a newer one, some things may not work.',
   'Installing Paperclip {version}. Backup: {path}',
   'Installing Paperclip {version}.',
+  'Icon in the notification area',
 ]

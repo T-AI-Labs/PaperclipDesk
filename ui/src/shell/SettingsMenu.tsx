@@ -246,6 +246,14 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
           ),
         },
         {
+          words: [t('Symbol im Infobereich')],
+          node: (
+            <MenubarCheckboxItem key="tray" checked={settings.show_tray} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ show_tray: checked })}>
+              {t('Symbol im Infobereich')}
+            </MenubarCheckboxItem>
+          ),
+        },
+        {
           words: [t('Einstellungen sichern'), t('Exportieren'), t('Importieren')],
           node: (
             <MenubarSub key="backup">

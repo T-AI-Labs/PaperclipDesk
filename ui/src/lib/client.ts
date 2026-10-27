@@ -144,6 +144,8 @@ export interface Settings {
   show_menu_bar: boolean
   /// Whether the menu bar shows the path of the Paperclip page in front, as a field to go elsewhere.
   show_address_bar: boolean
+  /// Whether the app has an icon in the notification area of the taskbar.
+  show_tray: boolean
   /// The key of each action that has one, e.g. 'view.fullscreen' → 'F11'.
   shortcuts: Record<string, string>
   /// A language code, or 'System' for the language Windows runs in.

@@ -383,4 +383,5 @@ export const fr: Catalogue = [
   'Le nouveau serveur convertit la base de données à son premier démarrage ; ensuite, aucune version plus ancienne ne démarre sur ces données. Cette app est testée avec la version {pinned} ; avec une plus récente, certaines choses peuvent ne pas fonctionner.',
   'Installation de Paperclip {version}. Sauvegarde : {path}',
   'Installation de Paperclip {version}.',
+  'Icône dans la zone de notification',
 ]

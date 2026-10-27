@@ -382,6 +382,7 @@ export const de = [
   'Der neue Server baut beim ersten Start die Datenbank um; danach startet keine ältere Version mehr auf diesen Daten. Diese App ist mit Version {pinned} getestet, mit einer neueren kann einzelnes nicht funktionieren.',
   'Paperclip {version} wird installiert. Sicherung: {path}',
   'Paperclip {version} wird installiert.',
+  'Symbol im Infobereich',
 ] as const
 
 export type Message = (typeof de)[number]

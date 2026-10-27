@@ -127,4 +127,6 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Server version {} is not available.",
     "Only newer server versions can be installed.",
     "The server data could not be backed up: {}",
+    "Show Paperclip",
+    "Settings …",
 ];

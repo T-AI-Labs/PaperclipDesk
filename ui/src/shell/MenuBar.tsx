@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLabel, MenubarMenu, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
 import { Input } from '@/components/ui/input'
-import { type Menu, type MenuEntry, type PageProps, errorMessage, holdOverlay, menuAction, openPaperclipPath, setMenuOpen } from '@/lib/client'
+import { type Menu, type MenuEntry, type PageProps, errorMessage, holdOverlay, menuAction, onShortcut, openPaperclipPath, setMenuOpen } from '@/lib/client'
 import { toast } from '@/lib/notifications'
 import { SHELL_PANELS } from '@/shell/panels'
 import NotificationBell from '@/shell/NotificationBell'
@@ -122,14 +122,20 @@ export default function MenuBar({
   const company = menus[0]?.entries.find((entry) => entry.kind === 'item' && entry.checked === true)
   const companyId = company?.kind === 'item' ? company.id : null
 
-  async function change(next: string) {
-    if (next !== '' && open === '') await makeRoom()
-    setOpen(next)
-    if (next === '') void holdOverlay('menu', false)
-  }
+  const change = useCallback(
+    async (next: string) => {
+      if (next !== '' && open === '') await makeRoom()
+      setOpen(next)
+      if (next === '') void holdOverlay('menu', false)
+    },
+    [open],
+  )
 
   // After a reload of this page the host may still hold room for a menu that is gone.
   useEffect(() => void setMenuOpen(false), [])
+
+  // The settings in the tray's menu open the gear.
+  useEffect(() => onShortcut((action) => action === 'shell.settings' && void change('settings')), [change])
 
   // A menu left open would keep covering Paperclip after the user went elsewhere.
   useEffect(() => {
