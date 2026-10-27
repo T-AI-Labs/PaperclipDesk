@@ -54,7 +54,7 @@ export default function App() {
   const [pending, setPending] = useState<LauncherPage | null>(null)
   const updater = useUpdater(settings?.check_updates_on_start)
 
-  useApplyColorScheme(settings?.color_scheme ?? 'system', settings?.theme ?? 'klar', settings?.accent ?? 'default')
+  useApplyColorScheme(settings?.color_scheme ?? 'system', settings?.theme ?? 'fluent', settings?.accent ?? 'default')
 
   const load = useCallback(
     () =>

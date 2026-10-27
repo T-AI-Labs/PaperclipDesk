@@ -36,7 +36,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { color_scheme: "system".into(), theme: "klar".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, show_address_bar: false, error_popups: true, show_tray: true, shortcuts: crate::shortcuts::defaults(), language: "System".into(), server_version: None }
+        Self { color_scheme: "system".into(), theme: "fluent".into(), accent: "default".into(), show_logs: true, clear_logs_on_exit: false, check_updates_on_start: true, show_welcome: false, show_menu_bar: true, show_address_bar: false, error_popups: true, show_tray: true, shortcuts: crate::shortcuts::defaults(), language: "System".into(), server_version: None }
     }
 }
 

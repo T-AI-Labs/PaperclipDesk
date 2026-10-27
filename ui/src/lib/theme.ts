@@ -21,9 +21,9 @@ export type Accent = 'default' | 'mono' | 'blue' | 'navy' | 'sky' | 'green' | 'o
 
 /// From everyday to playful, the order the Design submenu shows them in, without categories.
 export const THEMES: { value: ThemePreset; label: string; description: string }[] = [
-  { value: 'klar', label: 'Klar', description: 'Reines Weiß, schwarze Knöpfe, runde Ecken – Standard' },
+  { value: 'klar', label: 'Klar', description: 'Reines Weiß, schwarze Knöpfe, runde Ecken' },
   { value: 'vercel', label: 'Vercel', description: 'Reines Schwarz-Weiß, scharfe Ecken' },
-  { value: 'fluent', label: 'WinUI 3', description: 'Wie Windows 11, mit bunten Symbolen' },
+  { value: 'fluent', label: 'WinUI 3', description: 'Wie Windows 11, mit bunten Symbolen – Standard' },
   { value: 'neutral', label: 'Neutral', description: 'shadcn, schwarz-weiß' },
   { value: 'macos', label: 'macOS', description: 'Wie auf dem Mac' },
   { value: 'ink', label: 'Tinte', description: 'Weißes Papier, Tintenblau' },
@@ -73,7 +73,7 @@ function applyScheme(scheme: ColorScheme) {
 }
 
 /// Applies scheme, design and accent to <html> and follows OS changes while the scheme is 'system'.
-export function useApplyColorScheme(scheme: ColorScheme, theme: ThemePreset = 'klar', accent: Accent = 'default') {
+export function useApplyColorScheme(scheme: ColorScheme, theme: ThemePreset = 'fluent', accent: Accent = 'default') {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.dataset.accent = accent
