@@ -384,4 +384,5 @@ export const hi: Catalogue = [
   'Paperclip {version} इंस्टॉल हो रहा है। बैकअप: {path}',
   'Paperclip {version} इंस्टॉल हो रहा है।',
   'सूचना क्षेत्र में आइकन',
+  'त्रुटियाँ सूचना के रूप में दिखाएँ',
 ]

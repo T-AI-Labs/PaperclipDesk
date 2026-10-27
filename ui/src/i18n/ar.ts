@@ -384,4 +384,5 @@ export const ar: Catalogue = [
   'جارٍ تثبيت Paperclip {version}. النسخة الاحتياطية: {path}',
   'جارٍ تثبيت Paperclip {version}.',
   'رمز في منطقة الإشعارات',
+  'إظهار الأخطاء كإشعارات',
 ]

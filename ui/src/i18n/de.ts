@@ -383,6 +383,7 @@ export const de = [
   'Paperclip {version} wird installiert. Sicherung: {path}',
   'Paperclip {version} wird installiert.',
   'Symbol im Infobereich',
+  'Fehler als Meldung anzeigen',
 ] as const
 
 export type Message = (typeof de)[number]

@@ -29,6 +29,7 @@
     "allow-return-to-current-session",
     "allow-get-settings",
     "allow-update-settings",
+    "allow-recent-alerts",
     "allow-get-log",
     "allow-clear-log",
     "allow-open-data-folder",

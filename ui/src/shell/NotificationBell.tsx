@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bell, CircleCheck, Info, LoaderCircle, OctagonX } from 'lucide-react'
+import { Bell, CircleCheck, Info, LoaderCircle, OctagonX, TriangleAlert } from 'lucide-react'
 
 import { MenubarContent, MenubarItem, MenubarLabel, MenubarMenu, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
 import { relativeTime } from '@/connect/format'
@@ -13,7 +13,7 @@ const POLL_MS = 60_000
 
 const NO_ITEMS: AttentionItem[] = []
 
-const KIND_ICON: Record<NotificationKind, typeof Info> = { success: CircleCheck, error: OctagonX, info: Info }
+const KIND_ICON: Record<NotificationKind, typeof Info> = { success: CircleCheck, error: OctagonX, warning: TriangleAlert, info: Info }
 const SEVERITY_TONE: Record<NonNullable<AttentionItem['severity']>, string> = { critical: 'bg-destructive', high: 'bg-amber-500', medium: 'bg-primary', low: 'bg-muted-foreground/50' }
 
 /// The inbox of the company in front, read again whenever the connection or the company changes and once a minute.
@@ -121,7 +121,7 @@ export default function NotificationBell({ connected, company, open, onNavigate 
               const Icon = KIND_ICON[notification.kind]
               return (
                 <li key={notification.id} className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs">
-                  <Icon aria-hidden className={cn('mt-0.5 size-3.5 shrink-0', notification.kind === 'error' ? 'text-destructive' : notification.kind === 'success' ? 'text-primary' : 'text-muted-foreground')} />
+                  <Icon aria-hidden className={cn('mt-0.5 size-3.5 shrink-0', notification.kind === 'error' ? 'text-destructive' : notification.kind === 'warning' ? 'text-amber-500' : notification.kind === 'success' ? 'text-primary' : 'text-muted-foreground')} />
                   <span className="min-w-0 flex-1 break-words">{notification.text}</span>
                   <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(new Date(notification.at).toISOString())}</span>
                 </li>

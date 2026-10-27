@@ -384,4 +384,5 @@ export const zh: Catalogue = [
   '正在安装 Paperclip {version}。备份：{path}',
   '正在安装 Paperclip {version}。',
   '在通知区域显示图标',
+  '以通知显示错误',
 ]

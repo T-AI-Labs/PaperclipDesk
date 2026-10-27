@@ -37,6 +37,7 @@ fn main() {
         "return_to_current_session",
         "get_settings",
         "update_settings",
+        "recent_alerts",
         "get_log",
         "clear_log",
         "open_data_folder",

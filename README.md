@@ -112,7 +112,7 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 | **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Agents**, **Approvals**, **Costs** |
 | **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
 
-At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages.
+At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages, its errors and warnings and those of the local server among them. An error also pops up at the top right with its cause and a button to the log, unless **Show errors as notifications** in the gear is off.
 
 ## The gear
 
@@ -122,7 +122,7 @@ The gear opens the settings as a menu, with a search field on top.
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
 | **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs |
-| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Icon in the notification area**, and **Back up settings** to export or import them |
+| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Show errors as notifications**, **Icon in the notification area**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
 
 The icon in the notification area, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, the **Company**, **New** and **Go to** menus of the menu bar, **Settings …**, which opens the gear, and **Quit**.

@@ -246,6 +246,14 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
           ),
         },
         {
+          words: [t('Fehler als Meldung anzeigen'), t('Protokoll')],
+          node: (
+            <MenubarCheckboxItem key="error-popups" checked={settings.error_popups} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ error_popups: checked })}>
+              {t('Fehler als Meldung anzeigen')}
+            </MenubarCheckboxItem>
+          ),
+        },
+        {
           words: [t('Symbol im Infobereich')],
           node: (
             <MenubarCheckboxItem key="tray" checked={settings.show_tray} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ show_tray: checked })}>

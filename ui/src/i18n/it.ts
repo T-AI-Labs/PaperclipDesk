@@ -384,4 +384,5 @@ export const it: Catalogue = [
   'Installazione di Paperclip {version}. Backup: {path}',
   'Installazione di Paperclip {version}.',
   'Icona nell’area di notifica',
+  'Mostra gli errori come notifiche',
 ]

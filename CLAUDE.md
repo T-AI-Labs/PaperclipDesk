@@ -80,6 +80,7 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `ui/src/panels/Templates.tsx`, `TemplateDetails.tsx`, `templates.json`, `icons.json` | The template page and the snapshots `npm run catalog` writes: Paperclip's catalog and the avatars of its sources; the page fills the window and runs before a connection, `NeedsPaperclip.tsx` starts the local server once the import needs it |
 | `ui/src/components/data-table.tsx` | The table with search, filters and sorting the template page uses |
 | `ui/src/shell/NotificationBell.tsx`, `ui/src/lib/notifications.ts` | The bell: Paperclip's inbox of the company in front, and every toast the app showed; import `toast` from `notifications.ts`, not from sonner |
+| `crates/paperclipdesk/src/alerts.rs` | Errors and warnings of the app's own log and errors of the server's output, sent to the shell for the bell and, for errors, a toast the user can turn off |
 | `crates/paperclipdesk/src/tray.rs` | The icon in the notification area and its menu, switched by `show_tray` |
 | `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
 | `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process, the download of its package and the signed list of newer versions |

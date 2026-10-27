@@ -1170,6 +1170,9 @@ impl Client {
                 if let Some(file) = log.lock().unwrap().as_mut() {
                     let _ = writeln!(file, "{line}");
                 }
+                if let Some(error) = crate::alerts::server_error(line) {
+                    crate::alerts::raise(&error, true);
+                }
                 if (line.contains("PostgreSQL ready") || line.contains("migration")) && !progress.database_ready.swap(true, Ordering::SeqCst) {
                     client.advance(boot_id, &progress, BootStep::Database, i18n::t("Migrationen laufen …"), 35);
                 }
@@ -1190,7 +1193,12 @@ impl Client {
                 client.track_server(None);
                 client.stop_monitor();
                 let tail = progress.tail(30);
-                tracing::error!("server exited unexpectedly (code={code:?})\n{tail}");
+                // While it starts, the failed start reports it; afterwards the user should hear of it even with the window in the background.
+                if client.local_connected() {
+                    tracing::error!("{} (code={code:?})\n{tail}", i18n::t("Der eingebettete Paperclip-Server wurde unerwartet beendet."));
+                } else {
+                    tracing::warn!("server exited unexpectedly (code={code:?})\n{tail}");
+                }
                 client.prompt_to_recover(
                     i18n::t("Der eingebettete Paperclip-Server wurde unerwartet beendet."),
                     &format!("{}\n\n{tail}", i18n::f("Exit-Code: {}\n\nProtokoll: {}", &[&exit_code(code), &log_path.display()])),
