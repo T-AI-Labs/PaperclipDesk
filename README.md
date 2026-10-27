@@ -109,7 +109,7 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 | --- | --- |
 | **Company** | Your companies with a tick at the one in front, **Manage companies …**, **Company settings** and **Company from template …**, see [A company from a template](#a-company-from-a-template) |
 | **New** | **New issue …**, **New agent …**, **Search …** |
-| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Review queue**, **Learnings**, **Agents**, **Approvals**, **Costs** |
+| **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Agents**, **Approvals**, **Costs** |
 | **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
 
 At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages.
@@ -125,7 +125,7 @@ The gear opens the settings as a menu, with a search field on top.
 | **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Icon in the notification area**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
 
-The icon in the notification area, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, **Company from template …**, **Check for updates …**, **Settings …**, which opens the gear, and **Quit**.
+The icon in the notification area, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, the **Company**, **New** and **Go to** menus of the menu bar, **Settings …**, which opens the gear, and **Quit**.
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
 

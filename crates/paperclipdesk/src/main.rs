@@ -211,17 +211,14 @@ async fn update_settings(client: Shared<'_>, mut settings: Settings) -> Result<S
     // Only an upgrade changes the server version, after the user confirmed it.
     settings.server_version = client.settings.lock().unwrap().server_version.clone();
     settings::save(&settings::file_path(&client.paths.user_data), &settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
-    let (scheme_changed, language_changed) = {
-        let old = client.settings.lock().unwrap();
-        (old.color_scheme != settings.color_scheme, old.language != settings.language)
-    };
+    let scheme_changed = client.settings.lock().unwrap().color_scheme != settings.color_scheme;
     *client.settings.lock().unwrap() = settings.clone();
     if scheme_changed {
         client.reset_paperclip_theme();
     }
     // The menu bar and the tray are in the app's language too.
     i18n::set(&settings.language);
-    tray::sync(client.handle(), settings.show_tray, language_changed);
+    tray::sync(client.handle(), settings.show_tray);
     client.apply_color_scheme();
     client.relayout();
     client.send_state();
@@ -402,7 +399,7 @@ async fn import_settings(client: Shared<'_>) -> Result<Option<Settings>, String>
         settings::save(&settings::file_path(&client.paths.user_data), &import.settings).map_err(|e| i18n::f("Einstellungen ließen sich nicht speichern: {}", &[&e]))?;
         *client.settings.lock().unwrap() = import.settings.clone();
         i18n::set(&import.settings.language);
-        tray::sync(client.handle(), import.settings.show_tray, true);
+        tray::sync(client.handle(), import.settings.show_tray);
         client.apply_color_scheme();
 
         let known: Vec<String> = remote_profiles(&client).into_iter().map(|(_, remote_url, _)| remote_url).collect();
@@ -470,7 +467,7 @@ fn main() -> anyhow::Result<()> {
             let client = Client::new(app.handle().clone(), paths);
             app.manage(Arc::clone(&client));
             client.start();
-            tray::sync(app.handle(), client.settings.lock().unwrap().show_tray, false);
+            tray::sync(app.handle(), client.settings.lock().unwrap().show_tray);
             Ok(())
         })
         .on_window_event(|window, event| {

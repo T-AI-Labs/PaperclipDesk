@@ -396,9 +396,11 @@ impl Client {
 
     /// Tells the app's window what changed.
     pub fn send_state(&self) {
-        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, STATE_EVENT, self.snapshot()) {
+        let snapshot = self.snapshot();
+        if let Err(e) = self.handle.emit_to(LAUNCHER_LABEL, STATE_EVENT, &snapshot) {
             tracing::warn!("sending the launcher state: {e}");
         }
+        crate::tray::follow(&self.handle, &snapshot.menu);
         self.relayout();
     }
 
