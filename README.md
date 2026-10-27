@@ -80,6 +80,8 @@ A wizard puts a new company together instead of taking a template whole. It star
 
 PaperclipDesk needs Windows 10 or 11 (64-bit). The first local start downloads the Paperclip server, about 530 MB. After that the app updates itself.
 
+Uninstalling PaperclipDesk from the Windows settings removes everything it kept: its settings, the remotes, the logs, the local server with its companies and backups, the browser profiles and the downloaded server. A Paperclip CLI installation in `~/.paperclip` that the app shared stays. Updates keep everything.
+
 ## Local or remote
 
 | | Local | Remote |
@@ -120,8 +122,10 @@ The gear opens the settings as a menu, with a search field on top.
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
 | **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs |
-| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, and **Back up settings** to export or import them |
+| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Icon in the notification area**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
+
+The icon in the notification area, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, **Company from template …**, **Check for updates …**, **Settings …**, which opens the gear, and **Quit**.
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
 
