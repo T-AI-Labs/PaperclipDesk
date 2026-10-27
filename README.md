@@ -121,7 +121,7 @@ The gear opens the settings as a menu, with a search field on top.
 | Section | What you find there |
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
-| **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs |
+| **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs, WinUI 3 by default |
 | **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Show errors as notifications**, **Icon in the notification area**, and **Back up settings** to export or import them |
 | | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
 
