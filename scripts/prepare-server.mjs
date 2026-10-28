@@ -354,8 +354,13 @@ async function startsUp(entry) {
     await new Promise((done) => setTimeout(done, 2000));
     answered = await fetch(`http://127.0.0.1:${port}/api/health`).then((response) => response.ok, () => false);
   }
-  // The embedded PostgreSQL is a child of the server; ending the tree ends it too.
   if (!exited) execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+  // Ending the tree can leave a PostgreSQL worker behind, as the app's kill_stale_postgres knows; it names its binary with forward slashes.
+  execFileSync(
+    "powershell",
+    ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='postgres.exe'\" | Where-Object { $_.CommandLine -like \"*$env:SERVER_DIR*\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"],
+    { stdio: "ignore", env: { ...process.env, SERVER_DIR: bundleServerDir.replaceAll(path.sep, "/") } },
+  );
   rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   if (!answered) console.error(`[prepare-server] ${path.basename(entry)} did not start:\n${errors}`);
   return answered;
