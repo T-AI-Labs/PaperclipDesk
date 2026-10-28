@@ -16,6 +16,7 @@
     "allow-set-menu-open",
     "allow-record-shortcut",
     "allow-import-company-template",
+    "allow-github-cli-signed-in",
     "allow-company-attention",
     "allow-adapter-options",
     "allow-open-paperclip-path",

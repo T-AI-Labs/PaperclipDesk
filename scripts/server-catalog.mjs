@@ -4,7 +4,7 @@
  * Writes the list of server packages the app may install (build/server-versions.json) from the
  * server-v<version> releases of this repository, signs it and publishes both in the release
  * "server-catalog". The app installs a version only from a list whose signature matches
- * crates/paperclipdesk/server-catalog.pub.
+ * src-tauri/server-catalog.pub.
  *
  * Needs gh with a token that can write releases, and SERVER_CATALOG_SIGNING_KEY: the private key of
  * its own, never the updater's. Runs no code of Paperclip's, so the key never meets it.

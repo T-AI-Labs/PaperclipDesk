@@ -28,7 +28,7 @@ function crates() {
   const json = run(
     "cargo",
     ["license", "--json", "--avoid-dev-deps", "--avoid-build-deps", "--filter-platform", "x86_64-pc-windows-msvc"],
-    path.join(projectRoot, "crates", "paperclipdesk"),
+    path.join(projectRoot, "src-tauri"),
   );
 
   return JSON.parse(json)

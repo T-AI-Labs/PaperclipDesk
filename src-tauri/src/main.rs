@@ -112,10 +112,32 @@ async fn menu_action(client: Shared<'_>, id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// `github_cli` names the secrets the GitHub CLI's token fills; the token goes to Paperclip without passing the shell.
 #[tauri::command]
-async fn import_company_template(client: Shared<'_>, source: companies::TemplateSource, name: Option<String>, secrets: HashMap<String, String>, adapters: HashMap<String, companies::AdapterOverride>) -> Result<(), String> {
+async fn import_company_template(
+    client: Shared<'_>,
+    source: companies::TemplateSource,
+    name: Option<String>,
+    mut secrets: HashMap<String, String>,
+    github_cli: Vec<String>,
+    adapters: HashMap<String, companies::AdapterOverride>,
+) -> Result<(), String> {
     let client = Arc::clone(&client);
-    tauri::async_runtime::spawn_blocking(move || client.import_template(&source, name.as_deref(), &secrets, &adapters)).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        if !github_cli.is_empty() {
+            let token = companies::github_cli_token().ok_or_else(|| i18n::t("Die GitHub CLI hat kein Token geliefert. Melde dich mit „gh auth login“ an.").to_owned())?;
+            secrets.extend(github_cli.into_iter().map(|key| (key, token.clone())));
+        }
+        client.import_template(&source, name.as_deref(), &secrets, &adapters)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Whether the GitHub CLI is installed and signed in, so a template's GitHub token can come from it.
+#[tauri::command]
+async fn github_cli_signed_in() -> bool {
+    tauri::async_runtime::spawn_blocking(|| companies::github_cli_token().is_some()).await.unwrap_or(false)
 }
 
 #[tauri::command]
@@ -500,6 +522,7 @@ fn main() -> anyhow::Result<()> {
             set_menu_open,
             record_shortcut,
             import_company_template,
+            github_cli_signed_in,
             company_attention,
             adapter_options,
             open_paperclip_path,

@@ -56,7 +56,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "No existe el archivo de registro «{}»",
     "No se pudieron guardar los ajustes: {}",
     "Acerca de PaperclipDesk",
-    "Buscar actualizaciones …",
+    "Solución de problemas",
     "Mostrar siempre el selector al iniciar",
     "Cambiar de conexión …",
     "Conectar en local",
@@ -114,7 +114,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Ir a",
     "Trabajo",
     "Equipo",
-    "Empresa desde plantilla …",
+    "Nueva empresa desde plantilla …",
     "Esta plantilla no existe.",
     "Paperclip no respondió a tiempo.",
     "No hay ninguna conexión de Paperclip abierta.",
@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "No se pudieron respaldar los datos del servidor: {}",
     "Mostrar Paperclip",
     "Ajustes …",
+    "La GitHub CLI no devolvió ningún token. Inicia sesión con «gh auth login».",
 ];

@@ -56,7 +56,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Nessun file di registro «{}»",
     "Impossibile salvare le impostazioni: {}",
     "Informazioni su PaperclipDesk",
-    "Cerca aggiornamenti …",
+    "Risoluzione dei problemi",
     "Mostra sempre la scelta all'avvio",
     "Cambia connessione …",
     "Connetti in locale",
@@ -114,7 +114,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Vai a",
     "Lavoro",
     "Team",
-    "Azienda da modello …",
+    "Nuova azienda da modello …",
     "Questo modello non esiste.",
     "Paperclip non ha risposto in tempo.",
     "Nessuna connessione Paperclip è aperta.",
@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Impossibile eseguire il backup dei dati del server: {}",
     "Mostra Paperclip",
     "Impostazioni …",
+    "La GitHub CLI non ha restituito alcun token. Accedi con «gh auth login».",
 ];

@@ -56,7 +56,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "ログファイル「{}」はありません",
     "設定を保存できませんでした: {}",
     "PaperclipDesk について",
-    "更新を確認 …",
+    "トラブルシューティング",
     "起動時に常に接続の選択を表示",
     "接続を切り替え …",
     "ローカルに接続",
@@ -114,7 +114,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "移動",
     "作業",
     "チーム",
-    "テンプレートから会社を作成 …",
+    "テンプレートから新しい会社を作成 …",
     "このテンプレートは存在しません。",
     "Paperclip が時間内に応答しませんでした。",
     "開いている Paperclip 接続がありません。",
@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "サーバーのデータをバックアップできませんでした: {}",
     "Paperclip を表示",
     "設定 …",
+    "GitHub CLI からトークンを取得できませんでした。「gh auth login」でサインインしてください。",
 ];

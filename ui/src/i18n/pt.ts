@@ -383,7 +383,10 @@ export const pt: Catalogue = [
   'O novo servidor converte o banco de dados na primeira inicialização; depois disso, nenhuma versão mais antiga inicia com esses dados. Este app é testado com a versão {pinned}; com uma mais recente, algumas coisas podem não funcionar.',
   'Instalando o Paperclip {version}. Backup: {path}',
   'Instalando o Paperclip {version}.',
-  'Ícone na área de notificação',
+  'Ícone na bandeja do sistema',
   'Mostrar erros como notificações',
   'Zoom em porcentagem, de {min} a {max}',
+  'Atualizações …',
+  'Usar {keys} da GitHub CLI',
+  'A app obtém o token da GitHub CLI só na importação; o Paperclip guarda-o como segredo.',
 ]

@@ -30,6 +30,7 @@ function actions(snapshot: Snapshot): Action[] {
   ]
   const fromMenu = (entries: Snapshot['connectionMenu'], group: string) => {
     for (const entry of entries) {
+      if (entry.kind === 'submenu') fromMenu(entry.entries, group)
       if (entry.kind !== 'item' || PER_ITEM.some((prefix) => entry.id.startsWith(prefix)) || list.some((action) => action.id === entry.id)) continue
       list.push({ id: entry.id, label: entry.label, group })
     }
@@ -37,7 +38,7 @@ function actions(snapshot: Snapshot): Action[] {
   snapshot.menu.forEach((menu) => fromMenu(menu.entries, menu.label))
   fromMenu(snapshot.connectionMenu, t('Verbindung'))
   const app = t('App')
-  list.push({ id: 'shell.server', label: t('Lokaler Server …'), group: app }, { id: 'shell.shortcuts', label: t('Tastenkürzel …'), group: app }, { id: 'app.quit', label: t('Beenden'), group: app })
+  list.push({ id: 'shell.updates', label: t('Updates …'), group: app }, { id: 'shell.server', label: t('Lokaler Server …'), group: app }, { id: 'shell.shortcuts', label: t('Tastenkürzel …'), group: app }, { id: 'app.quit', label: t('Beenden'), group: app })
   return list
 }
 

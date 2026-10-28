@@ -56,7 +56,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "No log file “{}”",
     "The settings could not be saved: {}",
     "About PaperclipDesk",
-    "Check for updates …",
+    "Troubleshooting",
     "Always show the chooser on launch",
     "Switch connection …",
     "Connect local",
@@ -114,7 +114,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Go to",
     "Work",
     "Team",
-    "Company from template …",
+    "New company from template …",
     "This template does not exist.",
     "Paperclip did not answer in time.",
     "No Paperclip connection is open.",
@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "The server data could not be backed up: {}",
     "Show Paperclip",
     "Settings …",
+    "The GitHub CLI returned no token. Sign in with “gh auth login”.",
 ];

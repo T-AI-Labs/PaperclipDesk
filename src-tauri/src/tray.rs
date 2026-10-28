@@ -47,23 +47,28 @@ fn menu(handle: &AppHandle, menus: &[crate::menu::Menu]) -> tauri::Result<Menu<W
     let menu = Menu::new(handle)?;
     menu.append(&MenuItem::with_id(handle, SHOW, i18n::t("Paperclip anzeigen"), true, None::<&str>)?)?;
     for bar in menus.iter().take(MENUS) {
-        let submenu = Submenu::new(handle, &bar.label, true)?;
-        for entry in &bar.entries {
-            let item: Box<dyn IsMenuItem<Wry>> = match entry {
-                Entry::Item { id, label, enabled, checked: Some(checked) } => Box::new(CheckMenuItem::with_id(handle, id, label, *enabled, *checked, None::<&str>)?),
-                Entry::Item { id, label, enabled, checked: None } => Box::new(MenuItem::with_id(handle, id, label, *enabled, None::<&str>)?),
-                Entry::Separator => Box::new(PredefinedMenuItem::separator(handle)?),
-                // A native menu has no headings; a greyed entry stands in for one.
-                Entry::Label { label } => Box::new(MenuItem::new(handle, label, false, None::<&str>)?),
-            };
-            submenu.append(item.as_ref())?;
-        }
-        menu.append(&submenu)?;
+        menu.append(&submenu(handle, &bar.label, &bar.entries)?)?;
     }
     menu.append(&PredefinedMenuItem::separator(handle)?)?;
     menu.append(&MenuItem::with_id(handle, "shell.settings", i18n::t("Einstellungen …"), true, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(handle, "app.quit", i18n::t("Beenden"), true, None::<&str>)?)?;
     Ok(menu)
+}
+
+fn submenu(handle: &AppHandle, label: &str, entries: &[Entry]) -> tauri::Result<Submenu<Wry>> {
+    let built = Submenu::new(handle, label, true)?;
+    for entry in entries {
+        let item: Box<dyn IsMenuItem<Wry>> = match entry {
+            Entry::Item { id, label, enabled, checked: Some(checked) } => Box::new(CheckMenuItem::with_id(handle, id, label, *enabled, *checked, None::<&str>)?),
+            Entry::Item { id, label, enabled, checked: None } => Box::new(MenuItem::with_id(handle, id, label, *enabled, None::<&str>)?),
+            Entry::Separator => Box::new(PredefinedMenuItem::separator(handle)?),
+            // A native menu has no headings; a greyed entry stands in for one.
+            Entry::Label { label } => Box::new(MenuItem::new(handle, label, false, None::<&str>)?),
+            Entry::Submenu { label, entries } => Box::new(submenu(handle, label, entries)?),
+        };
+        built.append(item.as_ref())?;
+    }
+    Ok(built)
 }
 
 fn build(handle: &AppHandle) -> tauri::Result<()> {

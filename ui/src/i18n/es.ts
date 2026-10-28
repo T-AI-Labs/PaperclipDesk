@@ -383,7 +383,10 @@ export const es: Catalogue = [
   'El nuevo servidor convierte la base de datos en su primer inicio; después ya no arranca ninguna versión anterior con estos datos. Esta app está probada con la versión {pinned}; con una más nueva, algunas cosas pueden no funcionar.',
   'Instalando Paperclip {version}. Copia: {path}',
   'Instalando Paperclip {version}.',
-  'Icono en el área de notificación',
+  'Icono en la bandeja del sistema',
   'Mostrar errores como notificaciones',
   'Zoom en porcentaje, de {min} a {max}',
+  'Actualizaciones …',
+  'Tomar {keys} de la GitHub CLI',
+  'La app obtiene el token de la GitHub CLI solo al importar; Paperclip lo guarda como secreto.',
 ]

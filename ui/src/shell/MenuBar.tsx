@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLabel, MenubarMenu, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
+import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLabel, MenubarMenu, MenubarSeparator, MenubarSub, MenubarSubContent, MenubarSubTrigger, MenubarTrigger } from '@/components/ui/menubar'
 import { Input } from '@/components/ui/input'
 import { type Menu, type MenuEntry, type PageProps, errorMessage, holdOverlay, menuAction, onShortcut, openPaperclipPath, setMenuOpen } from '@/lib/client'
 import { toast } from '@/lib/notifications'
@@ -85,6 +85,18 @@ function Entries({ entries, shortcuts, onPanel, onNavigate }: { entries: MenuEnt
         </MenubarLabel>
       )
     }
+    if (entry.kind === 'submenu') {
+      return (
+        <MenubarSub key={index}>
+          <MenubarSubTrigger inset={inset || undefined} className="text-xs">
+            {entry.label}
+          </MenubarSubTrigger>
+          <MenubarSubContent>
+            <Entries entries={entry.entries} shortcuts={shortcuts} onPanel={onPanel} onNavigate={onNavigate} />
+          </MenubarSubContent>
+        </MenubarSub>
+      )
+    }
     const panel = SHELL_PANELS[entry.id]
     const pick = () => {
       if (panel) return onPanel(panel)
@@ -113,10 +125,11 @@ export default function MenuBar({
   zoomPercent,
   connected,
   paperclipPath,
+  update,
   onPanel,
   onNavigate,
   ...settings
-}: PageProps & { menus: Menu[]; connectionMenu: MenuEntry[]; connectionName: string | null; zoomPercent: number; connected: boolean; paperclipPath: string | null; onPanel: (panel: Panel) => void; onNavigate: () => void }) {
+}: PageProps & { menus: Menu[]; connectionMenu: MenuEntry[]; connectionName: string | null; zoomPercent: number; connected: boolean; paperclipPath: string | null; update: string | null; onPanel: (panel: Panel) => void; onNavigate: () => void }) {
   const [open, setOpen] = useState('')
   // The company menu checks the company in front; the bell reads that company's inbox.
   const company = menus[0]?.entries.find((entry) => entry.kind === 'item' && entry.checked === true)
@@ -172,7 +185,7 @@ export default function MenuBar({
       </MenubarMenu>
 
       <NotificationBell connected={connected} company={companyId} open={open === 'notifications'} onNavigate={onNavigate} />
-      <SettingsMenu {...settings} zoomPercent={zoomPercent} connected={connected} onPanel={onPanel} />
+      <SettingsMenu {...settings} zoomPercent={zoomPercent} connected={connected} update={update} onPanel={onPanel} />
     </Menubar>
   )
 }

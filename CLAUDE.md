@@ -41,7 +41,7 @@ German: they are the keys of the translations, see [Translations](#translations)
 
 | Layer | Technology |
 | --- | --- |
-| Host | Tauri 2 (Rust) in `crates/paperclipdesk`, WebView2, `unstable` feature for several webviews in one window |
+| Host | Tauri 2 (Rust) in `src-tauri`, WebView2, `unstable` feature for several webviews in one window |
 | UI | React 19, TypeScript, Vite, in `ui` |
 | UI kit | shadcn/ui on Radix, Tailwind v4 |
 | Tests | `cargo test` (host); the UI is type-checked and linted with oxlint |
@@ -73,19 +73,19 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 
 | Path | Contents |
 | --- | --- |
-| `crates/paperclipdesk/src/client.rs` | The state of the window, the layout of the webviews, starting and stopping connections |
-| `crates/paperclipdesk/src/main.rs` | The commands the shell may call |
-| `crates/paperclipdesk/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it, `SettingsMenu.tsx` is the gear |
-| `crates/paperclipdesk/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there; template import |
+| `src-tauri/src/client.rs` | The state of the window, the layout of the webviews, starting and stopping connections |
+| `src-tauri/src/main.rs` | The commands the shell may call |
+| `src-tauri/src/menu.rs` | What is in the menu bar and what its entries do; `ui/src/shell/MenuBar.tsx` draws it, `SettingsMenu.tsx` is the gear |
+| `src-tauri/src/companies.rs` | The companies of the Paperclip in front, read through its page so its session stays there; template import |
 | `ui/src/panels/Templates.tsx`, `TemplateDetails.tsx`, `templates.json`, `icons.json` | The template page and the snapshots `npm run catalog` writes: Paperclip's catalog and the avatars of its sources; the page fills the window and runs before a connection, `NeedsPaperclip.tsx` starts the local server once the import needs it |
 | `ui/src/components/data-table.tsx` | The table with search, filters and sorting the template page uses |
 | `ui/src/shell/NotificationBell.tsx`, `ui/src/lib/notifications.ts` | The bell: Paperclip's inbox of the company in front, and every toast the app showed; import `toast` from `notifications.ts`, not from sonner |
-| `crates/paperclipdesk/src/alerts.rs` | Errors and warnings of the app's own log and errors of the server's output, sent to the shell for the bell and, for errors, a toast the user can turn off |
-| `crates/paperclipdesk/src/tray.rs` | The icon in the notification area and its menu, switched by `show_tray` |
-| `crates/paperclipdesk/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
-| `crates/paperclipdesk/src/server.rs`, `server_package.rs` | The local server process, the download of its package and the signed list of newer versions |
-| `crates/paperclipdesk/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
-| `crates/paperclipdesk/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |
+| `src-tauri/src/alerts.rs` | Errors and warnings of the app's own log and errors of the server's output, sent to the shell for the bell and, for errors, a toast the user can turn off |
+| `src-tauri/src/tray.rs` | The icon in the notification area and its menu, switched by `show_tray` |
+| `src-tauri/src/shortcuts.rs` | The keys of the actions, caught in every webview before its page sees them |
+| `src-tauri/src/server.rs`, `server_package.rs` | The local server process, the download of its package and the signed list of newer versions |
+| `src-tauri/src/instance.rs` | The local instance: `config.json`, `.env`, reset |
+| `src-tauri/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |
 | `ui/src/App.tsx` | Which page or panel is shown; pages are in `ui/src/pages`, the settings panels in `ui/src/panels` |
 | `ui/src/lib/client.ts` | Every command and type the shell shares with the host |
 | `scripts` | Staging and packing the server, the local install script |
@@ -110,16 +110,16 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
    opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
 8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package and
-   the list of newer server versions while the server settings are open.
+   the list of newer server versions while the updates panel is open.
 
 ## The Paperclip server version
 
 `package.json` pins it under `paperclip.server`. A build from this repository uses the server staged under `build/`. A
 release build has no server inside: it downloads the package for its pinned version on the first local start.
 
-A newer server the user can install from the server settings, from the list `npm run server-catalog` publishes in the
+A newer server the user can install from the updates panel, from the list `npm run server-catalog` publishes in the
 release `server-catalog`: `server-versions.json` with each packaged version and its SHA-256, and `.sig` with its
-signature, which the app checks with the public key in `crates/paperclipdesk/server-catalog.pub`. That key is not the
+signature, which the app checks with the public key in `src-tauri/server-catalog.pub`. That key is not the
 updater's: the list is signed next to packages built from Paperclip's code, and a key stolen there must not sign app
 updates. The private key is the secret `SERVER_CATALOG_SIGNING_KEY` of the environment `server-catalog`, and its
 local copy `~/.tauri/paperclipdesk-server-catalog.key` has no password. The app offers only
@@ -185,7 +185,7 @@ publishes the server package for the pinned version once as a release of its own
 the NSIS installer, writes `latest.json` for the updater, tags `v<version>` and creates the GitHub release.
 
 It needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the matching
-public key is in `crates/paperclipdesk/tauri.conf.json`. The app version comes from the same file, and
+public key is in `src-tauri/tauri.conf.json`. The app version comes from the same file, and
 `release-notes/v<version>.md` must exist.
 
 The `Server Packages` workflow runs every day and on manual dispatch, with a version or without one for Paperclip's

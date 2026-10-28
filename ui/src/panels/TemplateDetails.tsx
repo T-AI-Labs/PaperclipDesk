@@ -6,8 +6,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { type ProjectLink, type Snapshot, type TemplateAgent, type TemplateSkill, errorMessage, importCompanyTemplate, openProjectLink } from '@/lib/client'
+import { type ProjectLink, type Snapshot, type TemplateAgent, type TemplateSkill, errorMessage, githubCliSignedIn, importCompanyTemplate, openProjectLink } from '@/lib/client'
 import { toast } from '@/lib/notifications'
 import { t } from '@/i18n'
 import type { Template, TemplateTeam } from './catalog'
@@ -17,21 +18,37 @@ import NeedsPaperclip from './NeedsPaperclip'
 import OrgChart from './OrgChart'
 
 const openLink = (link: ProjectLink) => void openProjectLink(link).catch((e: unknown) => toast.error(errorMessage(e)))
+/// The environment inputs a GitHub token fills; the GitHub CLI has one when the user is signed in there.
+const GITHUB_TOKENS = ['GH_TOKEN', 'GITHUB_TOKEN']
 
 function ImportForm({ template, models, onModels, onDone }: { template: Template; models: AgentModels; onModels: () => void; onDone: () => void }) {
   const [name, setName] = useState(template.name)
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const required = template.inputs.filter((input) => input.required)
-  const optional = template.inputs.filter((input) => !input.required)
+  const [githubCli, setGithubCli] = useState(false)
+  const [useGithubCli, setUseGithubCli] = useState(true)
+  const githubKeys = template.inputs.map((input) => input.key).filter((key) => GITHUB_TOKENS.includes(key))
+  useEffect(() => {
+    if (githubKeys.length === 0) return
+    let current = true
+    githubCliSignedIn()
+      .then((signedIn) => current && setGithubCli(signedIn))
+      .catch(() => undefined)
+    return () => {
+      current = false
+    }
+  }, [githubKeys.length])
+  const fromGithubCli = githubCli && useGithubCli ? githubKeys : []
+  const required = template.inputs.filter((input) => input.required && !fromGithubCli.includes(input.key))
+  const optional = template.inputs.filter((input) => !input.required && !fromGithubCli.includes(input.key))
   const missing = required.some((input) => !secrets[input.key]?.trim())
   const used = [...new Map(template.agents.map((agent) => choiceLabel(models.choice(agent), models.options)).map((label, _, all) => [label, all.filter((other) => other === label).length]))]
 
   function start() {
     setRunning(true)
     setError(null)
-    importCompanyTemplate({ catalog: template.id }, name, secrets, models.overrides(template.agents))
+    importCompanyTemplate({ catalog: template.id }, name, secrets, fromGithubCli, models.overrides(template.agents))
       .then(() => {
         toast.success(t('Firma „{name}“ angelegt.', { name: name.trim() || template.name }))
         onDone()
@@ -46,6 +63,16 @@ function ImportForm({ template, models, onModels, onDone }: { template: Template
         <Label htmlFor="template-name">{t('Name der neuen Firma')}</Label>
         <Input id="template-name" value={name} disabled={running} onChange={(event) => setName(event.target.value)} />
       </div>
+
+      {githubCli && githubKeys.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Switch id="github-cli" checked={useGithubCli} disabled={running} onCheckedChange={setUseGithubCli} />
+            <Label htmlFor="github-cli">{t('{keys} aus der GitHub CLI übernehmen', { keys: githubKeys.join(', ') })}</Label>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('Die App holt das Token erst beim Import von der GitHub CLI; Paperclip legt daraus ein Secret an.')}</p>
+        </div>
+      )}
 
       {required.length > 0 && (
         <div className="flex flex-col gap-2">

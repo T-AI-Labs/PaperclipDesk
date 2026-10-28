@@ -56,7 +56,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Aucun fichier journal « {} »",
     "Impossible d'enregistrer les réglages : {}",
     "À propos de PaperclipDesk",
-    "Rechercher des mises à jour …",
+    "Dépannage",
     "Toujours afficher le sélecteur au démarrage",
     "Changer de connexion …",
     "Se connecter en local",
@@ -114,7 +114,7 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Aller à",
     "Travail",
     "Équipe",
-    "Entreprise à partir d’un modèle …",
+    "Nouvelle entreprise à partir d’un modèle …",
     "Ce modèle n’existe pas.",
     "Paperclip n’a pas répondu à temps.",
     "Aucune connexion Paperclip n’est ouverte.",
@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Impossible de sauvegarder les données du serveur : {}",
     "Afficher Paperclip",
     "Réglages …",
+    "La GitHub CLI n’a fourni aucun jeton. Connectez-vous avec « gh auth login ».",
 ];

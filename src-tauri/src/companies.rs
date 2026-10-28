@@ -137,6 +137,21 @@ pub fn import(webview: &Webview, source: &TemplateSource, name: Option<&str>, se
     imported(&answer)
 }
 
+/// The token of the account the GitHub CLI is signed in with; `gh` reads it from its own store without going online.
+pub fn github_cli_token() -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let output = std::process::Command::new("gh")
+        .args(["auth", "token", "--hostname", "github.com"])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    let token = String::from_utf8(output.stdout).ok()?.trim().to_owned();
+    (output.status.success() && !token.is_empty()).then_some(token)
+}
+
 /// The adapters this Paperclip runs agents with, and the models of each. Paperclip lists models per company only; without
 /// one, each adapter keeps its own default model.
 const ADAPTERS: &str = "async company => { const response = await fetch('/api/adapters'); const answer = await response.json().catch(() => ({})); if (!response.ok) return JSON.stringify({ error: answer.error ?? answer.message ?? `HTTP ${response.status}` }); const usable = answer.filter(adapter => !adapter.disabled && adapter.type !== 'http'); const models = async type => { if (!company) return []; const listed = await fetch(`/api/companies/${encodeURIComponent(company)}/adapters/${encodeURIComponent(type)}/models`).catch(() => null); return listed?.ok ? ((await listed.json().catch(() => [])) ?? []).map(model => ({ id: String(model.id), label: String(model.label ?? model.id) })) : []; }; return JSON.stringify({ adapters: await Promise.all(usable.map(async adapter => ({ type: adapter.type, models: await models(adapter.type) }))) }); }";

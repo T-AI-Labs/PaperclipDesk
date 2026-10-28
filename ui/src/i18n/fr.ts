@@ -383,7 +383,10 @@ export const fr: Catalogue = [
   'Le nouveau serveur convertit la base de données à son premier démarrage ; ensuite, aucune version plus ancienne ne démarre sur ces données. Cette app est testée avec la version {pinned} ; avec une plus récente, certaines choses peuvent ne pas fonctionner.',
   'Installation de Paperclip {version}. Sauvegarde : {path}',
   'Installation de Paperclip {version}.',
-  'Icône dans la zone de notification',
+  'Icône dans la barre d’état système',
   'Afficher les erreurs en notifications',
   'Zoom en pourcentage, de {min} à {max}',
+  'Mises à jour …',
+  'Reprendre {keys} de la GitHub CLI',
+  'L’application récupère le jeton auprès de la GitHub CLI au moment de l’import ; Paperclip l’enregistre comme secret.',
 ]
