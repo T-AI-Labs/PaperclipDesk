@@ -97,7 +97,10 @@ pub fn install(packages: &Path, package: &Package, progress: impl Fn(u64, Option
         }
         progress(0, None);
         unpack(&archive, &unpacking).map_err(|e| i18n::f("Das Server-Paket ließ sich nicht entpacken: {}", &[&e]))?;
-        std::fs::rename(&unpacking, installed_dir(packages, version)).map_err(|e| i18n::f("Das Server-Paket ließ sich nicht entpacken: {}", &[&e]))
+        let installed = installed_dir(packages, version);
+        // What is there is incomplete, else it would have been started: e.g. the long paths an uninstaller could not delete.
+        let _ = std::fs::remove_dir_all(&installed);
+        std::fs::rename(&unpacking, &installed).map_err(|e| i18n::f("Das Server-Paket ließ sich nicht entpacken: {}", &[&e]))
     });
     let _ = std::fs::remove_file(&archive);
     let _ = std::fs::remove_dir_all(&unpacking);
