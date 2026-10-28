@@ -1,9 +1,9 @@
 fn main() {
     // The server version the app runs is pinned in the root package.json; a release build also gets the package's checksum.
-    let manifest = std::fs::read_to_string("../../package.json").expect("root package.json");
+    let manifest = std::fs::read_to_string("../package.json").expect("root package.json");
     let manifest: serde_json::Value = serde_json::from_str(&manifest).expect("root package.json is JSON");
     println!("cargo:rustc-env=PAPERCLIP_SERVER_VERSION={}", manifest["paperclip"]["server"].as_str().expect("paperclip.server in package.json"));
-    println!("cargo:rerun-if-changed=../../package.json");
+    println!("cargo:rerun-if-changed=../package.json");
     println!("cargo:rerun-if-env-changed=PAPERCLIP_SERVER_SHA256");
     if let Ok(sha256) = std::env::var("PAPERCLIP_SERVER_SHA256") {
         println!("cargo:rustc-env=PAPERCLIP_SERVER_SHA256={sha256}");

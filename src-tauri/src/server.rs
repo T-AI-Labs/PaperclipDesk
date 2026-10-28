@@ -39,7 +39,7 @@ impl ServerLayout {
         // Both hold the pinned version; a newer one the user chose must be downloaded, not replaced by them.
         let pinned = version == crate::server_package::VERSION;
         let installed = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("app-server"))).filter(|_| pinned);
-        let staged = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|root| root.join("build")).filter(|_| pinned);
+        let staged = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(1).map(|root| root.join("build")).filter(|_| pinned);
         let candidates = [
             Some((downloaded.join("server"), downloaded.join("node-bin").join("node.exe"), downloaded.clone())),
             installed.as_ref().map(|root| (root.join("server"), root.join("node-bin").join("node.exe"), root.clone())),

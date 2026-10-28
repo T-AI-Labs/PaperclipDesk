@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/T-AI-Labs/PaperclipDesk/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/T-AI-Labs/PaperclipDesk/ci.yml?branch=main&style=flat-square&label=ci" alt="CI"></a>
-  <a href="https://github.com/T-AI-Labs/PaperclipDesk/releases"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FT-AI-Labs%2FPaperclipDesk%2Fmain%2Fcrates%2Fpaperclipdesk%2Ftauri.conf.json&query=%24.version&style=flat-square&label=version" alt="Version"></a>
+  <a href="https://github.com/T-AI-Labs/PaperclipDesk/releases"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FT-AI-Labs%2FPaperclipDesk%2Fmain%2Fsrc-tauri%2Ftauri.conf.json&query=%24.version&style=flat-square&label=version" alt="Version"></a>
   <a href="https://docs.paperclip.ing/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FT-AI-Labs%2FPaperclipDesk%2Fmain%2Fpackage.json&query=%24.paperclip.server&style=flat-square&label=paperclip%20server" alt="Paperclip server version"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?style=flat-square" alt="Platform: Windows 10 and 11">
   <img src="https://img.shields.io/badge/languages-11-4c9a2a?style=flat-square" alt="11 languages">

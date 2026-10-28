@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'crates/paperclipdesk/tauri.conf.json'
+      - 'src-tauri/tauri.conf.json'
       - 'release-notes/**'
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
       - name: Check whether this version is released already
         id: check
         run: |
-          version=$(jq -r .version crates/paperclipdesk/tauri.conf.json)
+          version=$(jq -r .version src-tauri/tauri.conf.json)
           if [ -n "$(git ls-remote --tags origin "refs/tags/v$version")" ]; then
             echo "::notice::v$version is released already, nothing to do."
             echo "unreleased=false" >> "$GITHUB_OUTPUT"
@@ -47,7 +47,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      CONFIG_PATH: 'crates/paperclipdesk/tauri.conf.json'
+      CONFIG_PATH: 'src-tauri/tauri.conf.json'
       FORCE_COLOR: 'true'
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -123,11 +123,11 @@ jobs:
       # produces the installer and *then* exits with an error, so a release missing this
       # secret fails the job rather than shipping an installer nobody can update from.
       - name: Build installer and updater artifacts
-        working-directory: crates/paperclipdesk
+        working-directory: src-tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx --prefix ../../ui tauri build
+        run: npx --prefix ../ui tauri build
 
       - name: Collect artifacts
         shell: pwsh

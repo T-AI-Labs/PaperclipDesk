@@ -4,15 +4,15 @@
   "version": "1.3.1",
   "identifier": "local.paperclipdesk",
   "build": {
-    "frontendDist": "../../ui/dist",
+    "frontendDist": "../ui/dist",
     "devUrl": "http://localhost:1440",
     "beforeDevCommand": {
       "script": "npm run dev",
-      "cwd": "../../ui"
+      "cwd": "../ui"
     },
     "beforeBuildCommand": {
       "script": "npm run build",
-      "cwd": "../../ui"
+      "cwd": "../ui"
     }
   },
   "app": {
@@ -45,7 +45,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt"
+      "../THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt"
     },
     "createUpdaterArtifacts": true,
     "windows": {
