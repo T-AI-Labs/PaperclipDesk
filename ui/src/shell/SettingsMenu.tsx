@@ -27,6 +27,8 @@ export type Panel = 'server' | 'remotes' | 'updates' | 'templates' | 'shortcuts'
 interface Props extends PageProps {
   zoomPercent: number
   connected: boolean
+  /// The newer version of the app, once one was found.
+  update: string | null
   onPanel: (panel: Panel) => void
 }
 
@@ -111,7 +113,7 @@ function ControlRow({ label, children }: { label: string; children: ReactNode })
   )
 }
 
-function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Props) {
+function Content({ settings, saving, save, zoomPercent, connected, update, onPanel }: Props) {
   const [query, setQuery] = useState('')
   const search = useRef<HTMLInputElement>(null)
   // The menu focuses itself once it is open; the search field takes the focus back, so typing searches right away.
@@ -255,14 +257,6 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
           ),
         },
         {
-          words: [t('Beim Start nach Updates suchen'), t('Updates')],
-          node: (
-            <MenubarCheckboxItem key="updates" checked={settings.check_updates_on_start} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ check_updates_on_start: checked })}>
-              {t('Beim Start nach Updates suchen')}
-            </MenubarCheckboxItem>
-          ),
-        },
-        {
           words: [t('Protokolle beim Beenden löschen')],
           node: (
             <MenubarCheckboxItem key="clear-logs" checked={settings.clear_logs_on_exit} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ clear_logs_on_exit: checked })}>
@@ -287,10 +281,10 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
           ),
         },
         {
-          words: [t('Symbol im Infobereich')],
+          words: [t('Symbol im Tray')],
           node: (
             <MenubarCheckboxItem key="tray" checked={settings.show_tray} disabled={saving} onSelect={keepOpen} onCheckedChange={(checked) => set({ show_tray: checked })}>
-              {t('Symbol im Infobereich')}
+              {t('Symbol im Tray')}
             </MenubarCheckboxItem>
           ),
         },
@@ -313,6 +307,15 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
     {
       title: '',
       rows: [
+        {
+          words: [t('Updates …'), t('Nach Updates suchen'), t('Beim Start nach Updates suchen'), t('Server-Version')],
+          node: (
+            <MenubarItem inset key="updates" onSelect={() => onPanel('updates')}>
+              {t('Updates …')}
+              {update && <span className="ml-auto pl-3 text-xs text-primary">{t('Update {version}', { version: update })}</span>}
+            </MenubarItem>
+          ),
+        },
         { words: [t('Lokaler Server …'), t('Paperclip-Server')], node: <MenubarItem inset key="server" onSelect={() => onPanel('server')}>{t('Lokaler Server …')}</MenubarItem> },
         { words: [t('Tastenkürzel …'), t('Tastenkürzel')], node: <MenubarItem inset key="shortcuts" onSelect={() => onPanel('shortcuts')}>{t('Tastenkürzel …')}</MenubarItem> },
         { words: [t('Beenden')], node: <MenubarItem inset key="quit" variant="destructive" onSelect={command('app.quit')}>{t('Beenden')}</MenubarItem> },
@@ -356,8 +359,9 @@ function Content({ settings, saving, save, zoomPercent, connected, onPanel }: Pr
 export default function SettingsMenu(props: Props) {
   return (
     <MenubarMenu value="settings">
-      <MenubarTrigger aria-label={t('Einstellungen')} title={t('Einstellungen')} className="rounded-md px-2 py-1 hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent">
+      <MenubarTrigger aria-label={t('Einstellungen')} title={props.update ? t('Update {version}', { version: props.update }) : t('Einstellungen')} className="relative rounded-md px-2 py-1 hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent">
         <Gear className="size-4" />
+        {props.update && <span aria-hidden className="absolute top-0.5 right-1 size-2 rounded-full bg-primary ring-2 ring-sidebar" />}
       </MenubarTrigger>
       <MenubarContent align="end" sideOffset={5} className="w-80">
         <Content {...props} />

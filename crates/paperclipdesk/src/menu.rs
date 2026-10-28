@@ -14,7 +14,6 @@ const OPEN_PREFIX: &str = "connection.open.";
 const PAGE_PREFIX: &str = "paperclip.page.";
 const COMPANY_PREFIX: &str = "company.";
 /// Entries with these ids open a panel of the shell; the shell handles them itself and never hands them to `handle`.
-const SHELL_UPDATES: &str = "shell.updates";
 const SHELL_CONNECTIONS: &str = "shell.connections";
 const SHELL_TEMPLATES: &str = "shell.templates";
 pub const RECENT_CONNECTIONS: usize = 5;
@@ -71,6 +70,7 @@ pub enum Entry {
     Separator,
     /// A heading above the entries that follow it.
     Label { label: String },
+    Submenu { label: String, entries: Vec<Entry> },
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -110,7 +110,7 @@ pub fn build(client: &Client) -> Vec<Menu> {
         page("company/settings", i18n::t("Firmeneinstellungen")),
         Entry::Separator,
         // Works before a connection is open: the catalog is in the app, and the shell starts the local server once it needs one.
-        item(SHELL_TEMPLATES, i18n::t("Firma aus Vorlage …")),
+        item(SHELL_TEMPLATES, i18n::t("Neue Firma aus Vorlage …")),
     ]);
 
     let new = vec![action("paperclip.new_issue".into(), i18n::t("Neue Aufgabe …")), page("agents/new", i18n::t("Neuer Agent …")), Entry::Separator, action("paperclip.search".into(), i18n::t("Suchen …"))];
@@ -129,15 +129,16 @@ pub fn build(client: &Client) -> Vec<Menu> {
     ];
 
     // Reading first, then everything for looking into a problem, then the app itself; the project page and the licenses are in its About box.
+    // Updates live in the gear with the rest of the app's own upkeep.
     let help = vec![
         item("help.docs", i18n::t("Paperclip-Dokumentation")),
         item("help.report_issue", i18n::t("Problem melden …")),
         Entry::Separator,
-        item("help.logs", i18n::t("Protokoll")),
-        item("help.data_folder", i18n::t("Datenordner öffnen")),
-        item("view.devtools", i18n::t("Entwicklertools")),
+        Entry::Submenu {
+            label: i18n::t("Fehlersuche").to_owned(),
+            entries: vec![item("help.logs", i18n::t("Protokoll")), item("help.data_folder", i18n::t("Datenordner öffnen")), item("view.devtools", i18n::t("Entwicklertools"))],
+        },
         Entry::Separator,
-        item(SHELL_UPDATES, i18n::t("Nach Updates suchen …")),
         item("help.about", i18n::t("Über PaperclipDesk")),
     ];
 

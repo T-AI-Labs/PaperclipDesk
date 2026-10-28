@@ -192,6 +192,7 @@ export default function App() {
           zoomPercent={snapshot.zoomPercent}
           connected={snapshot.hasCurrentConnection}
           paperclipPath={snapshot.paperclipPath}
+          update={updater.available ? updater.version : null}
           onPanel={openPanel}
           // Going elsewhere from the menu leaves the company being planned; the page in front would hide where the user went.
           onNavigate={() => fullPanel && closePanel()}

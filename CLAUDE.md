@@ -110,14 +110,14 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 7. **Third-party licenses ship with the app.** `THIRD_PARTY_LICENSES.txt` is committed, goes into the installer and
    opens from the About box in the Help menu. Run `npm run licenses` after a dependency was added, removed or updated.
 8. **No telemetry.** The app talks to the Paperclip it is connected to and to GitHub for updates, the server package and
-   the list of newer server versions while the server settings are open.
+   the list of newer server versions while the updates panel is open.
 
 ## The Paperclip server version
 
 `package.json` pins it under `paperclip.server`. A build from this repository uses the server staged under `build/`. A
 release build has no server inside: it downloads the package for its pinned version on the first local start.
 
-A newer server the user can install from the server settings, from the list `npm run server-catalog` publishes in the
+A newer server the user can install from the updates panel, from the list `npm run server-catalog` publishes in the
 release `server-catalog`: `server-versions.json` with each packaged version and its SHA-256, and `.sig` with its
 signature, which the app checks with the public key in `crates/paperclipdesk/server-catalog.pub`. That key is not the
 updater's: the list is signed next to packages built from Paperclip's code, and a key stolen there must not sign app

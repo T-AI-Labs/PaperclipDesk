@@ -44,7 +44,7 @@ PaperclipDesk is there to set up AI companies quickly and to run them well. Pape
 
 ### A company from a template
 
-**Company from template …** in the **Company** menu, or on the welcome page, opens the ready-made companies of [Paperclip's catalog](https://github.com/paperclipai/companies) over the whole window, before any server runs. The templates are a table that searches down to their agents and skills, sorts by any column (the stars of the project each one was made from, recent update, name, number of agents, skills, teams or levels) and filters by category, size and contents. Each template shows its goals, agents, hierarchy, teams and skills before the import.
+**New company from template …** in the **Company** menu, or **Company from template** on the welcome page, opens the ready-made companies of [Paperclip's catalog](https://github.com/paperclipai/companies) over the whole window, before any server runs. The templates are a table that searches down to their agents and skills, sorts by any column (the stars of the project each one was made from, recent update, name, number of agents, skills, teams or levels) and filters by category, size and contents. Each template shows its goals, agents, hierarchy, teams and skills before the import.
 
 Before the company is created, you choose which AI its agents work with: a standard for all, e.g. Claude Code with your subscription and a Sonnet model, and any agent set apart; an agent whose template names no adapter would otherwise come in as a plain command without AI. Only then does the app start the local server, and Paperclip creates the company and switches to it.
 
@@ -101,10 +101,10 @@ The menus at the left are about the Paperclip in front; Paperclip's own pages op
 
 | Menu | Entries |
 | --- | --- |
-| **Company** | Your companies with a tick at the one in front, **Manage companies …**, **Company settings** and **Company from template …**, see [A company from a template](#a-company-from-a-template) |
+| **Company** | Your companies with a tick at the one in front, **Manage companies …**, **Company settings** and **New company from template …**, see [A company from a template](#a-company-from-a-template) |
 | **New** | **New issue …**, **New agent …**, **Search …** |
 | **Go to** | **Dashboard**, **Inbox**, **Issues**, **Goals**, **Agents**, **Approvals**, **Costs** |
-| **Help** | **Paperclip documentation**, **Report a problem …**, **Log**, **Open data folder**, **Developer tools**, **Check for updates …**, **About PaperclipDesk** with the project page and the third-party licenses |
+| **Help** | **Paperclip documentation**, **Report a problem …**, **Troubleshooting** with **Log**, **Open data folder** and **Developer tools**, **About PaperclipDesk** with the project page and the third-party licenses |
 
 At the right sit the connection button, the bell and the gear. The bell lists what waits in Paperclip's inbox for the company in front, read once a minute and opening the entry in Paperclip on a click, and the app's own recent messages, its errors and warnings and those of the local server among them. An error also pops up at the top right with its cause and a button to the log, unless **Show errors as notifications** in the gear is off.
 
@@ -116,16 +116,18 @@ The gear opens the settings as a menu, with a search field on top.
 | --- | --- |
 | **View** | Zoom in steps of 10 % from 30 % to 300 %, **Reload**, **Full screen**, **Show menu bar** |
 | **Appearance** | The colour scheme (system, light or dark), which Paperclip follows too, an accent colour and 32 designs, WinUI 3 by default |
-| **App** | The language, **Check for updates at launch**, **Clear logs on exit**, **Welcome page at every start**, **Show errors as notifications**, **Icon in the notification area**, and **Back up settings** to export or import them |
-| | **Local server …** opens the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
+| **App** | The language, **Clear logs on exit**, **Welcome page at every start**, **Show errors as notifications**, **Icon in the system tray**, and **Back up settings** to export or import them |
+| | **Updates …** opens the updates of the app and of the local server, **Local server …** the panel for the local server, **Keyboard shortcuts …** the list of keys; **Quit** ends the app |
 
-The icon in the notification area, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, the **Company**, **New** and **Go to** menus of the menu bar, **Settings …**, which opens the gear, and **Quit**.
+The icon in the system tray, on by default, brings the window forward with a click. Its menu has **Show Paperclip**, the **Company**, **New** and **Go to** menus of the menu bar, **Settings …**, which opens the gear, and **Quit**.
 
 <p align="center"><img src="assets/settings.png" alt="The gear menu open over Paperclip, with zoom, colour scheme, accent colour, design, language and the entry for the local server" width="100%"></p>
 
-**Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, offers newer versions of Paperclip from a list the project signs and copies the data first if you keep the backup on, restarts or reinstalls the server, has an editor for its `config.json` and `.env`, and resets it. The first time the app starts a local server, it turns Paperclip's experimental **Streamlined UI** off; you can turn it on again in Paperclip's instance settings, and the app leaves it so.
+**Updates …** opens one panel for every update. It shows the version of PaperclipDesk, searches for a newer one and has the switch for the search at launch; below, it offers newer versions of the Paperclip server from a list the project signs and copies the data first if you keep the backup on. Once a new version of the app is out, a dot on the gear says so.
 
-<p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the installed version, a newer version to install, the configuration editor and the reset" width="100%"></p>
+**Local server …** opens the **Paperclip server** panel over Paperclip. It shows the version of the local server, restarts or reinstalls the server, has an editor for its `config.json` and `.env`, and resets it. The first time the app starts a local server, it turns Paperclip's experimental **Streamlined UI** off; you can turn it on again in Paperclip's instance settings, and the app leaves it so.
+
+<p align="center"><img src="assets/server-panel.png" alt="The Paperclip server panel with the installed version, the configuration editor and the reset" width="100%"></p>
 
 ### The menu bar and keyboard shortcuts
 

@@ -66,6 +66,7 @@ export type MenuEntry =
   | { kind: 'item'; id: string; label: string; enabled: boolean; checked: boolean | null }
   | { kind: 'separator' }
   | { kind: 'label'; label: string }
+  | { kind: 'submenu'; label: string; entries: MenuEntry[] }
 
 export interface Menu {
   label: string

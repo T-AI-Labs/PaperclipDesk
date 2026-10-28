@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
-import { Download, LoaderCircle, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ArrowUpCircle, Download, ExternalLink, LoaderCircle, RefreshCw } from 'lucide-react'
 import { toast } from '@/lib/notifications'
 
 import { SwitchRow } from '@/components/setting-row'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { type PageProps, errorMessage, getAbout } from '@/lib/client'
+import { type PageProps, type ServerInfo, errorMessage, getAbout, getServerInfo, openProjectLink, serverVersions, upgradeServer } from '@/lib/client'
 import type { Updater } from '@/lib/updater'
 import { t } from '@/i18n'
 
-function Updates({ updater, version, settings, saving, save }: PageProps & { updater: Updater; version: string | undefined }) {
+function App({ updater, version, settings, saving, save }: PageProps & { updater: Updater; version: string | undefined }) {
   // Only a check the user asked for reports its outcome; the one at start-up stays quiet.
   const [checked, setChecked] = useState<'current' | string | null>(null)
 
@@ -24,7 +25,7 @@ function Updates({ updater, version, settings, saving, save }: PageProps & { upd
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Download className="size-4 text-primary" /> {t('Updates')}
+          <Download className="size-4 text-primary" /> PaperclipDesk
         </CardTitle>
         <CardDescription>{t('Installierte Version {version}.', { version: version ?? '–' })}</CardDescription>
         <CardAction>
@@ -69,13 +70,107 @@ function Updates({ updater, version, settings, saving, save }: PageProps & { upd
   )
 }
 
-/// The installed version, the search for a newer one and its installation.
+function ServerVersions({ info, onDone }: { info: ServerInfo | null; onDone: () => void }) {
+  const [versions, setVersions] = useState<string[] | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const [backup, setBackup] = useState(true)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const [running, setRunning] = useState(false)
+
+  useEffect(() => {
+    serverVersions()
+      .then(setVersions)
+      .catch((e: unknown) => setFailed(errorMessage(e)))
+  }, [])
+
+  function upgrade(version: string) {
+    setRunning(true)
+    upgradeServer(version, backup)
+      .then((copy) => {
+        toast.success(copy ? t('Paperclip {version} wird installiert. Sicherung: {path}', { version, path: copy }) : t('Paperclip {version} wird installiert.', { version }))
+        setVersions((current) => current?.filter((newer) => newer.localeCompare(version, undefined, { numeric: true }) > 0) ?? null)
+      })
+      .catch((e: unknown) => toast.error(errorMessage(e)))
+      .finally(() => {
+        setRunning(false)
+        onDone()
+      })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ArrowUpCircle className="size-4 text-primary" /> {t('Paperclip-Server')}
+        </CardTitle>
+        <CardDescription>
+          {t('Installierte Version {version}.', { version: info?.version ?? '–' })} {t('Neuere Versionen von Paperclip, signiert vom PaperclipDesk-Projekt. Die Daten des lokalen Servers kommen mit.')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="divide-y">
+        {failed !== null ? (
+          <p className="pb-3.5 text-xs text-destructive">{failed}</p>
+        ) : versions === null ? (
+          <p className="flex items-center gap-2 pb-3.5 text-xs text-muted-foreground">
+            <LoaderCircle className="size-3.5 animate-spin" /> {t('Suche nach neueren Versionen …')}
+          </p>
+        ) : versions.length === 0 ? (
+          <p className="pb-3.5 text-xs text-muted-foreground">{t('Es gibt keine neuere Version.')}</p>
+        ) : (
+          versions.map((version) => (
+            <div key={version} className="flex items-center justify-between gap-4 py-2.5 first:pt-0">
+              <span className="font-mono text-sm">{version}</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => void openProjectLink({ server_release: version }).catch((e: unknown) => toast.error(errorMessage(e)))}>
+                  <ExternalLink /> {t('Was ist neu')}
+                </Button>
+                <Button size="sm" disabled={running || info === null} onClick={() => setConfirming(version)}>
+                  {running ? <LoaderCircle className="animate-spin" /> : <Download />} {t('Installieren')}
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+        {versions !== null && versions.length > 0 && (
+          <SwitchRow id="upgrade-backup" label={t('Vorher sichern')} description={t('Kopiert die Daten des lokalen Servers neben den Datenordner, bevor der neue Server sie umbaut.')} checked={backup} onChange={setBackup} />
+        )}
+      </CardContent>
+
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent>
+          <AlertDialogTitle>{t('Paperclip {version} installieren?', { version: confirming ?? '' })}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('Der neue Server baut beim ersten Start die Datenbank um; danach startet keine ältere Version mehr auf diesen Daten. Diese App ist mit Version {pinned} getestet, mit einer neueren kann einzelnes nicht funktionieren.', { pinned: info?.pinned_version ?? '–' })}
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('Abbrechen')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirming && upgrade(confirming)}>{t('Installieren')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  )
+}
+
+/// Every update in one place: the app's own, and newer versions of the local Paperclip server.
 export default function UpdatesPanel(props: PageProps & { updater: Updater }) {
   const [version, setVersion] = useState<string>()
+  const [info, setInfo] = useState<ServerInfo | null>(null)
+  const loadInfo = useCallback(() => {
+    getServerInfo()
+      .then(setInfo)
+      .catch((e: unknown) => toast.error(errorMessage(e)))
+  }, [])
+  useEffect(loadInfo, [loadInfo])
   useEffect(() => {
     getAbout()
       .then((about) => setVersion(about.version))
       .catch(() => undefined)
   }, [])
-  return <Updates {...props} version={version} />
+  return (
+    <>
+      <App {...props} version={version} />
+      <ServerVersions info={info} onDone={loadInfo} />
+    </>
+  )
 }
