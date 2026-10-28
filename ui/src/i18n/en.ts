@@ -387,4 +387,6 @@ export const en: Catalogue = [
   'Show errors as notifications',
   'Zoom in percent, {min} to {max}',
   'Updates …',
+  'Take {keys} from the GitHub CLI',
+  'The app gets the token from the GitHub CLI only at the import; Paperclip stores it as a secret.',
 ]

@@ -387,4 +387,6 @@ export const fr: Catalogue = [
   'Afficher les erreurs en notifications',
   'Zoom en pourcentage, de {min} à {max}',
   'Mises à jour …',
+  'Reprendre {keys} de la GitHub CLI',
+  'L’application récupère le jeton auprès de la GitHub CLI au moment de l’import ; Paperclip l’enregistre comme secret.',
 ]

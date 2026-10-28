@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Не удалось сделать резервную копию данных сервера: {}",
     "Показать Paperclip",
     "Настройки …",
+    "GitHub CLI не вернул токен. Войдите с помощью «gh auth login».",
 ];

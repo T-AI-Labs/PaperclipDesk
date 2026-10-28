@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "सर्वर डेटा का बैकअप नहीं हो सका: {}",
     "Paperclip दिखाएँ",
     "सेटिंग्स …",
+    "GitHub CLI ने कोई टोकन नहीं दिया। “gh auth login” से साइन इन करें।",
 ];

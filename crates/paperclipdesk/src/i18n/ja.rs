@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "サーバーのデータをバックアップできませんでした: {}",
     "Paperclip を表示",
     "設定 …",
+    "GitHub CLI からトークンを取得できませんでした。「gh auth login」でサインインしてください。",
 ];

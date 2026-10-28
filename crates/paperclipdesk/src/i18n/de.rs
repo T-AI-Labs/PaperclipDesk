@@ -1,5 +1,5 @@
 /// The texts as they stand in the code. Every other language lists its translations in this order.
-pub const MESSAGES: [&str; 128] = [
+pub const MESSAGES: [&str; 129] = [
     "Paperclip-Server wird heruntergeladen … {} von {} MB",
     "Paperclip-Server wird heruntergeladen … {} MB",
     "Paperclip-Server wird entpackt …",
@@ -128,4 +128,5 @@ pub const MESSAGES: [&str; 128] = [
     "Die Server-Daten ließen sich nicht sichern: {}",
     "Paperclip anzeigen",
     "Einstellungen …",
+    "Die GitHub CLI hat kein Token geliefert. Melde dich mit „gh auth login“ an.",
 ];

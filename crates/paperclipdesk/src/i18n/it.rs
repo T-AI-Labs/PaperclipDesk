@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Impossibile eseguire il backup dei dati del server: {}",
     "Mostra Paperclip",
     "Impostazioni …",
+    "La GitHub CLI non ha restituito alcun token. Accedi con «gh auth login».",
 ];

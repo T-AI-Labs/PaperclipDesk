@@ -387,4 +387,6 @@ export const zh: Catalogue = [
   '以通知显示错误',
   '缩放百分比，{min} 到 {max}',
   '更新 …',
+  '从 GitHub CLI 获取 {keys}',
+  '应用仅在导入时从 GitHub CLI 获取令牌；Paperclip 将其保存为机密。',
 ]

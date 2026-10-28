@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "No se pudieron respaldar los datos del servidor: {}",
     "Mostrar Paperclip",
     "Ajustes …",
+    "La GitHub CLI no devolvió ningún token. Inicia sesión con «gh auth login».",
 ];

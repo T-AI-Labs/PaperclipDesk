@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "Impossible de sauvegarder les données du serveur : {}",
     "Afficher Paperclip",
     "Réglages …",
+    "La GitHub CLI n’a fourni aucun jeton. Connectez-vous avec « gh auth login ».",
 ];

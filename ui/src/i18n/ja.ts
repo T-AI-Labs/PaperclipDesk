@@ -387,4 +387,6 @@ export const ja: Catalogue = [
   'エラーを通知で表示',
   'ズーム（パーセント、{min}〜{max}）',
   '更新 …',
+  '{keys} を GitHub CLI から取得',
+  'アプリはインポート時にのみ GitHub CLI からトークンを取得し、Paperclip がシークレットとして保存します。',
 ]

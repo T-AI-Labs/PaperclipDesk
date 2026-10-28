@@ -386,6 +386,8 @@ export const de = [
   'Fehler als Meldung anzeigen',
   'Zoom in Prozent, {min} bis {max}',
   'Updates …',
+  '{keys} aus der GitHub CLI übernehmen',
+  'Die App holt das Token erst beim Import von der GitHub CLI; Paperclip legt daraus ein Secret an.',
 ] as const
 
 export type Message = (typeof de)[number]

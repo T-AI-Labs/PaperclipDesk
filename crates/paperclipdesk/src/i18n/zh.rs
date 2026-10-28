@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "无法备份服务器数据：{}",
     "显示 Paperclip",
     "设置 …",
+    "GitHub CLI 未返回令牌。请使用“gh auth login”登录。",
 ];

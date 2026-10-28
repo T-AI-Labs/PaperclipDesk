@@ -298,8 +298,10 @@ export interface AdapterOverride {
   adapterConfig: Record<string, unknown>
 }
 
-/// Imports a template as a new company in the Paperclip in front and switches to it; `adapters` go by agent slug.
-export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>, adapters: Record<string, AdapterOverride>) => call<void>('import_company_template', { source, name, secrets, adapters })
+/// Imports a template as a new company in the Paperclip in front and switches to it; `adapters` go by agent slug, `githubCli` names the secrets the GitHub CLI's token fills.
+export const importCompanyTemplate = (source: TemplateSource, name: string, secrets: Record<string, string>, githubCli: string[], adapters: Record<string, AdapterOverride>) =>
+  call<void>('import_company_template', { source, name, secrets, githubCli, adapters })
+export const githubCliSignedIn = () => call<boolean>('github_cli_signed_in')
 export const adapterOptions = () => call<AdapterOption[]>('adapter_options')
 /// One entry of Paperclip's inbox; the texts are Paperclip's own.
 export interface AttentionItem {

@@ -127,4 +127,5 @@ pub const CATALOG: [&str; super::de::MESSAGES.len()] = [
     "تعذّر نسخ بيانات الخادم احتياطيًا: {}",
     "إظهار Paperclip",
     "الإعدادات …",
+    "لم تُرجع GitHub CLI أي رمز. سجّل الدخول باستخدام «gh auth login».",
 ];

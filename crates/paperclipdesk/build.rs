@@ -24,6 +24,7 @@ fn main() {
         "set_menu_open",
         "record_shortcut",
         "import_company_template",
+        "github_cli_signed_in",
         "company_attention",
         "adapter_options",
         "open_paperclip_path",
