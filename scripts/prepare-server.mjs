@@ -335,7 +335,7 @@ async function startsUp(entry) {
   });
   const child = spawn(destBin, [entry], {
     cwd: bundleServerDir,
-    stdio: ["ignore", "ignore", "pipe"],
+    stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
       NODE_ENV: "production",
@@ -343,10 +343,16 @@ async function startsUp(entry) {
       PAPERCLIP_HOME: home,
       PAPERCLIP_TEAMS_CATALOG_DIR: path.join(bundleServerDir, "node_modules", "@paperclipai", "teams-catalog"),
       PAPERCLIP_MIGRATION_AUTO_APPLY: "true",
+      // The embedded PostgreSQL refuses to run as an administrator, which a CI runner's account is; there the test
+      // uses the PostgreSQL of the runner image instead.
+      ...(process.env.START_TEST_DATABASE_URL && { DATABASE_URL: process.env.START_TEST_DATABASE_URL }),
     },
   });
+  // The server logs to stdout, so the reason it stopped can be on either stream.
   let errors = "";
-  child.stderr.on("data", (chunk) => (errors = (errors + chunk).slice(-2000)));
+  const keep = (chunk) => (errors = (errors + chunk).slice(-4000));
+  child.stdout.on("data", keep);
+  child.stderr.on("data", keep);
   let exited = false;
   child.on("exit", () => (exited = true));
   let answered = false;

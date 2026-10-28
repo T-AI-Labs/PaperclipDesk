@@ -69,7 +69,15 @@ jobs:
         with:
           node-version: 24
 
+      # prepare-server starts the staged server once; the embedded PostgreSQL refuses the runner's administrator account,
+      # so that test runs against the PostgreSQL service of the runner image.
+      - name: Start PostgreSQL for the start test
+        shell: pwsh
+        run: Get-Service postgresql* | Set-Service -StartupType Manual -PassThru | Start-Service
+
       - name: Build the server package
+        env:
+          START_TEST_DATABASE_URL: postgres://postgres:root@localhost:5432/postgres
         run: |
           npm ci
           npm run prepare-server
