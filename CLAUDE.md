@@ -193,8 +193,9 @@ latest release; the daily check runs on Linux and only a missing package starts 
 away from secrets: `build` runs Paperclip's install scripts on Windows without any secret or write token and hands the
 package on as an artifact, `publish` creates the `server-v<version>` release from it, and `sign` writes and signs the
 list of server versions. `sign` runs in the environment `server-catalog`, which holds `SERVER_CATALOG_SIGNING_KEY`
-and waits for a reviewer, so no version reaches the users before someone approved it. A manual dispatch for a version
-that is packaged already signs the list again.
+and waits 24 hours before it signs: a Paperclip release that turns out to be compromised can be caught and the run
+cancelled in that time, before the version reaches the users. A manual dispatch for a version that is packaged already
+signs the list again.
 
 ## Known rough edges
 
