@@ -1,8 +1,9 @@
 name: 'Server Packages'
 
-# Packages new Paperclip server versions and publishes the signed list the app offers in its server settings.
+# Packages new Paperclip server versions and publishes the signed list the app offers in its updates panel.
 # Building runs Paperclip's install scripts, so that job holds no secret and no write token; publishing and signing run
-# on fresh machines without Paperclip's code, and signing waits for a reviewer of the environment "server-catalog".
+# on fresh machines without Paperclip's code, and signing waits 24 hours in the environment "server-catalog",
+# time to cancel the run should the Paperclip release turn out to be compromised.
 on:
   workflow_dispatch:
     inputs:
@@ -68,7 +69,15 @@ jobs:
         with:
           node-version: 24
 
+      # prepare-server starts the staged server once; the embedded PostgreSQL refuses the runner's administrator account,
+      # so that test runs against the PostgreSQL service of the runner image.
+      - name: Start PostgreSQL for the start test
+        shell: pwsh
+        run: Get-Service postgresql* | Set-Service -StartupType Manual -PassThru | Start-Service
+
       - name: Build the server package
+        env:
+          START_TEST_DATABASE_URL: postgres://postgres:root@localhost:5432/postgres
         run: |
           npm ci
           npm run prepare-server
@@ -104,7 +113,7 @@ jobs:
           archive="paperclip-server-$VERSION-win-x64.zip"
           gh release create "server-v$VERSION" "$archive" "$archive.sha256" --repo "$GITHUB_REPOSITORY" --latest=false \
             --title "Paperclip server $VERSION" \
-            --notes "A Paperclip server package PaperclipDesk can install from its server settings."
+            --notes "A Paperclip server package PaperclipDesk can install from its updates panel."
 
   sign:
     needs: [check, publish]
