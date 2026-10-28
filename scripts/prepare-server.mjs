@@ -328,7 +328,10 @@ if (existsSync(destBin) && existsSync(destLicense) && cachedVersion === NODE_VER
 async function startsUp(entry) {
   const home = mkdtempSync(path.join(os.tmpdir(), "pc-start-"));
   const port = await new Promise((resolve) => {
-    const probe = net.createServer().listen(0, "127.0.0.1", () => probe.close(() => resolve(probe.address().port)));
+    const probe = net.createServer().listen(0, "127.0.0.1", () => {
+      const { port: free } = probe.address();
+      probe.close(() => resolve(free));
+    });
   });
   const child = spawn(destBin, [entry], {
     cwd: bundleServerDir,
