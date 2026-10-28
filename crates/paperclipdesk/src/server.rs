@@ -36,8 +36,10 @@ impl ServerLayout {
     /// run from the repository, where `npm run prepare-server` staged it. The download comes first: it is the one the user chose.
     pub fn find(packages: &Path, version: &str) -> Result<Self, String> {
         let downloaded = crate::server_package::installed_dir(packages, version);
-        let installed = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("app-server")));
-        let staged = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|root| root.join("build"));
+        // Both hold the pinned version; a newer one the user chose must be downloaded, not replaced by them.
+        let pinned = version == crate::server_package::VERSION;
+        let installed = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("app-server"))).filter(|_| pinned);
+        let staged = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|root| root.join("build")).filter(|_| pinned);
         let candidates = [
             Some((downloaded.join("server"), downloaded.join("node-bin").join("node.exe"), downloaded.clone())),
             installed.as_ref().map(|root| (root.join("server"), root.join("node-bin").join("node.exe"), root.clone())),
@@ -291,6 +293,12 @@ mod tests {
 
     use super::*;
     use crate::connection::http::testing::{FakeFetch, json_response};
+
+    #[test]
+    fn a_chosen_newer_version_is_not_stood_in_for_by_the_pinned_server() {
+        let packages = std::env::temp_dir().join(format!("paperclipdesk-packages-{}", uuid::Uuid::new_v4()));
+        assert!(ServerLayout::find(&packages, "9999.1.0").is_err());
+    }
 
     #[test]
     fn processes_are_matched_by_pid() {
