@@ -7,6 +7,7 @@
     "npm:install": "npm ci",
     "postinstall": "npm --prefix ui install",
     "dev": "cd src-tauri && npx --prefix ../ui tauri dev",
+    "playground": "npm --prefix ui run playground",
     "prepare-server": "node scripts/prepare-server.mjs",
     "bundle-server": "node scripts/bundle-server.mjs",
     "prepare-server-ui": "node scripts/build-ui.mjs",

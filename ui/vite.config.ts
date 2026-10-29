@@ -10,6 +10,7 @@ export default defineConfig({
   },
   // Tauri expects a fixed port (devUrl in tauri.conf.json; 1420 and 1430 are taken by other Tauri projects) and must see Rust-side errors in the terminal.
   clearScreen: false,
-  server: { port: 1440, strictPort: true },
+  // The playground reads the host's translations for its menus.
+  server: { port: 1440, strictPort: true, fs: { allow: ['.', '../src-tauri/src/i18n'] } },
   build: { target: 'es2022' },
 })

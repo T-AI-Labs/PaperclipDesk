@@ -30,6 +30,21 @@
         "--strictPort"
       ],
       "port": 1440
+    },
+    {
+      "name": "playground",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "ui",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "1450",
+        "--strictPort"
+      ],
+      "port": 1450
     }
   ]
 }

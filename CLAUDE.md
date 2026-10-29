@@ -50,6 +50,7 @@ German: they are the keys of the translations, see [Translations](#translations)
 
 ```bash
 npm run dev                 # the app from source, with hot reload
+npm run playground          # the shell in the browser against a fake host, for design decisions; see below
 npm run check               # clippy, Rust tests, UI build, lint: run it before every commit
 npm run build               # release build without an installer
 npm run dist                # release build with the NSIS installer
@@ -88,6 +89,7 @@ Tauri build script fails on the stale ones with "failed to read plugin permissio
 | `src-tauri/src/connection/` | Saved connections, the check of a remote, what the Paperclip webview may open |
 | `ui/src/App.tsx` | Which page or panel is shown; pages are in `ui/src/pages`, the settings panels in `ui/src/panels` |
 | `ui/src/lib/client.ts` | Every command and type the shell shares with the host |
+| `ui/playground.html`, `ui/src/playground` | The design playground: the real shell in the browser, a fake host answering its commands, states to switch between and menu variants to compare |
 | `scripts` | Staging and packing the server, the local install script |
 | `release-notes` | One file per app version; the release workflow publishes it |
 
@@ -162,6 +164,15 @@ Eleven languages, German first because the code is written in it.
   is a list of the same length in the same order, checked by the compiler.
 
 A new text is appended to all eleven files, at the same position.
+
+## The design playground
+
+`npm run playground` opens `playground.html` on port 1450, next to a running `npm run dev`: the real shell, with every design,
+colour scheme and language, against `ui/src/playground/host.ts`, which answers every command with sample data and sends
+snapshots like the host. Its panel switches between states (Paperclip open, welcome, boot, error, log), offers an app
+update and raises alerts; the URL keeps the choice. The menus come from `menus.ts` in the host's own texts, read from
+`src-tauri/src/i18n`. To decide on a menu, add a variant to `MENU_VARIANTS` and compare it with `current`, which
+mirrors `menu.rs`; the chosen one then goes into `menu.rs`. The playground is never part of the app's build.
 
 ## Code style
 
