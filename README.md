@@ -52,20 +52,6 @@ Before the company is created, you choose which AI its agents work with: a stand
 
 <p align="center"><img src="assets/template-details.png" alt="A template opened with its goals, its agents as a table and the import with the name of the new company and the AI of its agents" width="100%"></p>
 
-### Coming next: the company wizard
-
-A wizard puts a new company together instead of taking a template whole. It starts from a name, a purpose and goals, takes agents of any template or of your own, sets whom each one reports to with the org chart beside it, and adds or removes skills; Paperclip checks the result before it creates the company. An optional AI assistant proposes the whole company from a description and asks back when something essential is missing. It runs through your own Claude Code and its subscription and gets only what you wrote and the template catalog. The wizard is in development and not part of a release yet.
-
-## TL;DR
-
-- **No terminal, no browser tab.** PaperclipDesk downloads the [Paperclip](https://docs.paperclip.ing/) server, starts it with its database and ends it when you close the window.
-- **Local or remote, several at once.** Run Paperclip on this PC, connect to one that already runs on another machine, or keep several remotes open side by side and switch between them with the connection button at the right of the menu bar. Each connection keeps its own login.
-- **An AI company in minutes.** Pick a ready-made company of Paperclip's catalog, look at its agents, hierarchy and skills, choose the AI they work with and create it. A wizard that puts a company together, with an AI assistant, is coming next.
-- **Paperclip's actions in a real menu bar.** Switch companies, create issues and agents, and jump to the inbox, approvals or costs from the menu bar.
-- **Settings without leaving Paperclip.** The gear at the right of the menu bar holds the view, the appearance and the app's options, and opens panels over Paperclip for the local server and your remotes.
-- **You stay in control of the server.** See its version, edit its configuration, restart or reinstall it, or reset it with a backup of the old data.
-- **Your data stays on your PC.** No account, no telemetry.
-
 ## Install
 
 1. Download the latest installer from the [Releases page](https://github.com/T-AI-Labs/PaperclipDesk/releases/latest) and run it.
