@@ -6,7 +6,7 @@
  * (build/server-bundle/win-x64 and build/node-bin/win-x64).
  */
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
@@ -363,7 +363,8 @@ async function startsUp(entry) {
     await new Promise((done) => setTimeout(done, 2000));
     answered = await fetch(`http://127.0.0.1:${port}/api/health`).then((response) => response.ok, () => false);
   }
-  if (!exited) execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+  // The server can exit between the check and the kill, and taskkill then fails; spawnSync does not throw for that.
+  if (!exited) spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
   // Ending the tree can leave a PostgreSQL worker behind, as the app's kill_stale_postgres knows; it names its binary with forward slashes.
   execFileSync(
     "powershell",
@@ -380,8 +381,8 @@ const bundle = path.join(bundleServerDir, "dist", "index.bundle.mjs");
 if (existsSync(bundle) && !(await startsUp(bundle))) {
   console.warn("[prepare-server] Dropping the bundle; the app starts dist/index.js instead.");
   rmSync(bundle);
-}
   rmSync(chunksDir, { recursive: true, force: true });
+}
 if (!existsSync(bundle) && !(await startsUp(path.join(bundleServerDir, "dist", "index.js")))) {
   throw new Error("The staged server does not start.");
 }
