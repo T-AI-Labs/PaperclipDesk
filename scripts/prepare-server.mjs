@@ -275,7 +275,7 @@ promoteServerRuntimeDependencies(serverPkgDir, bundleServerDir);
 
 validateMigrations(bundleServerDir);
 verifyResolutions(bundleServerDir, serverBundleOverrides);
-await import("./bundle-server.mjs");
+const { chunksDir } = await import("./bundle-server.mjs");
 
 const NODE_VERSION = "v24.21.0";
 const nodeBinDir = path.join(projectRoot, "build", "node-bin");
@@ -381,6 +381,7 @@ if (existsSync(bundle) && !(await startsUp(bundle))) {
   console.warn("[prepare-server] Dropping the bundle; the app starts dist/index.js instead.");
   rmSync(bundle);
 }
+  rmSync(chunksDir, { recursive: true, force: true });
 if (!existsSync(bundle) && !(await startsUp(path.join(bundleServerDir, "dist", "index.js")))) {
   throw new Error("The staged server does not start.");
 }
