@@ -128,8 +128,9 @@ if the user keeps the backup switched on. The choice is `server_version` in `cli
 upgrade itself; an app update whose pinned version is newer runs that one instead. `PAPERCLIP_SERVER_VERSION` makes
 `prepare-server`, `prepare-server-ui` and `pack-server` build another version than the pinned one.
 
-`prepare-server` also bundles the server into `dist/index.bundle.mjs`, which starts several seconds sooner than its
-thousands of modules; the app starts it when it is there and `dist/index.js` otherwise. A package that was published
+`prepare-server` also bundles the server into `dist/index.bundle.mjs` and the chunks of its dynamic imports in
+`dist/bundle-chunks`, which start several seconds sooner than its thousands of modules; the app starts it when it is
+there and `dist/index.js` otherwise. A package that was published
 before the bundle existed keeps starting from `dist/index.js` until the next server version.
 
 ## Where data lives

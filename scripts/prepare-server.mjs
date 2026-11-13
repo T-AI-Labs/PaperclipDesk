@@ -6,7 +6,7 @@
  * (build/server-bundle/win-x64 and build/node-bin/win-x64).
  */
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
@@ -130,14 +130,17 @@ const dependenciesOf = (pkg) => ({ ...pkg.peerDependencies, ...pkg.optionalDepen
 
 /**
  * Fails the build when a package would load a dependency outside the range it asks for, as a relocation gone wrong
- * does. Packages the overrides pin are left out: they are outside some ranges on purpose.
+ * does. Packages the overrides pin are left out: they are outside some ranges on purpose. So is the server's original
+ * copy, which the relocation leaves as npm installed it, with the dependencies Paperclip bundles as it published them.
  */
 function verifyResolutions(bundleServerDir, overrides) {
   const semver = createRequire(path.join(path.dirname(process.execPath), "node_modules", "npm", "index.js"))("semver");
   const pinned = new Set(Object.keys(overrides).map((key) => key.replace(/(?<=.)@.*$/, "")));
   const bundleNodeModules = path.join(bundleServerDir, "node_modules");
+  const original = path.join(bundleNodeModules, "@paperclipai", "server");
   const broken = [];
-  for (const dir of [bundleServerDir, ...packageDirs(bundleNodeModules)]) {
+  const relocatedDirs = packageDirs(bundleNodeModules).filter((dir) => dir !== original && !dir.startsWith(original + path.sep));
+  for (const dir of [bundleServerDir, ...relocatedDirs]) {
     const pkg = readPackage(dir);
     if (!pkg) continue;
     for (const [name, range] of Object.entries({ ...pkg.optionalDependencies, ...pkg.dependencies })) {
@@ -272,7 +275,7 @@ promoteServerRuntimeDependencies(serverPkgDir, bundleServerDir);
 
 validateMigrations(bundleServerDir);
 verifyResolutions(bundleServerDir, serverBundleOverrides);
-await import("./bundle-server.mjs");
+const { chunksDir } = await import("./bundle-server.mjs");
 
 const NODE_VERSION = "v24.21.0";
 const nodeBinDir = path.join(projectRoot, "build", "node-bin");
@@ -360,7 +363,8 @@ async function startsUp(entry) {
     await new Promise((done) => setTimeout(done, 2000));
     answered = await fetch(`http://127.0.0.1:${port}/api/health`).then((response) => response.ok, () => false);
   }
-  if (!exited) execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+  // The server can exit between the check and the kill, and taskkill then fails; spawnSync does not throw for that.
+  if (!exited) spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
   // Ending the tree can leave a PostgreSQL worker behind, as the app's kill_stale_postgres knows; it names its binary with forward slashes.
   execFileSync(
     "powershell",
@@ -377,6 +381,7 @@ const bundle = path.join(bundleServerDir, "dist", "index.bundle.mjs");
 if (existsSync(bundle) && !(await startsUp(bundle))) {
   console.warn("[prepare-server] Dropping the bundle; the app starts dist/index.js instead.");
   rmSync(bundle);
+  rmSync(chunksDir, { recursive: true, force: true });
 }
 if (!existsSync(bundle) && !(await startsUp(path.join(bundleServerDir, "dist", "index.js")))) {
   throw new Error("The staged server does not start.");

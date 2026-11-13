@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Bundles the staged server's entry and everything it imports into one file,
- * server/dist/index.bundle.mjs, which the app starts instead of dist/index.js.
+ * Bundles the staged server's entry and everything it imports into
+ * server/dist/index.bundle.mjs and the chunks of its dynamic imports next to
+ * it, which the app starts instead of dist/index.js.
  * Node.js spends most of a start resolving and loading the server's thousands
  * of modules; from one file it starts several seconds sooner.
  */
 
+import { rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -16,6 +18,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const serverDir = path.join(projectRoot, "build", "server-bundle", "win-x64", "server");
 const entry = path.join(serverDir, "dist", "index.js");
 const outfile = path.join(serverDir, "dist", "index.bundle.mjs");
+export const chunksDir = path.join(serverDir, "dist", "bundle-chunks");
 
 // Native addons and the packages that load them stay files of their own.
 const external = [
@@ -74,9 +77,15 @@ const keepLocation = {
 };
 
 console.log("[bundle-server] Bundling the server entry...");
+rmSync(chunksDir, { recursive: true, force: true });
 const result = await esbuild.build({
   entryPoints: [entry],
-  outfile,
+  outdir: path.dirname(outfile),
+  // Without chunks esbuild inlines each dynamic import as a lazy init, which deadlocks once an import cycle reaches a top-level await.
+  splitting: true,
+  entryNames: "[name].bundle",
+  chunkNames: `${path.basename(chunksDir)}/[name]-[hash]`,
+  outExtension: { ".js": ".mjs" },
   bundle: true,
   platform: "node",
   format: "esm",
