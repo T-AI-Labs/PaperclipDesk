@@ -130,14 +130,17 @@ const dependenciesOf = (pkg) => ({ ...pkg.peerDependencies, ...pkg.optionalDepen
 
 /**
  * Fails the build when a package would load a dependency outside the range it asks for, as a relocation gone wrong
- * does. Packages the overrides pin are left out: they are outside some ranges on purpose.
+ * does. Packages the overrides pin are left out: they are outside some ranges on purpose. So is the server's original
+ * copy, which the relocation leaves as npm installed it, with the dependencies Paperclip bundles as it published them.
  */
 function verifyResolutions(bundleServerDir, overrides) {
   const semver = createRequire(path.join(path.dirname(process.execPath), "node_modules", "npm", "index.js"))("semver");
   const pinned = new Set(Object.keys(overrides).map((key) => key.replace(/(?<=.)@.*$/, "")));
   const bundleNodeModules = path.join(bundleServerDir, "node_modules");
+  const original = path.join(bundleNodeModules, "@paperclipai", "server");
   const broken = [];
-  for (const dir of [bundleServerDir, ...packageDirs(bundleNodeModules)]) {
+  const relocatedDirs = packageDirs(bundleNodeModules).filter((dir) => dir !== original && !dir.startsWith(original + path.sep));
+  for (const dir of [bundleServerDir, ...relocatedDirs]) {
     const pkg = readPackage(dir);
     if (!pkg) continue;
     for (const [name, range] of Object.entries({ ...pkg.optionalDependencies, ...pkg.dependencies })) {
