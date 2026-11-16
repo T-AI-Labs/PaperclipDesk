@@ -128,34 +128,36 @@ function resolvedDir(dir, dependency, rootNodeModules) {
 
 const dependenciesOf = (pkg) => ({ ...pkg.peerDependencies, ...pkg.optionalDependencies, ...pkg.dependencies });
 
+/** Every dependency below `rootDir` that loads a version outside the range its package asks for. */
+function outOfRange(rootDir, pinned) {
+  const semver = createRequire(path.join(path.dirname(process.execPath), "node_modules", "npm", "index.js"))("semver");
+  const nodeModules = path.join(rootDir, "node_modules");
+  return [rootDir, ...packageDirs(nodeModules)].flatMap((dir) => {
+    const pkg = readPackage(dir);
+    if (!pkg) return [];
+    return Object.entries({ ...pkg.optionalDependencies, ...pkg.dependencies }).flatMap(([name, range]) => {
+      if (pinned.has(name) || !semver.validRange(range)) return [];
+      const found = resolvedDir(dir, name, nodeModules);
+      const version = found && readPackage(found)?.version;
+      if (!version || semver.satisfies(version, range, { includePrerelease: true })) return [];
+      return [{ key: `${pkg.name}@${pkg.version} > ${name}@${version}`, text: `${path.relative(rootDir, dir)} wants ${name}@${range} and gets ${version}` }];
+    });
+  });
+}
+
 /**
  * Fails the build when a package would load a dependency outside the range it asks for, as a relocation gone wrong
- * does. Packages the overrides pin are left out: they are outside some ranges on purpose. So is the server's original
- * copy, which the relocation leaves as npm installed it, with the dependencies Paperclip bundles as it published them.
+ * does. Packages the overrides pin are left out: they are outside some ranges on purpose. So is a package that loads
+ * the same version in npm's own install, as one does when Paperclip publishes its bundled dependencies that way.
  */
-function verifyResolutions(bundleServerDir, overrides) {
-  const semver = createRequire(path.join(path.dirname(process.execPath), "node_modules", "npm", "index.js"))("semver");
+function verifyResolutions(stagingDir, bundleServerDir, overrides) {
   const pinned = new Set(Object.keys(overrides).map((key) => key.replace(/(?<=.)@.*$/, "")));
-  const bundleNodeModules = path.join(bundleServerDir, "node_modules");
-  const original = path.join(bundleNodeModules, "@paperclipai", "server");
-  const broken = [];
-  const relocatedDirs = packageDirs(bundleNodeModules).filter((dir) => dir !== original && !dir.startsWith(original + path.sep));
-  for (const dir of [bundleServerDir, ...relocatedDirs]) {
-    const pkg = readPackage(dir);
-    if (!pkg) continue;
-    for (const [name, range] of Object.entries({ ...pkg.optionalDependencies, ...pkg.dependencies })) {
-      if (pinned.has(name) || !semver.validRange(range)) continue;
-      const found = resolvedDir(dir, name, bundleNodeModules);
-      const version = found && readPackage(found)?.version;
-      if (version && !semver.satisfies(version, range, { includePrerelease: true })) {
-        broken.push(`${path.relative(bundleServerDir, dir)} wants ${name}@${range} and gets ${version}`);
-      }
-    }
-  }
+  const installed = new Set(outOfRange(stagingDir, pinned).map(({ key }) => key));
+  const broken = outOfRange(bundleServerDir, pinned).filter(({ key }) => !installed.has(key));
   if (broken.length > 0) {
-    throw new Error(`Packages would load dependencies outside their range:\n  ${broken.join("\n  ")}`);
+    throw new Error(`Packages would load dependencies outside their range:\n  ${broken.map(({ text }) => text).join("\n  ")}`);
   }
-  console.log("[prepare-server] Every dependency resolves within its range.");
+  console.log(`[prepare-server] Every dependency resolves within its range, or as npm installed it (${installed.size}).`);
 }
 
 function promoteServerRuntimeDependencies(serverPkgDir, bundleServerDir) {
@@ -274,7 +276,7 @@ promoteServerRuntimeDependencies(serverPkgDir, bundleServerDir);
 // node_modules/.bin stays: the local adapters start their ACP servers (claude-agent-acp, codex-acp) from it.
 
 validateMigrations(bundleServerDir);
-verifyResolutions(bundleServerDir, serverBundleOverrides);
+verifyResolutions(stagingDir, bundleServerDir, serverBundleOverrides);
 const { chunksDir } = await import("./bundle-server.mjs");
 
 const NODE_VERSION = "v24.21.0";
